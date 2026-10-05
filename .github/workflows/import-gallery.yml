@@ -1,10 +1,6 @@
-name: Import licensed gallery novel
+name: Refresh licensed gallery novel
 
 on:
-  push:
-    paths:
-      - "scripts/import_gallery.py"
-      - ".github/workflows/import-gallery.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +21,7 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Import authorized novel
+      - name: Refresh authorized novel
         run: python scripts/import_gallery.py
 
       - name: Commit generated novel files
@@ -34,11 +30,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dist/data/gallery-chapters-*.js
           git add dist/assets/got-a-gallery-in-the-wild.jpg
-          git add dist/downloads/got-a-gallery-in-the-wild.epub
           git add dist/licensed-gallery.js
           if git diff --cached --quiet; then
             echo "No generated changes to commit."
             exit 0
           fi
-          git commit -m "Import licensed Got a Gallery in the Wild chapters"
+          git commit -m "Refresh licensed Got a Gallery in the Wild chapters"
           git push
