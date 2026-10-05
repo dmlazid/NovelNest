@@ -38,6 +38,7 @@ jobs:
         run: python scripts/import_astral.py
 
       - name: Commit Astral chapter updates
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -45,9 +46,11 @@ jobs:
           git add dist/assets/astral-pet-store.jpg
           git add dist/licensed-astral.js
           if git diff --cached --quiet; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
             echo "No new Astral chapter changes to commit."
             exit 0
           fi
+          echo "updated=true" >> "$GITHUB_OUTPUT"
           git commit -m "Auto-update Astral Pet Store chapters"
           for attempt in 1 2 3; do
             git fetch origin main
@@ -59,3 +62,24 @@ jobs:
             sleep 2
           done
           exit 1
+
+      - name: Set up Node for notifications
+        if: steps.commit.outputs.updated == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Notify subscribed readers
+        if: steps.commit.outputs.updated == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          NOVEL_ID: astral-pet-store
+          NOVEL_TITLE: Astral Pet Store
+          SITE_URL: https://dmlazid.github.io/NovelNest/
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "Firebase service account secret is not configured; skipping notifications."
+            exit 0
+          fi
+          npm install --no-save firebase-admin
+          node scripts/notify_firebase.mjs
