@@ -83,3 +83,20 @@ window.NOVELS = [
  'When the clock struck midnight again, the doorway disappeared. Elias stood between the shelves, holding the atlas, the letter, and a perfectly ordinary hour in his memory.',
  'At dawn, he made copies for the town council and the newspaper. Then he opened the front doors.',
  'The brass clock ticked quietly above the desk. That night, it struck only twelve.' ]}]}];
+
+// Discovery listing only: no chapter text or cover art is copied from the source.
+window.NOVELS.push({
+ id: 'got-a-gallery-in-the-wild',
+ title: 'Got a Gallery in the Wild',
+ author: 'Ripper_8410 / 두부두부',
+ genre: 'Fantasy',
+ tags: ['Fantasy', 'Action', 'Adventure', 'Comedy', 'Martial Arts', 'Supernatural'],
+ status: 'Ongoing',
+ updated: '2026-10-05',
+ sample: false,
+ externalUrl: 'https://freewebnovel.com/novel/got-a-gallery-in-the-wild',
+ externalSource: 'FreeWebNovel',
+ synopsis: 'An unexpected arrival in an unfamiliar place leaves the protagonist relying on a mysterious gallery populated by strange personalities.',
+ license: { type: 'External reading link', note: 'Original short summary. Credits and genres reference the linked listing. No permission to host chapters is claimed; all chapters remain on the external website.' },
+ chapters: []
+});

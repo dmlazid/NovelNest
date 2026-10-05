@@ -7,9 +7,12 @@ for(const n of context.window.NOVELS){
  assert.match(n.id,/^[a-z0-9-]+$/);assert(!ids.has(n.id),`Duplicate ID: ${n.id}`);ids.add(n.id);
  for(const field of ['title','author','genre','status','synopsis'])assert(typeof n[field]==='string'&&n[field].trim(),`${n.id}: missing ${field}`);
  assert(['Completed','Ongoing'].includes(n.status));assert(Array.isArray(n.tags)&&n.tags.length>0);
- assert(fs.existsSync('dist/'+n.cover),`${n.id}: missing cover`);
+ if(n.externalUrl){
+  const url=new URL(n.externalUrl);assert(url.protocol==='https:'&&url.hostname==='freewebnovel.com',`${n.id}: unapproved reading host`);
+  assert(n.externalSource&&n.chapters.length===0,`${n.id}: external entries must not contain copied chapters`);
+ }else assert(fs.existsSync('dist/'+n.cover),`${n.id}: missing cover`);
  assert(n.license?.type&&n.license?.note,`${n.id}: document publishing permission`);
- assert(n.chapters.length>0);
+ assert(n.externalUrl||n.chapters.length>0);
  for(const c of n.chapters){assert(c.title&&c.paragraphs?.length);assert(c.paragraphs.every(p=>typeof p==='string'&&p.trim()));}
 }
 for(const asset of ['app.js','catalog.js','styles.css'])assert(fs.existsSync('dist/'+asset));
