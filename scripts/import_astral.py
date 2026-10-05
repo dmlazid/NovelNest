@@ -143,9 +143,13 @@ def fetch_chapters(start: int, end: int) -> list[dict]:
     return [results[number] for number in range(start, end + 1)]
 
 
+def chunk_capacity(chapters: list[dict]) -> int:
+    return max(MIN_CHUNK_CAPACITY, math.ceil(len(chapters) / FIXED_CHUNK_FILES))
+
+
 def write_js_chunks(chapters: list[dict]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    capacity = max(MIN_CHUNK_CAPACITY, math.ceil(len(chapters) / FIXED_CHUNK_FILES))
+    capacity = chunk_capacity(chapters)
     for index in range(1, FIXED_CHUNK_FILES + 1):
         start = (index - 1) * capacity
         part = chapters[start:start + capacity]
@@ -186,9 +190,20 @@ def ensure_cover(raw: str) -> None:
 
 
 def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
+    metadata = [
+        {
+            "number": int(ch.get("number", i + 1)),
+            "title": ch.get("title") or f"Chapter {i + 1}",
+            "paragraphs": ["Loading chapter…"],
+            "lazy": True,
+        }
+        for i, ch in enumerate(chapters)
+    ]
+    metadata_json = json.dumps(metadata, ensure_ascii=False, separators=(",", ":"))
+    capacity = chunk_capacity(chapters)
     content = f"""(() => {{
   const id = 'astral-pet-store';
-  const chapters = window.ASTRAL_CHAPTERS || [];
+  const chapters = {metadata_json};
   const licensed = {{
     id,
     title: 'Astral Pet Store',
@@ -206,6 +221,7 @@ def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
     }},
     source: 'FreeWebNovel',
     sourceUrl: 'https://freewebnovel.com/novel/astral-pet-store',
+    lazyChunks: {{prefix: 'data/astral-chapters-', capacity: {capacity}, global: 'ASTRAL_CHAPTERS'}},
     chapters
   }};
   const index = window.NOVELS.findIndex(n => n.id === id);
