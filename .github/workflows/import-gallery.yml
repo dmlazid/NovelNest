@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,4 +47,6 @@ jobs:
             exit 0
           fi
           git commit -m "Auto-update licensed novel chapters"
-          git push
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
