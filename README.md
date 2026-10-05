@@ -9,7 +9,7 @@ NovelNest is a static novel library and chapter reader hosted on GitHub Pages.
 
 The current collection contains **Got a Gallery in the Wild** (ongoing) and **Astral Pet Store** (completed). Chapter counts come from the catalog; the reliability update was checked against 170 and 1,581 chapters respectively.
 
-Readers can search by title, author or genre, filter by status, browse paginated chapter lists, jump between chapters, and adjust appearance, font size, spacing and reading width. Bookmarks, preferences and reading progress are saved in the browser on the current device. There are no accounts or cross-device synchronization.
+Readers can search by title, author or genre, filter by status, browse paginated chapter lists, jump between chapters, and adjust appearance, font size, spacing and reading width. Bookmarks, preferences and reading progress are saved in the browser on the current device. The reader also remembers the paragraph and position within each chapter, shows a reading-progress percentage, and provides a Back to top button. Turn off Auto resume in reader settings to start at the top. Positions are kept for the 200 most recently read chapters on this device. There are no accounts or cross-device synchronization.
 
 Both novels load chapter text on demand. The homepage downloads chapter titles and metadata, not the full books. Failed chapter requests display a retry button. Ongoing novels show a caught-up message at the latest chapter; completed novels show an ending.
 
@@ -19,7 +19,7 @@ The editable website is in `dist/`. Node.js 22 is used by GitHub Actions. No npm
 
 ```sh
 node scripts/check.mjs
-node --test scripts/reliability.test.mjs
+node --test scripts/*.test.mjs
 node scripts/build.mjs
 python -m http.server 8000 --directory _site
 ```

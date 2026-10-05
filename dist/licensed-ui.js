@@ -205,6 +205,7 @@
     }
 
     applyReaderPrefs();
+    window.dispatchEvent(new Event('novelnest:reader-ready'));
   }
 
   function fixAbout() {
@@ -212,7 +213,7 @@
     const about = main.querySelector('.about');
     if (!about) return;
     const titles = (window.NOVELS || []).map(n => esc(n.title)).join(' and ');
-    about.innerHTML = `<span class="eyebrow">A home for stories</span><h1>About NovelNest</h1><p>NovelNest is a place to read authorized novels chapter by chapter.</p><h2>Our collection</h2><p>${titles || 'Authorized novels'} ${(window.NOVELS || []).length === 1 ? 'is' : 'are'} available on-site with publication permission confirmed by the site owner.</p><h2>Your reading data</h2><p>Bookmarks, reading preferences, and your last opened chapter are stored in your browser on this device.</p>`;
+    about.innerHTML = `<span class="eyebrow">A home for stories</span><h1>About NovelNest</h1><p>NovelNest is a place to read authorized novels chapter by chapter.</p><h2>Our collection</h2><p>${titles || 'Authorized novels'} ${(window.NOVELS || []).length === 1 ? 'is' : 'are'} available on-site with publication permission confirmed by the site owner.</p><h2>Your reading data</h2><p>Bookmarks, reading preferences, your last opened chapter, and your position inside each chapter are stored in your browser on this device.</p>`;
   }
 
   function fix() {
@@ -273,6 +274,7 @@
       p[key] = setting.value;
       writePrefs(p);
       applyReaderPrefs();
+      window.dispatchEvent(new Event('novelnest:reader-layout'));
     }
   });
 

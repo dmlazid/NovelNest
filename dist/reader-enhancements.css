@@ -200,3 +200,12 @@
   .modern-reader-tools{grid-template-columns:48px minmax(0,1fr) 48px 48px}
   .reader-chapter-select{font-size:14px;padding-left:10px}
 }
+
+/* Reading position controls stay reachable on small screens. */
+.reader-wrap{padding-bottom:85px}
+.reader-position-bar{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:14px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);box-shadow:0 4px 20px #0002;font:600 13px system-ui,sans-serif;max-width:calc(100vw - 28px)}
+.reader-position-bar>div{display:grid;gap:5px;min-width:75px}
+.reader-position-bar progress{width:75px;height:5px;accent-color:var(--green)}
+.reader-position-bar button{min-height:44px;padding:6px 10px;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:inherit;cursor:pointer}
+.reader-position-bar button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+@media print{.reader-position-bar{display:none}}
