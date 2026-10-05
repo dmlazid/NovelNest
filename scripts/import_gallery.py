@@ -163,20 +163,12 @@ def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
       note: 'Published on NovelNest with permission from the rights holder, as confirmed by the site owner.'
     }},
     source: 'FreeWebNovel',
+    sourceUrl: 'https://freewebnovel.com/novel/got-a-gallery-in-the-wild',
     chapters
   }};
   const index = window.NOVELS.findIndex(n => n.id === id);
   if (index >= 0) window.NOVELS[index] = licensed;
   else window.NOVELS.push(licensed);
-
-  try {{
-    const saved = JSON.parse(localStorage.getItem('novelnest.saved') || '[]');
-    if (Array.isArray(saved)) localStorage.setItem('novelnest.saved', JSON.stringify(saved.filter(value => value === id)));
-    const progress = JSON.parse(localStorage.getItem('novelnest.progress') || '{{}}');
-    if (progress && typeof progress === 'object' && !Array.isArray(progress)) {{
-      localStorage.setItem('novelnest.progress', JSON.stringify(progress[id] ? {{[id]: progress[id]}} : {{}}));
-    }}
-  }} catch {{}}
 }})();
 """
     CATALOG_PATH.write_text(content, encoding="utf-8")
@@ -212,8 +204,6 @@ def main() -> None:
         print("No new chapters found.", flush=True)
         updated = current_updated_date()
 
-    # Always normalize into the same ten files so index.html never needs editing
-    # when Chapter 171, 172, etc. are added.
     write_js_chunks(chapters)
     write_licensed_catalog(chapters, updated)
     print(f"Import complete: {len(chapters)} chapters available on NovelNest.", flush=True)
