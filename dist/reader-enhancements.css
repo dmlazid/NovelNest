@@ -1,0 +1,137 @@
+/* NovelNest licensed-library UI improvements */
+
+/* Keep catalog covers compact, square, and uncropped. */
+.book-card .cover:not(.external-cover){
+  width:128px !important;
+  height:128px !important;
+  aspect-ratio:1/1 !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  flex:0 0 128px;
+  background:#f1f5f3;
+  border-radius:12px;
+  box-shadow:none;
+}
+.book-card{align-items:flex-start;min-height:166px}
+.book-card>div{min-width:0;align-self:center}
+
+/* Chapter list pagination */
+.toc-pager{
+  display:grid;
+  grid-template-columns:auto auto minmax(150px,1fr) auto auto;
+  gap:9px;
+  align-items:center;
+  margin:18px 0 8px;
+}
+.toc-pager button,.toc-pager select{
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:var(--paper);
+  color:var(--ink);
+  font:600 14px 'DM Sans',sans-serif;
+  padding:0 13px;
+}
+.toc-pager select{width:100%;text-align:center;color:var(--green)}
+.toc-pager button:not(:disabled):hover{border-color:var(--green);color:var(--green)}
+.toc-page-note{text-align:center;color:var(--muted);font-size:12px;margin:9px 0 18px}
+
+/* Compact chapter reader navigation inspired by the supplied reference. */
+.reader-wrap{max-width:var(--reader-content-width,790px)}
+.modern-reader-tools{
+  display:grid;
+  grid-template-columns:58px minmax(0,1fr) 58px 58px;
+  gap:8px;
+  align-items:stretch;
+  margin:18px 0 0;
+  position:sticky;
+  top:8px;
+  z-index:25;
+}
+.reader-nav-button,.reader-settings-button,.reader-chapter-select{
+  min-height:52px;
+  border:0;
+  border-radius:8px;
+  background:var(--green);
+  color:#fff;
+  font:700 16px 'DM Sans',sans-serif;
+  box-shadow:0 4px 14px #00000012;
+}
+.reader-nav-button{display:grid;place-items:center;font-size:28px;line-height:1}
+.reader-nav-button.disabled{opacity:.38;pointer-events:none}
+.reader-settings-button{font-size:22px;cursor:pointer}
+.reader-chapter-select{width:100%;padding:0 34px 0 14px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+
+.reader-settings-panel{
+  margin:10px 0 18px;
+  padding:20px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--paper);
+  box-shadow:0 10px 28px #00000014;
+}
+.reader-settings-panel[hidden]{display:none}
+.reader-setting-row{
+  display:grid;
+  grid-template-columns:145px minmax(0,1fr);
+  gap:14px;
+  align-items:center;
+  padding:10px 0;
+}
+.reader-setting-row>span{font-weight:700;color:var(--ink)}
+.reader-setting-row select{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:var(--paper);
+  color:var(--ink);
+  padding:0 11px;
+}
+.reader-choice-group{display:flex;gap:18px;flex-wrap:wrap}
+.reader-choice-group label{display:flex;align-items:center;gap:7px;color:var(--ink)}
+.reader-choice-group input{accent-color:var(--green);width:18px;height:18px}
+
+.prose{
+  font-family:var(--reader-font-family,Georgia,serif) !important;
+  line-height:var(--reader-line-height,1.9) !important;
+}
+.reader-wrap[data-read-mode="page"] .prose{
+  height:68vh;
+  min-height:420px;
+  column-width:min(var(--reader-content-width,790px),calc(100vw - 54px));
+  column-gap:42px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  padding-bottom:12px;
+}
+.reader-wrap[data-read-mode="page"] .prose p{break-inside:avoid;}
+
+@media(max-width:760px){
+  .book-card .cover:not(.external-cover){
+    width:118px !important;
+    height:118px !important;
+    flex-basis:118px;
+  }
+  .book-card{gap:15px !important;min-height:152px}
+  .book-card h3{margin-top:5px}
+  .toc-pager{grid-template-columns:1fr 1fr;gap:8px}
+  .toc-pager select{grid-column:1/-1;grid-row:1}
+  .toc-pager [data-toc-action="first"],.toc-pager [data-toc-action="last"]{display:none}
+  .modern-reader-tools{grid-template-columns:52px minmax(0,1fr) 52px 52px;gap:6px;top:5px}
+  .reader-nav-button,.reader-settings-button,.reader-chapter-select{min-height:50px}
+  .reader-setting-row{grid-template-columns:1fr;gap:7px;padding:9px 0}
+  .reader-settings-panel{padding:15px}
+  .reader-choice-group{gap:12px 18px}
+}
+
+@media(max-width:430px){
+  .book-card .cover:not(.external-cover){
+    width:106px !important;
+    height:106px !important;
+    flex-basis:106px;
+  }
+  .modern-reader-tools{grid-template-columns:48px minmax(0,1fr) 48px 48px}
+  .reader-chapter-select{font-size:14px;padding-left:10px}
+}
