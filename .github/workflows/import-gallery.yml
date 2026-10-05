@@ -37,16 +37,40 @@ jobs:
         run: python scripts/import_gallery.py
 
       - name: Commit chapter updates
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dist/data/gallery-chapters-*.js
           git add dist/licensed-gallery.js
           if git diff --cached --quiet; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
             echo "No new chapter changes to commit."
             exit 0
           fi
+          echo "updated=true" >> "$GITHUB_OUTPUT"
           git commit -m "Auto-update licensed novel chapters"
           git fetch origin main
           git rebase origin/main
           git push origin HEAD:main
+
+      - name: Set up Node for notifications
+        if: steps.commit.outputs.updated == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Notify subscribed readers
+        if: steps.commit.outputs.updated == 'true'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          NOVEL_ID: got-a-gallery-in-the-wild
+          NOVEL_TITLE: Got a Gallery in the Wild
+          SITE_URL: https://dmlazid.github.io/NovelNest/
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "Firebase service account secret is not configured; skipping notifications."
+            exit 0
+          fi
+          npm install --no-save firebase-admin
+          node scripts/notify_firebase.mjs
