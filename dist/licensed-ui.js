@@ -3,7 +3,7 @@
   const SAMPLE_IDS = new Set(['the-city-above-the-clouds','when-the-peonies-bloom','the-thirteenth-hour']);
   const main = document.querySelector('#main');
   const novel = () => window.NOVELS.find(n => n.id === ID);
-  const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   function setText(el, value) {
     if (el && el.textContent !== value) el.textContent = value;
@@ -30,8 +30,8 @@
       if (!allowed.has(chip.textContent.trim())) chip.remove();
     });
     main.querySelectorAll('.genre-row').forEach(row => {
-      const label = row.childNodes[0]?.textContent?.trim() || row.textContent.trim();
-      if (!allowed.has(label)) row.remove();
+      const label = row.firstChild?.textContent?.trim() || '';
+      if (label && !allowed.has(label)) row.remove();
     });
   }
 
