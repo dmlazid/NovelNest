@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import html
 import json
+import math
 import re
 import time
 import unicodedata
-import uuid
-import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,29 +13,23 @@ import requests
 from bs4 import BeautifulSoup
 
 BASE = "https://freewebnovel.com/novel/got-a-gallery-in-the-wild"
-COVER_URL = "https://freewebnovel.com/files/article/image/15/15776/15776s.jpg"
 TITLE = "Got a Gallery in the Wild"
 AUTHOR = "Ripper_8410 / 두부두부"
-DESCRIPTION = (
-    "I ended up in an unknown place. "
-    "The only thing I can rely on is this gallery. "
-    "But there are just too many strange people."
-)
-CHAPTER_COUNT = 170
-CHUNK_SIZE = 17
+FIXED_CHUNK_FILES = 10
+MIN_CHUNK_CAPACITY = 50
 REQUEST_DELAY = 1.1
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
-ASSET_DIR = DIST / "assets"
-DOWNLOAD_DIR = DIST / "downloads"
+CATALOG_PATH = DIST / "licensed-gallery.js"
 
 session = requests.Session()
 session.headers.update({
-    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/1.0; +https://github.com/dmlazid/NovelNest)",
+    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/2.0; +https://github.com/dmlazid/NovelNest)",
     "Accept-Language": "en-US,en;q=0.9",
 })
 
-def get(url: str, *, binary: bool = False):
+
+def get(url: str) -> str:
     last = None
     for attempt in range(7):
         try:
@@ -54,7 +46,7 @@ def get(url: str, *, binary: bool = False):
                 time.sleep(delay)
                 continue
             r.raise_for_status()
-            return r.content if binary else r.text
+            return r.text
         except Exception as exc:
             last = exc
             if attempt < 6:
@@ -63,11 +55,39 @@ def get(url: str, *, binary: bool = False):
                 time.sleep(delay)
     raise RuntimeError(f"Failed to fetch {url}: {last}")
 
+
 def clean_text(value: str) -> str:
     value = " ".join(value.split())
     normalized = unicodedata.normalize("NFKD", value)
     normalized = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", normalized, flags=re.I)
     return " ".join(normalized.split()).strip()
+
+
+def detect_latest_chapter() -> int:
+    raw = get(BASE)
+    numbers = {int(n) for n in re.findall(r"got-a-gallery-in-the-wild/chapter-(\d+)", raw, flags=re.I)}
+    if not numbers:
+        numbers = {int(n) for n in re.findall(r"/chapter-(\d+)", raw, flags=re.I)}
+    if not numbers:
+        raise RuntimeError("Could not detect chapter numbers from the novel page; leaving the site unchanged.")
+    latest = max(numbers)
+    print(f"Latest source chapter detected: {latest}", flush=True)
+    return latest
+
+
+def load_existing_chapters() -> list[dict]:
+    chapters: list[dict] = []
+    for path in sorted(DATA_DIR.glob("gallery-chapters-*.js")):
+        text = path.read_text(encoding="utf-8")
+        match = re.search(r"\.concat\((.*)\);\s*$", text, flags=re.S)
+        if not match:
+            raise RuntimeError(f"Could not parse existing chapter file: {path}")
+        part = json.loads(match.group(1))
+        if not isinstance(part, list):
+            raise RuntimeError(f"Invalid chapter payload in {path}")
+        chapters.extend(part)
+    return chapters
+
 
 def parse_chapter(number: int) -> dict:
     url = f"{BASE}/chapter-{number}"
@@ -91,28 +111,25 @@ def parse_chapter(number: int) -> dict:
         paragraphs.append(text)
 
     if len(paragraphs) < 3:
-        paragraphs = []
-        for text in article.stripped_strings:
-            text = clean_text(text)
-            if text:
-                paragraphs.append(text)
+        paragraphs = [clean_text(text) for text in article.stripped_strings if clean_text(text)]
 
     if len(paragraphs) < 3:
         raise RuntimeError(f"Chapter {number}: only {len(paragraphs)} text blocks were found")
 
     title_node = soup.select_one("span.chapter")
     title = clean_text(title_node.get_text(" ", strip=True)) if title_node else f"Chapter {number}"
-    if not title:
-        title = f"Chapter {number}"
-    return {"title": title, "paragraphs": paragraphs}
+    return {"title": title or f"Chapter {number}", "paragraphs": paragraphs}
+
 
 def write_js_chunks(chapters: list[dict]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for old in DATA_DIR.glob("gallery-chapters-*.js"):
-        old.unlink()
-    for start in range(0, len(chapters), CHUNK_SIZE):
-        part = chapters[start:start + CHUNK_SIZE]
-        index = start // CHUNK_SIZE + 1
+    capacity = max(MIN_CHUNK_CAPACITY, math.ceil(len(chapters) / FIXED_CHUNK_FILES))
+    if capacity * FIXED_CHUNK_FILES < len(chapters):
+        raise RuntimeError("Chapter data exceeds fixed chunk capacity")
+
+    for index in range(1, FIXED_CHUNK_FILES + 1):
+        start = (index - 1) * capacity
+        part = chapters[start:start + capacity]
         payload = json.dumps(part, ensure_ascii=False, separators=(",", ":"))
         path = DATA_DIR / f"gallery-chapters-{index:02d}.js"
         path.write_text(
@@ -120,11 +137,17 @@ def write_js_chunks(chapters: list[dict]) -> None:
             encoding="utf-8",
         )
 
-def write_licensed_catalog() -> None:
-    content = """(() => {
+    for old in DATA_DIR.glob("gallery-chapters-*.js"):
+        match = re.search(r"(\d+)\.js$", old.name)
+        if match and int(match.group(1)) > FIXED_CHUNK_FILES:
+            old.unlink()
+
+
+def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
+    content = f"""(() => {{
   const id = 'got-a-gallery-in-the-wild';
   const chapters = window.GALLERY_CHAPTERS || [];
-  const licensed = {
+  const licensed = {{
     id,
     title: 'Got a Gallery in the Wild',
     author: 'Ripper_8410 / 두부두부',
@@ -132,117 +155,69 @@ def write_licensed_catalog() -> None:
     tags: ['Fantasy','Action','Adventure','Comedy','Harem','Martial Arts','Supernatural'],
     status: 'Ongoing',
     cover: 'assets/got-a-gallery-in-the-wild.jpg',
-    updated: '2026-10-05',
+    updated: '{updated}',
     sample: false,
     synopsis: 'I ended up in an unknown place. The only thing I can rely on is this gallery. But there are just too many strange people.',
-    license: {
+    license: {{
       type: 'Authorized publication',
       note: 'Published on NovelNest with permission from the rights holder, as confirmed by the site owner.'
-    },
-    epub: 'downloads/got-a-gallery-in-the-wild.epub',
+    }},
     source: 'FreeWebNovel',
     chapters
-  };
+  }};
   const index = window.NOVELS.findIndex(n => n.id === id);
   if (index >= 0) window.NOVELS[index] = licensed;
   else window.NOVELS.push(licensed);
-})();
+
+  try {{
+    const saved = JSON.parse(localStorage.getItem('novelnest.saved') || '[]');
+    if (Array.isArray(saved)) localStorage.setItem('novelnest.saved', JSON.stringify(saved.filter(value => value === id)));
+    const progress = JSON.parse(localStorage.getItem('novelnest.progress') || '{{}}');
+    if (progress && typeof progress === 'object' && !Array.isArray(progress)) {{
+      localStorage.setItem('novelnest.progress', JSON.stringify(progress[id] ? {{[id]: progress[id]}} : {{}}));
+    }}
+  }} catch {{}}
+}})();
 """
-    (DIST / "licensed-gallery.js").write_text(content, encoding="utf-8")
+    CATALOG_PATH.write_text(content, encoding="utf-8")
 
-def chapter_xhtml(number: int, chapter: dict) -> str:
-    body = "\n".join(f"<p>{html.escape(p)}</p>" for p in chapter["paragraphs"])
-    return f"""<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
-<head><title>{html.escape(chapter["title"])}</title>
-<meta charset="utf-8"/>
-<style>body{{font-family:serif;line-height:1.65;margin:5%;}}h1{{font-size:1.5em;}}p{{margin:0 0 1em;}}</style>
-</head>
-<body><h1>Chapter {number}: {html.escape(chapter["title"])}</h1>{body}</body>
-</html>"""
 
-def build_epub(chapters: list[dict], cover: bytes) -> None:
-    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    path = DOWNLOAD_DIR / "got-a-gallery-in-the-wild.epub"
-    book_id = f"urn:uuid:{uuid.uuid5(uuid.NAMESPACE_URL, BASE)}"
-    modified = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def current_updated_date() -> str:
+    if not CATALOG_PATH.exists():
+        return datetime.now(timezone.utc).date().isoformat()
+    text = CATALOG_PATH.read_text(encoding="utf-8")
+    match = re.search(r"updated:\s*'([^']+)'", text)
+    return match.group(1) if match else datetime.now(timezone.utc).date().isoformat()
 
-    manifest = [
-        '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
-        '<item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>',
-    ]
-    spine = []
-    nav_items = []
-    for i, chapter in enumerate(chapters, 1):
-        manifest.append(f'<item id="c{i}" href="Text/chapter-{i:03d}.xhtml" media-type="application/xhtml+xml"/>')
-        spine.append(f'<itemref idref="c{i}"/>')
-        nav_items.append(f'<li><a href="Text/chapter-{i:03d}.xhtml">Chapter {i}: {html.escape(chapter["title"])}</a></li>')
-
-    opf = f"""<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
-<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-<dc:identifier id="bookid">{book_id}</dc:identifier>
-<dc:title>{html.escape(TITLE)}</dc:title>
-<dc:creator>{html.escape(AUTHOR)}</dc:creator>
-<dc:language>en</dc:language>
-<dc:publisher>NovelNest</dc:publisher>
-<dc:description>{html.escape(DESCRIPTION)}</dc:description>
-<dc:rights>Published on NovelNest with permission from the rights holder.</dc:rights>
-<meta property="dcterms:modified">{modified}</meta>
-<meta name="cover" content="cover-image"/>
-</metadata>
-<manifest>{''.join(manifest)}</manifest>
-<spine>{''.join(spine)}</spine>
-</package>"""
-
-    nav = f"""<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en">
-<head><title>Contents</title><meta charset="utf-8"/></head>
-<body><nav epub:type="toc" id="toc"><h1>Contents</h1><ol>{''.join(nav_items)}</ol></nav></body>
-</html>"""
-
-    container = """<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
-</container>"""
-
-    with zipfile.ZipFile(path, "w") as z:
-        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
-        z.writestr("META-INF/container.xml", container, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/content.opf", opf, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/nav.xhtml", nav, compress_type=zipfile.ZIP_DEFLATED)
-        z.writestr("OEBPS/Images/cover.jpg", cover, compress_type=zipfile.ZIP_DEFLATED)
-        for i, chapter in enumerate(chapters, 1):
-            z.writestr(
-                f"OEBPS/Text/chapter-{i:03d}.xhtml",
-                chapter_xhtml(i, chapter),
-                compress_type=zipfile.ZIP_DEFLATED,
-            )
 
 def main() -> None:
-    print(f"Importing {CHAPTER_COUNT} authorized chapters...", flush=True)
-    chapters = []
-    for number in range(1, CHAPTER_COUNT + 1):
-        chapters.append(parse_chapter(number))
-        print(f"Fetched chapter {number}/{CHAPTER_COUNT}", flush=True)
-        if number < CHAPTER_COUNT:
-            time.sleep(REQUEST_DELAY)
+    latest = detect_latest_chapter()
+    chapters = load_existing_chapters()
+    existing = len(chapters)
+    print(f"NovelNest currently has {existing} chapters.", flush=True)
 
-    cover = get(COVER_URL, binary=True)
-    if len(cover) < 10_000:
-        raise RuntimeError("Downloaded cover image is unexpectedly small")
+    if latest < existing:
+        raise RuntimeError(f"Source reports only {latest} chapters, below the existing {existing}; refusing to remove chapters.")
 
-    ASSET_DIR.mkdir(parents=True, exist_ok=True)
-    (ASSET_DIR / "got-a-gallery-in-the-wild.jpg").write_bytes(cover)
+    new_count = latest - existing
+    if new_count:
+        print(f"Importing {new_count} new chapter(s)...", flush=True)
+        for number in range(existing + 1, latest + 1):
+            chapters.append(parse_chapter(number))
+            print(f"Fetched chapter {number}/{latest}", flush=True)
+            if number < latest:
+                time.sleep(REQUEST_DELAY)
+        updated = datetime.now(timezone.utc).date().isoformat()
+    else:
+        print("No new chapters found.", flush=True)
+        updated = current_updated_date()
+
+    # Always normalize into the same ten files so index.html never needs editing
+    # when Chapter 171, 172, etc. are added.
     write_js_chunks(chapters)
-    write_licensed_catalog()
-    build_epub(chapters, cover)
+    write_licensed_catalog(chapters, updated)
+    print(f"Import complete: {len(chapters)} chapters available on NovelNest.", flush=True)
 
-    if len(chapters) != CHAPTER_COUNT:
-        raise RuntimeError("Chapter count mismatch")
-    print("Import complete: 170 chapters, cover, chapter data, and EPUB generated.", flush=True)
 
 if __name__ == "__main__":
     main()
