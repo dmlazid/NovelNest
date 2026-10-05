@@ -1,20 +1,26 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const context={window:{}};vm.createContext(context);vm.runInContext(fs.readFileSync('dist/catalog.js','utf8'),context);
-const ids=new Set();
-for(const n of context.window.NOVELS){
- assert.match(n.id,/^[a-z0-9-]+$/);assert(!ids.has(n.id),`Duplicate ID: ${n.id}`);ids.add(n.id);
- for(const field of ['title','author','genre','status','synopsis'])assert(typeof n[field]==='string'&&n[field].trim(),`${n.id}: missing ${field}`);
- assert(['Completed','Ongoing'].includes(n.status));assert(Array.isArray(n.tags)&&n.tags.length>0);
- if(n.externalUrl){
-  const url=new URL(n.externalUrl);assert(url.protocol==='https:'&&url.hostname==='freewebnovel.com',`${n.id}: unapproved reading host`);
-  assert(n.externalSource&&n.chapters.length===0,`${n.id}: external entries must not contain copied chapters`);
- }else assert(fs.existsSync('dist/'+n.cover),`${n.id}: missing cover`);
- assert(n.license?.type&&n.license?.note,`${n.id}: document publishing permission`);
- assert(n.externalUrl||n.chapters.length>0);
- for(const c of n.chapters){assert(c.title&&c.paragraphs?.length);assert(c.paragraphs.every(p=>typeof p==='string'&&p.trim()));}
-}
-for(const asset of ['app.js','catalog.js','styles.css'])assert(fs.existsSync('dist/'+asset));
+const context={window:{}};vm.createContext(context);
+const dataFiles=fs.readdirSync('dist/data').filter(f=>/^gallery-chapters-\d+\.js$/.test(f)).sort();
+assert.equal(dataFiles.length,10,'Expected 10 gallery chapter data files');
+for(const file of dataFiles)vm.runInContext(fs.readFileSync(`dist/data/${file}`,'utf8'),context);
+vm.runInContext(fs.readFileSync('dist/licensed-gallery.js','utf8'),context);
+const novels=context.window.NOVELS;
+assert(Array.isArray(novels));
+assert.equal(novels.length,1,'NovelNest should contain only one published novel');
+const n=novels[0];
+assert.equal(n.id,'got-a-gallery-in-the-wild');
+assert.equal(n.chapters.length,170,'Expected 170 chapters');
+for(const field of ['title','author','genre','status','synopsis'])assert(typeof n[field]==='string'&&n[field].trim(),`missing ${field}`);
+assert(Array.isArray(n.tags)&&n.tags.length>0);
+assert(fs.existsSync('dist/'+n.cover),'missing cover');
+assert(n.license?.type&&n.license?.note,'document publishing permission');
+for(const c of n.chapters){assert(c.title&&c.paragraphs?.length);assert(c.paragraphs.every(p=>typeof p==='string'&&p.trim()));}
+for(const asset of ['app.js','licensed-gallery.js','styles.css'])assert(fs.existsSync('dist/'+asset));
 new vm.Script(fs.readFileSync('dist/app.js','utf8'));
-console.log(`Validated ${ids.size} novels, ${context.window.NOVELS.reduce((sum,n)=>sum+n.chapters.length,0)} chapters, and local assets.`);
+const index=fs.readFileSync('dist/index.html','utf8');
+assert(!index.includes('catalog.js'),'Old sample catalog must not be loaded');
+assert(!index.includes('licensed-ui.js'),'Legacy UI patch must not be loaded');
+assert(!fs.existsSync('dist/downloads/got-a-gallery-in-the-wild.epub'),'EPUB download should not be published');
+console.log(`Validated ${novels.length} licensed novel and ${n.chapters.length} chapters.`);
