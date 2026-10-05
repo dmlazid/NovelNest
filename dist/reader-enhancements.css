@@ -1,19 +1,62 @@
 /* NovelNest licensed-library UI improvements */
 
-/* Keep catalog covers compact, square, and uncropped. */
-.book-card .cover:not(.external-cover){
-  width:128px !important;
-  height:128px !important;
-  aspect-ratio:1/1 !important;
+/*
+  Cover sizing
+  ------------
+  Every novel cover uses a normal portrait-book frame. The image is never
+  stretched or cropped: object-fit:contain keeps the complete artwork visible.
+  Explicit heights also override the old HTML width/height attributes that were
+  making some covers appear as long vertical strips on mobile.
+*/
+.cover:not(.external-cover){
+  aspect-ratio:2/3 !important;
   object-fit:contain !important;
   object-position:center !important;
-  flex:0 0 128px;
   background:#f1f5f3;
-  border-radius:12px;
   box-shadow:none;
 }
-.book-card{align-items:flex-start;min-height:166px}
+
+/* Catalog / library / browse cards */
+.book-card .cover:not(.external-cover){
+  width:112px !important;
+  height:168px !important;
+  flex:0 0 112px;
+  align-self:center !important;
+  border-radius:10px;
+}
+.book-card{align-items:center;min-height:204px}
 .book-card>div{min-width:0;align-self:center}
+
+/* Novel detail page: proportional portrait cover, never stretched. */
+.detail>.cover:not(.external-cover){
+  width:100% !important;
+  height:auto !important;
+  max-height:360px;
+  aspect-ratio:2/3 !important;
+  object-fit:contain !important;
+  align-self:start;
+  border-radius:10px;
+}
+
+/* Latest-chapter rows: small, proper portrait thumbnails. */
+.chapter-row .cover:not(.external-cover){
+  width:54px !important;
+  height:81px !important;
+  min-width:54px !important;
+  flex:0 0 54px !important;
+  aspect-ratio:2/3 !important;
+  object-fit:contain !important;
+  border-radius:5px;
+  box-shadow:none;
+}
+
+/* Any remaining feature cover also keeps a proper portrait ratio. */
+.spotlight>.cover:not(.external-cover),
+.feature-side .cover:not(.external-cover){
+  height:auto !important;
+  aspect-ratio:2/3 !important;
+  object-fit:contain !important;
+}
 
 /* Chapter list pagination */
 .toc-pager{
@@ -110,11 +153,26 @@
 
 @media(max-width:760px){
   .book-card .cover:not(.external-cover){
-    width:118px !important;
-    height:118px !important;
-    flex-basis:118px;
+    width:108px !important;
+    height:162px !important;
+    flex-basis:108px;
   }
-  .book-card{gap:15px !important;min-height:152px}
+  .book-card{gap:15px !important;min-height:198px}
+
+  .detail>.cover:not(.external-cover){
+    width:110px !important;
+    height:165px !important;
+    max-height:none;
+    justify-self:start;
+  }
+
+  .chapter-row .cover:not(.external-cover){
+    width:52px !important;
+    height:78px !important;
+    min-width:52px !important;
+    flex-basis:52px !important;
+  }
+
   .book-card h3{margin-top:5px}
   .toc-pager{grid-template-columns:1fr 1fr;gap:8px}
   .toc-pager select{grid-column:1/-1;grid-row:1}
@@ -128,10 +186,11 @@
 
 @media(max-width:430px){
   .book-card .cover:not(.external-cover){
-    width:106px !important;
-    height:106px !important;
-    flex-basis:106px;
+    width:96px !important;
+    height:144px !important;
+    flex-basis:96px;
   }
+  .book-card{min-height:178px}
   .modern-reader-tools{grid-template-columns:48px minmax(0,1fr) 48px 48px}
   .reader-chapter-select{font-size:14px;padding-left:10px}
 }
