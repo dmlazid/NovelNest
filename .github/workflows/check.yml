@@ -14,8 +14,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node scripts/check.mjs
+      - run: node --test scripts/reliability.test.mjs
+      - run: node scripts/build.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: NovelNest-website
-          path: dist/
+          path: _site/

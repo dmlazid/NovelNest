@@ -1,69 +1,64 @@
 # NovelNest
 
-A responsive novel catalog and chapter reader. Plain HTML, CSS, and JavaScript; no build process or paid service is required to serve the website.
+NovelNest is a static novel library and chapter reader hosted on GitHub Pages.
 
-## Included
+- Website: https://dmlazid.github.io/NovelNest/
+- Repository: https://github.com/dmlazid/NovelNest
 
-- Search by title, author, or genre; genre and completion filters; sorting.
-- Novel details and chapter lists.
-- Previous/next chapter navigation and valid shareable hash links.
-- Device-local bookmarks, last-opened chapters, and continue reading.
-- Light, sepia, and night appearance; adjustable reader text size.
-- Three original sample stories (nine complete short chapters) and original generated cover artwork.
-- A clearly marked external listing for Got a Gallery in the Wild, with an original brief summary and a link to read on FreeWebNovel. No chapters or cover art from that website are stored here.
-- Catalog checks and downloadable website artifact on every main-branch push.
+## Current collection and reader
 
-## Content and limitations
+The current collection contains **Got a Gallery in the Wild** (ongoing) and **Astral Pet Store** (completed). Chapter counts come from the catalog; the reliability update was checked against 170 and 1,581 chapters respectively.
 
-The on-site chapters are **demonstration content**, not licensed novels imported from another service. External listings have zero hosted chapters and show a labeled outbound reading button. No FreeWebNovel story text, branding, or covers were copied. Add only titles you own or are authorized to publish. Record the permission in each novel's `license` object, and do not commit confidential agreements into a public repository.
+Readers can search by title, author or genre, filter by status, browse paginated chapter lists, jump between chapters, and adjust appearance, font size, spacing and reading width. Bookmarks, preferences and reading progress are saved in the browser on the current device. There are no accounts or cross-device synchronization.
 
-This first version has no accounts, author submissions, ratings, payment system, or admin dashboard. Reader data stays in the browser and does not sync between devices. Google Fonts is the only external font dependency; system fallbacks work without it. All cover images are local.
+Both novels load chapter text on demand. The homepage downloads chapter titles and metadata, not the full books. Failed chapter requests display a retry button. Ongoing novels show a caught-up message at the latest chapter; completed novels show an ending.
 
-## Preview locally
+## Edit and check
 
-From the repository root:
-
-```sh
-python3 -m http.server 8080 --directory dist
-```
-
-Open `http://localhost:8080` in your browser.
-
-Check the catalog and JavaScript before publishing:
+The editable website is in `dist/`. Node.js 22 is used by GitHub Actions. No npm installation is required.
 
 ```sh
 node scripts/check.mjs
+node --test scripts/reliability.test.mjs
+node scripts/build.mjs
+python -m http.server 8000 --directory _site
 ```
 
-## Add licensed novels
+The validator loads both licensed catalogs and all indexed chapter files. It rejects missing files, empty catalogs, missing or duplicate chapter numbers, metadata mismatches, empty text and missing covers. The regression tests cover direct chapter links, chunk boundaries, slow and failed requests, retries, ongoing/completed labels, and invalid chapter data.
 
-Edit `dist/catalog.js`. Each novel has a stable URL-friendly `id`, a title, author, main `genre`, a `tags` list, `status` (`Completed` or `Ongoing`), a local `cover`, an ISO `updated` date, a `synopsis`, a `license` record, and a `chapters` array. Each chapter contains a title and plain-text paragraphs. Counts come from the real chapter array.
+`scripts/build.mjs` validates the source and creates `_site/` with content-fingerprinted JavaScript and CSS filenames. An asset manifest gives the chapter loader the matching versioned data URLs. Do not edit or commit `_site/`; it is generated during deployment. Relative URLs support the `/NovelNest/` GitHub Pages path and a future custom domain.
 
-For an external listing, provide `externalUrl` (HTTPS, approved host), `externalSource`, a brief original summary, and an empty `chapters` array. It uses a neutral typographic placeholder instead of the external work’s cover. External entries support browsing, search, and bookmarks but never report local reading progress or provide local chapter links.
+Main files:
 
-The homepage and about text distinguish sample stories from external reading links. When replacing the samples with licensed titles, update those descriptions in `dist/app.js`, the featured picks, and the `sample` labels to match the actual catalog. Keep the first two featured records until those homepage selections are updated. Never insert raw HTML from content sources.
+| Location | Purpose |
+| --- | --- |
+| `dist/index.html`, `dist/app.js`, `dist/styles.css` | Page shell, routes and base styling |
+| `dist/licensed-ui.js`, `dist/reader-enhancements.css` | Chapter list pagination and reader controls |
+| `dist/catalog.js`, `dist/licensed-*.js` | Novel metadata and chapter title indexes |
+| `dist/data/` | Chapter text chunks |
+| `dist/lazy-chapters.js` | On-demand chapter loading and retry handling |
+| `scripts/import_gallery.py`, `scripts/import_astral.py` | Existing authorized-content update routines |
 
-## GitHub Pages
+## Automatic chapter checks
 
-1. Put this project in a new repository.
-2. In repository **Settings → Pages**, choose **GitHub Actions** as the source.
-3. In **Actions**, open **Publish to GitHub Pages** and select **Run workflow**.
-4. Future pushes to `main` publish automatically after validation. You can also run the workflow manually.
+The two importer workflows run about every six hours, subject to GitHub scheduling delays. You can also open **Actions**, select an importer, and choose **Run workflow** on `main`.
 
-The separate **Check and package website** workflow runs on each push to `main`. Its `NovelNest-website` artifact contains the complete static website. Relative asset links and hash routes work under a repository subdirectory without a custom domain.
+They install Python dependencies (`requests` and `beautifulsoup4`), check existing data, compare the source chapter count, fetch new chapters if available, regenerate metadata, validate all chapter data again, and commit only successful updates. Requests respect server errors and rate-limit delays. A failed run does not mean new chapters are available; inspect its failed step and logs. Use **Re-run failed jobs** for a transient runner or connection failure.
 
-The `.openai/hosting.json` file is for the private Sites preview; GitHub Pages publishes only `dist/` and does not need that file.
+To run an importer locally after installing its Python dependencies:
 
-## Project structure
+```sh
+python scripts/import_gallery.py
+python scripts/import_astral.py
+node scripts/check.mjs
+```
 
-- `dist/index.html`: page shell and metadata
-- `dist/styles.css`: responsive design
-- `dist/app.js`: catalog browsing, routing, and reader
-- `dist/catalog.js`: original sample catalog and chapters
-- `dist/assets/`: original generated cover artwork
-- `scripts/check.mjs`: catalog/asset checks
-- `.github/workflows/`: validation, artifact packaging, and optional Pages publication
+Run only the importer you need. Preserve the publishing authorization for all text and cover assets maintained in the repository.
 
-## Verification
+## Publishing
 
-Catalog structure, local cover paths, chapter data, and JavaScript syntax are checked by `scripts/check.mjs`. Route rendering, search/filter outcomes, bookmark persistence, reading progress, settings, malformed routes, and escaped search text were also checked in a JavaScript harness during creation. Interactive browser/visual QA was unavailable in the creation environment. The optional browser WebMCP catalog-search registration is feature-detected and was not verified in a supported browser context.
+Changes pushed to `main` run checks and the **Publish to GitHub Pages** workflow. Successful importer workflows also trigger publication, because commits made with GitHub's workflow token do not normally trigger another push workflow. GitHub Pages must use **GitHub Actions** as its publishing source.
+
+Publication runs the regression tests, validates every chapter, builds `_site/`, and deploys that folder. The **Check and package website** workflow also saves the built website as a downloadable artifact. A failed check prevents the new build from being deployed.
+
+After an update, refresh the page to load the new catalog. If an old open tab tries to fetch an asset from a previous deployment, its retry message explains when a refresh is needed.

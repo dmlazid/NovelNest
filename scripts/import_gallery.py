@@ -86,6 +86,11 @@ def load_existing_chapters() -> list[dict]:
         if not isinstance(part, list):
             raise RuntimeError(f"Invalid chapter payload in {path}")
         chapters.extend(part)
+    for index, chapter in enumerate(chapters, 1):
+        title_number = re.match(r"^Chapter\s+(\d+)", chapter.get("title", ""), re.I)
+        number = chapter.get("number", int(title_number.group(1)) if title_number else None)
+        if number != index:
+            raise RuntimeError(f"Gallery chapter sequence is invalid at {index}; leaving the site unchanged.")
     return chapters
 
 
@@ -118,7 +123,7 @@ def parse_chapter(number: int) -> dict:
 
     title_node = soup.select_one("span.chapter")
     title = clean_text(title_node.get_text(" ", strip=True)) if title_node else f"Chapter {number}"
-    return {"title": title or f"Chapter {number}", "paragraphs": paragraphs}
+    return {"number": number, "title": title or f"Chapter {number}", "paragraphs": paragraphs}
 
 
 def write_js_chunks(chapters: list[dict]) -> None:
@@ -144,9 +149,12 @@ def write_js_chunks(chapters: list[dict]) -> None:
 
 
 def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
+    metadata = [{"number": i + 1, "title": ch["title"], "paragraphs": ["Loading chapter…"], "lazy": True} for i, ch in enumerate(chapters)]
+    metadata_json = json.dumps(metadata, ensure_ascii=False, separators=(",", ":"))
+    capacity = max(MIN_CHUNK_CAPACITY, math.ceil(len(chapters) / FIXED_CHUNK_FILES))
     content = f"""(() => {{
   const id = 'got-a-gallery-in-the-wild';
-  const chapters = window.GALLERY_CHAPTERS || [];
+  const chapters = {metadata_json};
   const licensed = {{
     id,
     title: 'Got a Gallery in the Wild',
@@ -164,6 +172,7 @@ def write_licensed_catalog(chapters: list[dict], updated: str) -> None:
     }},
     source: 'FreeWebNovel',
     sourceUrl: 'https://freewebnovel.com/novel/got-a-gallery-in-the-wild',
+    lazyChunks: {{prefix: 'data/gallery-chapters-', capacity: {capacity}, global: 'GALLERY_CHAPTERS', numberFromTitle: true}},
     chapters
   }};
   const index = window.NOVELS.findIndex(n => n.id === id);
@@ -211,3 +220,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

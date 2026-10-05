@@ -19,11 +19,19 @@ concurrency:
 jobs:
   import:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate existing chapter data
+        run: node scripts/check.mjs
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,6 +43,9 @@ jobs:
 
       - name: Check for and import new authorized chapters
         run: python scripts/import_gallery.py
+
+      - name: Validate imported chapter data
+        run: node scripts/check.mjs
 
       - name: Commit chapter updates
         run: |
@@ -50,3 +61,11 @@ jobs:
           git fetch origin main
           git rebase origin/main
           git push origin HEAD:main
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "Chapter updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Chapters are validated before committing. A failed check leaves the published library unchanged." >> "$GITHUB_STEP_SUMMARY"

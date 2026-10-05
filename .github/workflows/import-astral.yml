@@ -26,6 +26,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate existing chapter data
+        run: node scripts/check.mjs
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,6 +43,9 @@ jobs:
 
       - name: Check for and import Astral Pet Store chapters
         run: python scripts/import_astral.py
+
+      - name: Validate imported chapter data
+        run: node scripts/check.mjs
 
       - name: Commit Astral chapter updates
         run: |
@@ -59,3 +69,11 @@ jobs:
             sleep 2
           done
           exit 1
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "Chapter updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Chapters are validated before committing. A failed check leaves the published library unchanged." >> "$GITHUB_STEP_SUMMARY"
