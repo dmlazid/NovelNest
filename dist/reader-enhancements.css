@@ -3,58 +3,61 @@
 /*
   Cover sizing
   ------------
-  Every novel cover uses a normal portrait-book frame. The image is never
-  stretched or cropped: object-fit:contain keeps the complete artwork visible.
-  Explicit heights also override the old HTML width/height attributes that were
-  making some covers appear as long vertical strips on mobile.
+  Covers now keep the REAL aspect ratio of each image. We never force square,
+  2:3, or a fixed height. Width changes by context, while height stays auto.
+  This prevents stretching, cropping, and long-strip thumbnails.
 */
 .cover:not(.external-cover){
-  aspect-ratio:2/3 !important;
+  height:auto !important;
+  aspect-ratio:auto !important;
   object-fit:contain !important;
   object-position:center !important;
-  background:#f1f5f3;
+  background:transparent !important;
   box-shadow:none;
 }
 
 /* Catalog / library / browse cards */
 .book-card .cover:not(.external-cover){
   width:112px !important;
-  height:168px !important;
+  height:auto !important;
+  max-height:170px !important;
   flex:0 0 112px;
   align-self:center !important;
   border-radius:10px;
 }
-.book-card{align-items:center;min-height:204px}
+.book-card{align-items:center;min-height:190px}
 .book-card>div{min-width:0;align-self:center}
 
-/* Novel detail page: proportional portrait cover, never stretched. */
+/* Novel detail page */
 .detail>.cover:not(.external-cover){
   width:100% !important;
   height:auto !important;
-  max-height:360px;
-  aspect-ratio:2/3 !important;
+  max-height:360px !important;
+  aspect-ratio:auto !important;
   object-fit:contain !important;
   align-self:start;
+  justify-self:center;
   border-radius:10px;
 }
 
-/* Latest-chapter rows: small, proper portrait thumbnails. */
+/* Latest-chapter rows */
 .chapter-row .cover:not(.external-cover){
   width:54px !important;
-  height:81px !important;
+  height:auto !important;
+  max-height:82px !important;
   min-width:54px !important;
   flex:0 0 54px !important;
-  aspect-ratio:2/3 !important;
+  aspect-ratio:auto !important;
   object-fit:contain !important;
   border-radius:5px;
   box-shadow:none;
 }
 
-/* Any remaining feature cover also keeps a proper portrait ratio. */
+/* Feature covers */
 .spotlight>.cover:not(.external-cover),
 .feature-side .cover:not(.external-cover){
   height:auto !important;
-  aspect-ratio:2/3 !important;
+  aspect-ratio:auto !important;
   object-fit:contain !important;
 }
 
@@ -79,7 +82,7 @@
 .toc-pager button:not(:disabled):hover{border-color:var(--green);color:var(--green)}
 .toc-page-note{text-align:center;color:var(--muted);font-size:12px;margin:9px 0 18px}
 
-/* Compact chapter reader navigation inspired by the supplied reference. */
+/* Compact chapter reader navigation */
 .reader-wrap{max-width:var(--reader-content-width,790px)}
 .modern-reader-tools{
   display:grid;
@@ -154,21 +157,23 @@
 @media(max-width:760px){
   .book-card .cover:not(.external-cover){
     width:108px !important;
-    height:162px !important;
+    height:auto !important;
+    max-height:162px !important;
     flex-basis:108px;
   }
-  .book-card{gap:15px !important;min-height:198px}
+  .book-card{gap:15px !important;min-height:180px}
 
   .detail>.cover:not(.external-cover){
     width:110px !important;
-    height:165px !important;
-    max-height:none;
+    height:auto !important;
+    max-height:190px !important;
     justify-self:start;
   }
 
   .chapter-row .cover:not(.external-cover){
     width:52px !important;
-    height:78px !important;
+    height:auto !important;
+    max-height:78px !important;
     min-width:52px !important;
     flex-basis:52px !important;
   }
@@ -187,10 +192,11 @@
 @media(max-width:430px){
   .book-card .cover:not(.external-cover){
     width:96px !important;
-    height:144px !important;
+    height:auto !important;
+    max-height:150px !important;
     flex-basis:96px;
   }
-  .book-card{min-height:178px}
+  .book-card{min-height:168px}
   .modern-reader-tools{grid-template-columns:48px minmax(0,1fr) 48px 48px}
   .reader-chapter-select{font-size:14px;padding-left:10px}
 }
