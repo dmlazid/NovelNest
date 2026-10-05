@@ -25,6 +25,7 @@ DESCRIPTION = (
 )
 CHAPTER_COUNT = 170
 CHUNK_SIZE = 17
+REQUEST_DELAY = 1.1
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
@@ -38,15 +39,28 @@ session.headers.update({
 
 def get(url: str, *, binary: bool = False):
     last = None
-    for attempt in range(4):
+    for attempt in range(7):
         try:
             r = session.get(url, timeout=30)
+            if r.status_code == 429:
+                retry_header = r.headers.get("Retry-After")
+                try:
+                    retry_after = float(retry_header) if retry_header else 0
+                except (TypeError, ValueError):
+                    retry_after = 0
+                delay = max(retry_after, min(90, 15 + attempt * 12))
+                print(f"Rate limited while fetching {url}; retrying in {delay:.0f}s...", flush=True)
+                last = RuntimeError(f"HTTP 429 for {url}")
+                time.sleep(delay)
+                continue
             r.raise_for_status()
             return r.content if binary else r.text
         except Exception as exc:
             last = exc
-            if attempt < 3:
-                time.sleep(2 ** attempt)
+            if attempt < 6:
+                delay = min(45, 2 ** (attempt + 1))
+                print(f"Fetch error for {url}: {exc}; retrying in {delay}s...", flush=True)
+                time.sleep(delay)
     raise RuntimeError(f"Failed to fetch {url}: {last}")
 
 def clean_text(value: str) -> str:
@@ -208,12 +222,13 @@ def build_epub(chapters: list[dict], cover: bytes) -> None:
             )
 
 def main() -> None:
-    print(f"Importing {CHAPTER_COUNT} authorized chapters...")
+    print(f"Importing {CHAPTER_COUNT} authorized chapters...", flush=True)
     chapters = []
     for number in range(1, CHAPTER_COUNT + 1):
         chapters.append(parse_chapter(number))
-        print(f"Fetched chapter {number}/{CHAPTER_COUNT}")
-        time.sleep(0.25)
+        print(f"Fetched chapter {number}/{CHAPTER_COUNT}", flush=True)
+        if number < CHAPTER_COUNT:
+            time.sleep(REQUEST_DELAY)
 
     cover = get(COVER_URL, binary=True)
     if len(cover) < 10_000:
@@ -227,7 +242,7 @@ def main() -> None:
 
     if len(chapters) != CHAPTER_COUNT:
         raise RuntimeError("Chapter count mismatch")
-    print("Import complete: 170 chapters, cover, chapter data, and EPUB generated.")
+    print("Import complete: 170 chapters, cover, chapter data, and EPUB generated.", flush=True)
 
 if __name__ == "__main__":
     main()
