@@ -1,0 +1,54 @@
+name: Import licensed Astral Pet Store
+
+on:
+  schedule:
+    - cron: "47 */6 * * *"
+  push:
+    paths:
+      - "scripts/import_astral.py"
+      - ".github/workflows/import-astral.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: novel-chapter-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Check for and import Astral Pet Store chapters
+        run: python scripts/import_astral.py
+
+      - name: Commit Astral chapter updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/data/astral-chapters-*.js
+          git add dist/assets/astral-pet-store.jpg
+          git add dist/licensed-astral.js
+          if git diff --cached --quiet; then
+            echo "No new Astral chapter changes to commit."
+            exit 0
+          fi
+          git commit -m "Auto-update Astral Pet Store chapters"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
