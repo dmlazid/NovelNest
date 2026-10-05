@@ -17,18 +17,10 @@
       note: 'Published on NovelNest with permission from the rights holder, as confirmed by the site owner.'
     },
     source: 'FreeWebNovel',
+    sourceUrl: 'https://freewebnovel.com/novel/got-a-gallery-in-the-wild',
     chapters
   };
   const index = window.NOVELS.findIndex(n => n.id === id);
   if (index >= 0) window.NOVELS[index] = licensed;
   else window.NOVELS.push(licensed);
-
-  try {
-    const saved = JSON.parse(localStorage.getItem('novelnest.saved') || '[]');
-    if (Array.isArray(saved)) localStorage.setItem('novelnest.saved', JSON.stringify(saved.filter(value => value === id)));
-    const progress = JSON.parse(localStorage.getItem('novelnest.progress') || '{}');
-    if (progress && typeof progress === 'object' && !Array.isArray(progress)) {
-      localStorage.setItem('novelnest.progress', JSON.stringify(progress[id] ? {[id]: progress[id]} : {}));
-    }
-  } catch {}
 })();
