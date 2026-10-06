@@ -346,3 +346,15 @@
   .home-top-row img{width:94px;height:128px}
   .home-top-row-copy strong{font-size:15px}
 }
+
+
+/* Novel and reader breadcrumbs: Home › Genre Novels › Title › Chapter. */
+.novel-breadcrumb{display:flex;align-items:center;gap:9px;margin:18px 0 24px;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:7px;color:var(--muted);font-size:14px;line-height:1.35;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.novel-breadcrumb::-webkit-scrollbar{display:none}
+.novel-breadcrumb a{color:var(--muted);font-weight:600}
+.novel-breadcrumb a:hover{color:var(--green)}
+.novel-breadcrumb [aria-current="page"]{color:var(--ink);font-weight:700}
+.breadcrumb-home{display:inline-flex;align-items:center;gap:6px}
+.breadcrumb-home svg{width:18px;height:18px;fill:currentColor;flex:0 0 18px}
+.breadcrumb-separator{color:#9aa8a4;font-weight:700}
+@media(max-width:760px){.novel-breadcrumb{margin:12px 0 18px;padding:12px 13px;gap:7px;font-size:13px;border-radius:6px}.breadcrumb-home svg{width:17px;height:17px;flex-basis:17px}}
