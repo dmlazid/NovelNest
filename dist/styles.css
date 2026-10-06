@@ -198,3 +198,151 @@
   .home-release-row time{display:none}
   .home-tile-copy strong{font-size:12px}
 }
+
+
+/* Featured home area above Latest Release Novels. */
+.home-showcase{
+  display:grid;
+  gap:18px;
+}
+.home-top-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px 12px;
+}
+.home-top-feature{
+  display:block;
+  min-width:0;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:7px;
+  overflow:hidden;
+}
+.home-top-art{
+  position:relative;
+  display:block;
+  aspect-ratio:3/4.1;
+  overflow:hidden;
+  background:var(--soft);
+}
+.home-top-art img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  object-position:center;
+}
+.home-top-overlay{
+  position:absolute;
+  inset:38% 0 0;
+  background:linear-gradient(to bottom,transparent,rgba(0,0,0,.84));
+}
+.home-top-copy{
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:12px;
+  display:grid;
+  gap:5px;
+  color:#fff;
+  text-shadow:0 1px 2px #000;
+}
+.home-top-copy strong{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  font:800 17px/1.2 'DM Sans',system-ui,sans-serif;
+}
+.home-top-copy small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:600 11px/1.2 'DM Sans',system-ui,sans-serif;
+}
+.home-top-badge{
+  display:block;
+  width:max-content;
+  max-width:calc(100% - 18px);
+  margin:9px auto 11px;
+  padding:5px 9px;
+  border-radius:3px;
+  background:var(--green);
+  color:#fff;
+  font:800 10px/1 'DM Sans',system-ui,sans-serif;
+  white-space:nowrap;
+}
+.home-top-list{
+  display:grid;
+  gap:12px;
+}
+.home-top-row{
+  display:grid;
+  grid-template-columns:118px minmax(0,1fr);
+  gap:18px;
+  align-items:center;
+  min-height:155px;
+  padding:14px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:7px;
+}
+.home-top-row img{
+  width:118px;
+  height:155px;
+  object-fit:cover;
+  border-radius:4px;
+  background:var(--soft);
+}
+.home-top-row-copy{
+  min-width:0;
+  display:grid;
+  gap:10px;
+}
+.home-top-row-copy strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--ink);
+  font:800 18px/1.25 'DM Sans',system-ui,sans-serif;
+}
+.home-top-row-copy small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--muted);
+  font:600 13px/1.25 'DM Sans',system-ui,sans-serif;
+}
+.home-top-row-copy b{
+  width:max-content;
+  max-width:100%;
+  padding:5px 8px;
+  border-radius:3px;
+  background:var(--green);
+  color:#fff;
+  font:800 11px/1 'DM Sans',system-ui,sans-serif;
+}
+
+@media(max-width:760px){
+  .home-showcase{gap:14px}
+  .home-top-grid{gap:12px 10px}
+  .home-top-copy{left:9px;right:9px;bottom:9px;gap:4px}
+  .home-top-copy strong{font-size:14px}
+  .home-top-copy small{font-size:10px}
+  .home-top-row{
+    grid-template-columns:104px minmax(0,1fr);
+    gap:14px;
+    min-height:138px;
+    padding:12px;
+  }
+  .home-top-row img{width:104px;height:138px}
+  .home-top-row-copy{gap:8px}
+  .home-top-row-copy strong{font-size:16px}
+  .home-top-row-copy small{font-size:12px}
+}
+@media(max-width:390px){
+  .home-top-copy strong{font-size:13px}
+  .home-top-row{grid-template-columns:94px minmax(0,1fr)}
+  .home-top-row img{width:94px;height:128px}
+  .home-top-row-copy strong{font-size:15px}
+}
