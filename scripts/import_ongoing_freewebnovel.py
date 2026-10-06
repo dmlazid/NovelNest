@@ -122,6 +122,8 @@ def detect_latest(book: dict) -> int:
     if not numbers:
         numbers = {int(n) for n in re.findall(r"/chapter-(\d+)", raw, flags=re.I)}
     if not numbers:
+        numbers = {int(n) for n in re.findall(r"\bChapter\s+(\d+)\b", raw, flags=re.I)}
+    if not numbers:
         raise RuntimeError("Could not detect chapter numbers on the source page")
     return max(numbers)
 
