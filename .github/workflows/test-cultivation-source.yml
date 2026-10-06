@@ -1,0 +1,36 @@
+name: Test Cultivation source parser
+
+on:
+  push:
+    paths:
+      - ".github/workflows/test-cultivation-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Parse representative chapters
+        run: |
+          python - <<'PY'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location('cultivation', 'scripts/import_cultivation.py')
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          for number in (1, 321, 2663):
+              chapter = mod.parse_chapter(number)
+              chars = sum(len(p) for p in chapter['paragraphs'])
+              print(number, chapter['title'], len(chapter['paragraphs']), chars)
+              assert chapter['number'] == number
+              assert len(chapter['paragraphs']) >= 3
+              assert chars >= 500
+          PY
