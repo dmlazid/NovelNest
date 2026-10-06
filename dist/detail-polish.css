@@ -1,0 +1,28 @@
+.description .novel-summary-collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
+}
+
+.description .novel-summary-expanded {
+  display: block;
+  overflow: visible;
+}
+
+.summary-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #164f4a;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+body[data-theme="night"] .summary-toggle {
+  color: #b9ddd8;
+}
