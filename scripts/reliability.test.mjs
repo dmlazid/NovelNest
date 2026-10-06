@@ -21,7 +21,7 @@ function harness(hash = '#/') {
   const context = vm.createContext({ window, document, location: { hash }, Event, URLSearchParams, console, setTimeout: callback => timers.push(callback), clearTimeout() {}, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) } });
   const run = text => vm.runInContext(text, context);
   const load = name => run(fs.readFileSync(`dist/${name}`, 'utf8'));
-  for (const file of ['catalog.js', 'licensed-gallery.js', 'licensed-astral.js', 'app.js', 'lazy-chapters.js']) load(file);
+  for (const file of ['catalog.js', 'licensed-gallery.js', 'licensed-astral.js', 'licensed-monarch.js', 'app.js', 'lazy-chapters.js']) load(file);
   const flush = () => { let count = 0; while (timers.length) { assert(++count < 100, 'Unexpected render loop'); timers.shift()(); } };
   const go = next => { context.location.hash = next; window.dispatchEvent(new Event('hashchange')); flush(); };
   const complete = script => { const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === script.src)?.[0] || script.src; load(original); script.onload(); flush(); };
@@ -39,7 +39,7 @@ test('all existing chapters and their catalog entries validate', () => {
 test('homepage loads no chapter bodies; direct chapter links work across chunk boundaries', () => {
   const h = harness();
   assert.equal(h.scripts.length, 0);
-  for (const [id, numbers] of [['got-a-gallery-in-the-wild', [1, 50, 51, 150, 151, 170]], ['astral-pet-store', [1, 100, 101, 1500, 1501, 1581]]]) {
+  for (const [id, numbers] of [['got-a-gallery-in-the-wild', [1, 50, 51, 150, 151, 170]], ['astral-pet-store', [1, 100, 101, 1500, 1501, 1581]], ['extras-path-the-eternal-frost-monarch', [1, 25, 26, 300, 301, 321]]]) {
     for (const number of numbers) {
       h.go(`#/read/${id}/${number}`);
       const n = h.window.NOVELS.find(n => n.id === id);

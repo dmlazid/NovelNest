@@ -117,8 +117,8 @@
 
   function fixDetail(n) {
     if (!n || !location.hash.startsWith(`#/novel/${n.id}`)) return;
-    setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · Licensed edition`);
-    setText(main.querySelector('.description .meta'), 'Authorized publication · Published on NovelNest with permission from the rights holder.');
+    setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${n.license?.type === 'EPUB edition' ? 'EPUB edition' : 'Licensed edition'}`);
+    setText(main.querySelector('.description .meta'), n.license?.note || 'Published on NovelNest.');
 
     const p = prefs();
     if (p.autoResume === 'no') {
