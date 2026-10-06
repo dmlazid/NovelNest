@@ -68,12 +68,43 @@ function homeNovelTile(n){
     </span>
   </a>`;
 }
+function homeTopFeature(n){
+  return `<a class="home-top-feature" href="${bookUrl(n)}">
+    <span class="home-top-art">
+      <img src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy">
+      <span class="home-top-overlay"></span>
+      <span class="home-top-copy">
+        <strong>${esc(n.title)}</strong>
+        <small>◉ English Novel</small>
+        <small>▤ ${esc(n.tags.slice(0,2).join(' · ')||n.genre)}</small>
+      </span>
+    </span>
+    <span class="home-top-badge">${n.chapters.length} Chapters</span>
+  </a>`;
+}
+function homeTopRow(n){
+  return `<a class="home-top-row" href="${bookUrl(n)}">
+    <img src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy">
+    <span class="home-top-row-copy">
+      <strong>${esc(n.title)}</strong>
+      <small>◉ English Novel</small>
+      <small>▤ ${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
+      <b>${n.chapters.length} Chapters</b>
+    </span>
+  </a>`;
+}
 function home(){
   const sorted=[...novels].sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
+  const topFeatures=sorted.slice(0,4);
+  const topRows=sorted.slice(4,7);
   const releases=sorted.slice(0,10);
   const latestNovels=sorted.slice(0,6);
   const completed=sorted.filter(n=>n.status==='Completed').slice(0,6);
   return `<div class="home-feed">
+    <section class="home-showcase" aria-label="Featured novels">
+      <div class="home-top-grid">${topFeatures.map(homeTopFeature).join('')}</div>
+      <div class="home-top-list">${topRows.map(homeTopRow).join('')}</div>
+    </section>
     <section class="home-feed-section home-release-section">
       <div class="home-feed-head"><h1><span aria-hidden="true">↻</span> Latest Release Novels</h1><a href="#/latest">See more</a></div>
       <div class="home-release-list">${releases.map(homeReleaseRow).join('')}</div>
