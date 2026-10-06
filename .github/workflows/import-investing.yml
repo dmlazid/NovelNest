@@ -1,0 +1,76 @@
+name: Import licensed Investing novel
+
+on:
+  schedule:
+    - cron: "37 */6 * * *"
+  push:
+    paths:
+      - "scripts/import_investing.py"
+      - ".github/workflows/import-investing.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: novel-chapter-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Import Investing novel chapters
+        run: python scripts/import_investing.py
+
+      - name: Validate imported chapter data
+        run: node scripts/check.mjs
+
+      - name: Commit Investing novel updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/data/investing-chapters-*.js
+          git add dist/assets/investing-in-my-three-crippled-wives-get-10000x-times-return.jpg
+          git add dist/licensed-investing.js
+          if git diff --cached --quiet; then
+            echo "No Investing chapter changes to commit."
+            exit 0
+          fi
+          git commit -m "Auto-update Investing novel chapters"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push raced with another update; retrying ($attempt/3)..."
+            sleep 2
+          done
+          exit 1
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "Investing novel updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer validates a continuous chapter sequence before committing." >> "$GITHUB_STEP_SUMMARY"
