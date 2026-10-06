@@ -14,10 +14,9 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-BASE = "https://freewebnovel.com/novel/cultivation-online"
+BASE = "https://freewebnovel.com/novel/cultivation-online-novel"
 TITLE = "Cultivation Online"
 AUTHOR = "Mylittlebrother"
-TARGET = 2663
 FIXED_CHUNK_FILES = 40
 MIN_CHUNK_CAPACITY = 75
 MAX_WORKERS = 8
@@ -64,6 +63,17 @@ def clean_text(value: str) -> str:
     value = unicodedata.normalize("NFKC", value)
     value = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", value, flags=re.I)
     return " ".join(value.split()).strip()
+
+
+def detect_latest(page_raw: str) -> int:
+    numbers = {int(n) for n in re.findall(r"cultivation-online-novel/chapter-(\\d+)", page_raw, flags=re.I)}
+    if not numbers:
+        numbers = {int(n) for n in re.findall(r"/chapter-(\\d+)", page_raw, flags=re.I)}
+    if not numbers:
+        raise RuntimeError("Could not detect Cultivation Online chapter numbers from the source page")
+    latest = max(numbers)
+    print(f"Latest Cultivation Online source chapter detected: {latest}", flush=True)
+    return latest
 
 
 def load_existing() -> list[dict]:
@@ -210,22 +220,39 @@ def write_catalog(chapters: list[dict], cap: int, updated: str) -> None:
     )
 
 
+def current_updated_date() -> str:
+    if not CATALOG_PATH.exists():
+        return datetime.now(timezone.utc).date().isoformat()
+    text = CATALOG_PATH.read_text(encoding="utf-8")
+    match = re.search(r'"updated":"([^"]+)"', text)
+    return match.group(1) if match else datetime.now(timezone.utc).date().isoformat()
+
+
 def main() -> None:
     page = get(BASE)
+    latest = detect_latest(page)
     chapters = load_existing()
-    if len(chapters) > TARGET:
-        chapters = chapters[:TARGET]
-    if len(chapters) < TARGET:
-        chapters.extend(fetch_range(len(chapters) + 1, TARGET))
+    existing = len(chapters)
+    print(f"NovelNest currently has {existing} Cultivation Online chapters.", flush=True)
+
+    if latest < existing:
+        print(f"Source currently reports {latest}, below the published {existing}; keeping all existing chapters.", flush=True)
+        target = existing
+    else:
+        target = latest
+
+    if existing < target:
+        chapters.extend(fetch_range(existing + 1, target))
 
     numbers = [int(c.get("number", i + 1)) for i, c in enumerate(chapters)]
-    if numbers != list(range(1, TARGET + 1)):
+    if numbers != list(range(1, len(chapters) + 1)):
         raise RuntimeError("Cultivation Online chapters are missing, duplicated, or out of order")
 
     cap = write_chunks(chapters)
     ensure_cover(page)
-    write_catalog(chapters, cap, datetime.now(timezone.utc).date().isoformat())
-    print(f"Import complete: Cultivation Online has exactly chapters 1-{TARGET}, with no gaps or duplicates.", flush=True)
+    updated = datetime.now(timezone.utc).date().isoformat() if target > existing else current_updated_date()
+    write_catalog(chapters, cap, updated)
+    print(f"Import complete: Cultivation Online has chapters 1-{len(chapters)}, with no gaps or duplicates.", flush=True)
 
 
 if __name__ == "__main__":
