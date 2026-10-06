@@ -136,3 +136,23 @@ test('licensed edition and collapsible summaries appear in novel details', () =>
   assert.match(h.node('#main').innerHTML, /Licensed edition/);
   assert.doesNotMatch(h.node('#main').innerHTML, /EPUB edition|Sample story/);
 });
+
+
+test('top header exposes notifications beside menu and novel breadcrumbs use home and genre', () => {
+  const index = fs.readFileSync('dist/index.html', 'utf8');
+  assert.match(index, /class="compact-notification-button"[^>]+data-updates/);
+  assert.match(index, /class="compact-menu-button"[^>]+data-menu/);
+  const h = harness();
+  const novel = h.window.NOVELS.find(n => n.id === 'astral-pet-store');
+  assert(novel);
+  h.go(`#/novel/${novel.id}`);
+  const detail = h.node('#main').innerHTML;
+  assert.match(detail, />Home</);
+  assert.match(detail, />Action Novels</);
+  assert.match(detail, /Astral Pet Store/);
+  h.go(`#/read/${novel.id}/1`);
+  const reader = h.node('#main').innerHTML;
+  assert.match(reader, />Home</);
+  assert.match(reader, />Action Novels</);
+  assert.match(reader, /Chapter 1/);
+});
