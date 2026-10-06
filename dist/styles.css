@@ -6,3 +6,195 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 .external-cover{display:flex;flex-direction:column;justify-content:space-between;align-items:center;text-align:center;padding:12px 6px;background:#243e32;color:#e8dbc0;border:1px solid #577163;overflow:hidden}.external-cover span{font:10px/1.4 'DM Sans',sans-serif;letter-spacing:1px}.external-cover strong{font:46px/1 Georgia,serif}.detail>.external-cover{min-height:330px;padding-block:28px}.detail>.external-cover strong{font-size:92px}.detail>.external-cover span{font-size:12px}.external-tab-note{color:inherit;font-size:12px}.book-card .external-cover{flex-shrink:0}@media(max-width:760px){.detail>.external-cover{min-height:165px;padding-block:15px}.detail>.external-cover strong{font-size:48px}.detail>.external-cover span{font-size:10px}}
+
+
+/* Compact NovelNest home feed — inspired by a mobile web-novel catalog. */
+.home-feed{
+  width:min(100%,760px);
+  margin:24px auto 48px;
+  display:grid;
+  gap:18px;
+}
+.home-feed-section{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:0 16px 16px;
+  overflow:hidden;
+}
+.home-feed-head{
+  min-height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  border-bottom:1px solid var(--line);
+}
+.home-feed-head h1,.home-feed-head h2{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:0;
+  color:var(--green);
+  font:800 14px/1.25 'DM Sans',system-ui,sans-serif;
+  letter-spacing:.15px;
+  text-transform:uppercase;
+}
+.home-feed-head h1 span,.home-feed-head h2 span{font-size:15px}
+.home-feed-head a{
+  color:var(--green);
+  font:800 12px/1 'DM Sans',system-ui,sans-serif;
+  text-transform:uppercase;
+  text-decoration:none;
+}
+.home-feed-head a:hover{text-decoration:underline;text-underline-offset:3px}
+
+.home-release-list{display:grid}
+.home-release-row{
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr) auto;
+  gap:11px;
+  align-items:center;
+  min-height:74px;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+}
+.home-release-row:last-child{border-bottom:0}
+.home-release-row:hover .home-release-copy strong{color:var(--green)}
+.home-release-cover{
+  width:46px;
+  height:58px;
+  object-fit:cover;
+  object-position:center;
+  border-radius:4px;
+  background:var(--soft);
+}
+.home-release-copy{min-width:0;display:grid;gap:3px}
+.home-release-copy strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--ink);
+  font:700 13px/1.3 'DM Sans',system-ui,sans-serif;
+}
+.home-release-copy small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--muted);
+  font:500 10px/1.3 'DM Sans',system-ui,sans-serif;
+}
+.home-release-copy>span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--green);
+  font:600 10px/1.35 'DM Sans',system-ui,sans-serif;
+}
+.home-release-copy>span b{font-weight:800}
+.home-release-row time{
+  align-self:start;
+  padding-top:4px;
+  color:var(--muted);
+  font:500 9px/1.2 'DM Sans',system-ui,sans-serif;
+  white-space:nowrap;
+}
+
+.home-cover-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px 12px;
+  padding-top:14px;
+}
+.home-novel-tile{
+  min-width:0;
+  display:block;
+  background:var(--soft);
+  border:1px solid var(--line);
+  border-radius:6px;
+  overflow:hidden;
+}
+.home-tile-art{
+  position:relative;
+  display:block;
+  aspect-ratio:3/4.25;
+  overflow:hidden;
+  background:var(--soft);
+}
+.home-tile-art img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  object-position:center;
+}
+.home-tile-shade{
+  position:absolute;
+  inset:38% 0 0;
+  background:linear-gradient(to bottom,transparent,rgba(0,0,0,.82));
+}
+.home-tile-copy{
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:10px;
+  display:grid;
+  gap:4px;
+  color:#fff;
+  text-shadow:0 1px 2px #000;
+}
+.home-tile-copy strong{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden;
+  font:800 14px/1.22 'DM Sans',system-ui,sans-serif;
+}
+.home-tile-copy small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font:600 10px/1.2 'DM Sans',system-ui,sans-serif;
+  opacity:.95;
+}
+.home-tile-badges{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:27px;
+  padding:5px 6px;
+  background:var(--paper);
+}
+.home-tile-badges b{
+  border-radius:2px;
+  padding:3px 6px;
+  color:#fff;
+  font:800 9px/1 'DM Sans',system-ui,sans-serif;
+  white-space:nowrap;
+}
+.home-chapter-badge{background:var(--green)}
+.home-full-badge{background:#d5a21a}
+.home-empty{
+  margin:16px 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+@media(max-width:760px){
+  .home-feed{margin:18px auto 34px;gap:16px}
+  .home-feed-section{padding-inline:12px;border-radius:8px}
+  .home-feed-head{min-height:48px}
+  .home-release-row{grid-template-columns:42px minmax(0,1fr) auto;gap:9px;min-height:68px;padding:8px 0}
+  .home-release-cover{width:42px;height:54px}
+  .home-tile-copy{left:8px;right:8px;bottom:8px}
+  .home-tile-copy strong{font-size:13px}
+  .home-cover-grid{gap:12px 10px;padding-top:12px}
+}
+@media(max-width:380px){
+  .home-feed-section{padding-inline:10px}
+  .home-release-row{grid-template-columns:38px minmax(0,1fr)}
+  .home-release-cover{width:38px;height:50px}
+  .home-release-row time{display:none}
+  .home-tile-copy strong{font-size:12px}
+}
