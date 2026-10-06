@@ -17,7 +17,7 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
     if(!nodes.has(name)) nodes.set(name,{ textContent:'', innerHTML:'', setAttribute(){}, addEventListener:on, querySelector:node, appendChild(){}, insertAdjacentElement(_where,n){nodes.set('#'+n.id,n);}, close(){},showModal(){} });
     return nodes.get(name);
   };
-  const document = { querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
+  const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
   const window = {NOVELS:[{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}],addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){}},NovelNestReading:{reload(){}}};
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
@@ -66,7 +66,7 @@ test('offline edits remain locally and sync after a failed request is retried', 
   assert.match(h.nodes.get('[data-account-status]').textContent,/stays on this device/);
   h.fail(null);await h.window.NovelNestAccounts.synchronize(true);
   assert.deepEqual(h.cloud.get('alice').data.saved,['book']);
-  assert.match(h.nodes.get('[data-account-status]').textContent,/Synced/);
+  assert.match(h.nodes.get('[data-account-status]').textContent,/All changes synced/);
 });
 
 test('local bookmark removal during an in-flight cloud read is preserved', async () => {

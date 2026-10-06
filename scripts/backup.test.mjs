@@ -72,14 +72,3 @@ test('a failed write rolls back previously written keys and leaves other browser
   assert.deepEqual([...h.storage], before);
 });
 
-test('file preview and cancel do not modify data; confirmation restores and reloads the library', async () => {
-  const h = harness(); h.mount();
-  await h.choose(backup(fixture()));
-  assert.equal(h.storage.size, 0);
-  assert.equal(h.node('[data-backup-preview]').hidden, false);
-  assert.match(h.node('[data-backup-summary]').textContent, /1 saved novels, 1 reading positions, and 1 Finished/);
-  h.click('[data-backup-cancel]'); h.click('[data-backup-restore]');
-  assert.equal(h.storage.size, 0); assert.equal(h.reloads, 0);
-  await h.choose(backup(fixture())); h.click('[data-backup-restore]');
-  assert.equal(h.reloads, 1); assert.deepEqual(plain(h.api.readCurrent()), fixture());
-});

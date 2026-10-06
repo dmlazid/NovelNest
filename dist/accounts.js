@@ -69,7 +69,7 @@
         clearTimeout(timer); timer = setTimeout(() => synchronize(), 5000);
       }
       renderStatus();
-    } catch { message = 'Browser storage is unavailable. Download a backup before closing this page.'; renderStatus(); }
+    } catch { message = 'Browser storage is unavailable. Enable site storage to save your reading progress.'; renderStatus(); }
   }
   // Stored data belongs to a scope, never to whichever Google account signs in next.
   function switchOwner(next) {
@@ -129,36 +129,100 @@
     } catch (error) { if (ticket === generation) fail(error); }
     finally { running = false; }
   }
+  const icon = name => {
+    const paths = {
+      book: '<path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Z"/><path d="M12 5v15"/>',
+      bookmark: '<path d="M6 3h12v19l-6-4-6 4Z"/>',
+      history: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+      grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+      bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+      user: '<circle cx="12" cy="8" r="4"/><path d="M4 22v-2a8 8 0 0 1 16 0v2"/>',
+      search: '<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',
+      close: '<path d="m6 6 12 12M18 6 6 18"/>',
+      settings: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
+      logout: '<path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4"/>',
+      info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>'
+    };
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.book}</svg>`;
+  };
+  function avatar() {
+    const photo = typeof user?.photoURL === 'string' && user.photoURL.startsWith('https://') ? user.photoURL : '';
+    const initials = (user?.displayName || user?.email || '').split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase();
+    return photo ? `<img src="${escape(photo)}" alt="" referrerpolicy="no-referrer">` : user ? `<span>${escape(initials || 'N')}</span>` : icon('user');
+  }
+  function statusText() {
+    return message === 'Synced with your Google account.' ? 'All changes synced' : message === 'Reading as a guest. Saved on this device.' ? 'Saved on this device' : message;
+  }
   function renderStatus() {
-    const node = document.querySelector('[data-account-status]');
-    if (node) node.textContent = message;
-    const link = document.querySelector('[data-account-link]');
-    if (link) link.textContent = user ? 'My account' : 'Log in / Sign up';
+    document.querySelectorAll('[data-account-status]').forEach(node => { node.textContent = statusText(); });
     try {
       const updates = sync.updates(books, current());
       const bell = document.querySelector('[data-updates]');
-      if (bell) { bell.textContent = `🔔 Updates${updates.length ? ' (' + updates.length + ')' : ''}`; bell.setAttribute('aria-label', `${updates.length} novels with new chapters`); }
+      if (bell) bell.setAttribute('aria-label', updates.length ? `Notifications: ${updates.length} novels with new chapters` : 'Notifications');
+      const dot = document.querySelector('[data-notification-dot]');
+      if (dot) dot.hidden = !updates.length;
     } catch {}
+  }
+  function drawer(id, title) {
+    let element = document.querySelector('#' + id);
+    if (!element) {
+      element = document.createElement('dialog'); element.id = id; element.className = 'site-drawer';
+      element.setAttribute('aria-label', title); document.body.appendChild(element);
+      element.addEventListener('click', event => { if (event.target === element) { const rect = element.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right) element.close(); } });
+    }
+    return element;
+  }
+  function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => d.close()); }
+  function openDrawer(element) { closeDrawers(); element.showModal(); }
+  function drawerTop(title) {
+    return `<div class="drawer-top"><a href="#/" data-close-drawer class="drawer-brand"><span>N</span> NovelNest</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
+  }
+  function row(href, name, detail, symbol) {
+    return `<a class="drawer-row" data-close-drawer href="${href}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
+  }
+  function googleButton() {
+    return `<button class="button google-signin" data-signin ${!ready || busy ? 'disabled' : ''}><span aria-hidden="true">G</span> Continue with Google</button>${!ready ? '<button class="quiet-button" data-account-retry>Retry connection</button>' : ''}`;
+  }
+  function profileContent() {
+    let guest = false;
+    try { const data = read(scopeKey(''), null)?.data; guest = !!data && (data.saved.length > 0 || Object.keys(data.progress).length > 0); } catch {}
+    return drawerTop('account') + `<section class="profile-summary"><div class="profile-avatar">${avatar()}</div><div><h2>${escape(user?.displayName || (user ? 'Reader' : 'Welcome, reader'))}</h2><p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
+      (!user ? `<div class="drawer-signin"><p>Sign in to keep your library across devices.</p>${googleButton()}</div>` : '') +
+      `<div class="drawer-rows">${row('#/library','Bookmarks','Your saved novels','bookmark')}${row('#/library?tab=history','History','Pick up where you left off','history')}
+      <details class="account-settings"><summary class="drawer-row"><span class="row-icon">${icon('settings')}</span><span><strong>Settings</strong><small>Your library &amp; account</small></span><span class="row-chevron" aria-hidden="true">›</span></summary><div class="settings-content">${user ? `<button class="button" data-sync-now ${busy ? 'disabled' : ''}>Sync now</button>${guest ? '<button class="button outline" data-import-guest>Add guest reading data</button><p>Copy this device’s guest bookmarks and progress into your account.</p>' : ''}<p>Signing out returns to your guest library.</p>` : '<p>Your guest library is saved on this device. Sign in to sync across devices.</p>'}</div></details></div>
+      <div class="profile-bottom"><p data-account-status role="status" aria-live="polite"></p>${user ? `<button class="signout-button" data-signout ${busy ? 'disabled' : ''}>${icon('logout')} Sign out</button>` : ''}</div>`;
+  }
+  function showProfile() {
+    const panel = drawer('account-drawer', 'My account'); panel.innerHTML = profileContent(); renderStatus(); openDrawer(panel);
   }
   function render() {
     const main = document.querySelector('#main');
-    if (location.hash === '#/library') {
+    const profile = document.querySelector('[data-profile]');
+    if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
+    if (location.hash.split('?')[0] === '#/library') {
       let section = document.querySelector('#account-panel');
-      if (!section) { section = document.createElement('section'); section.id = 'account-panel'; section.className = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
-      let guest = false;
-      try { const data = read(scopeKey(''), null)?.data; guest = !!data && (data.saved.length > 0 || Object.keys(data.progress).length > 0); } catch {}
-      section.innerHTML = user
-        ? `<h2>Your account</h2><p>Signed in as <strong>${escape(user.displayName || user.email || 'Reader')}</strong></p><p>Bookmarks, chapter labels, and reading positions sync across your devices. Appearance settings stay on this device.</p><div class="actions"><button class="button" data-sync-now ${busy ? 'disabled' : ''}>Sync now</button><button class="button outline" data-signout ${busy ? 'disabled' : ''}>Sign out</button>${guest ? '<button class="button outline" data-import-guest>Add guest reading data</button>' : ''}</div><p class="meta">Signing out returns to your separate guest library.</p><p data-account-status role="status" aria-live="polite"></p>`
-        : `<h2>Take your library with you</h2><p>One Google button to sign up or log in. Save bookmarks and resume reading on another device.</p><button class="button google-signin" data-signin ${!ready || busy ? 'disabled' : ''}><span aria-hidden="true">G</span> Continue with Google</button>${!ready ? '<button class="button outline" data-account-retry>Retry connection</button>' : ''}<p class="meta">Guest reading works without an account. After signing in, choose “Add guest reading data” to copy this device’s guest library into your account.</p><p data-account-status role="status" aria-live="polite"></p>`;
+      if (!section) { section = document.createElement('section'); section.id = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
+      section.className = user ? 'library-sync' : 'library-signin';
+      section.innerHTML = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your library, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
+    }
+    const panel = document.querySelector('#account-drawer');
+    if (panel?.open) {
+      const settingsOpen = !!panel.querySelector('details[open]');
+      panel.innerHTML = profileContent();
+      if (settingsOpen) panel.querySelector('details')?.setAttribute('open','');
     }
     renderStatus();
   }
+  function showMenu() {
+    const panel = drawer('navigation-drawer', 'Navigation');
+    panel.innerHTML = drawerTop('menu') + `<div class="menu-content"><form class="drawer-search" data-menu-search><label class="sr-only" for="menu-search">Search novels</label>${icon('search')}<input id="menu-search" name="q" placeholder="Search novels…" type="search"><button type="submit" aria-label="Search">${icon('search')}</button></form><nav class="menu-grid" aria-label="Main navigation"><a href="#/" data-close-drawer>${icon('book')}<span>Novels</span></a><a href="#/library" data-close-drawer>${icon('bookmark')}<span>Bookmarks</span></a><a href="#/browse" data-close-drawer>${icon('grid')}<span>Browse</span></a></nav><div class="menu-divider">YOUR READING</div><div class="drawer-rows">${row('#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('#/library?tab=history','History','Continue your reading journey','history')}${row('#/about','About NovelNest','Stories &amp; reading information','info')}</div></div>`;
+    openDrawer(panel);
+  }
   function showUpdates() {
-    let dialog = document.querySelector('#updates-dialog');
-    if (!dialog) { dialog = document.createElement('dialog'); dialog.id = 'updates-dialog'; dialog.className = 'updates-dialog'; dialog.setAttribute('aria-labelledby', 'updates-title'); document.body.appendChild(dialog); }
+    const dialog = drawer('updates-dialog', 'Notifications');
     const entries = sync.updates(books, current());
-    dialog.innerHTML = `<div class="section-head"><h2 id="updates-title">Chapter updates</h2><button class="button outline" data-close-updates aria-label="Close updates">Close</button></div><p>New chapters for novels in your library. Updates appear here when you revisit or refresh NovelNest.</p>${entries.length ? '<ul class="update-list">' + entries.map(n => `<li><a data-close-updates href="#/read/${escape(n.id)}/${n.first}"><strong>${escape(n.title)}</strong><span>${n.count} new chapter${n.count === 1 ? '' : 's'} · Start chapter ${n.first}</span></a></li>`).join('') + '</ul><button class="button" data-seen-updates>Mark all as seen</button>' : '<p class="empty-updates">You’re caught up. Save a novel to your library to follow future chapters.</p>'}<p class="meta">These are in-site alerts. No email or phone push notifications are sent.</p>`;
-    dialog.showModal();
+    dialog.innerHTML = drawerTop('notifications') + `<div class="notifications-heading"><h2>Notifications</h2><button class="quiet-button" data-seen-updates ${entries.length ? '' : 'disabled'}>Mark all read</button></div><div class="notification-tabs"><span>Chapters <b>${entries.length}</b></span></div>${entries.length ? '<ul class="update-list">' + entries.map(n => { const book = books.find(b => b.id === n.id); return `<li><a data-close-drawer href="#/read/${escape(n.id)}/${n.first}"><img src="${escape(book.cover)}" alt=""><div><strong>${escape(n.title)}</strong><span><em>New</em> Chapter ${n.first}${n.count > 1 ? '–' + book.chapters.length : ''}</span></div></a></li>`; }).join('') + '</ul>' : `<div class="empty-notifications"><div>${icon('bell')}</div><h3>You’re all caught up</h3><p>New chapters from your bookmarked novels will appear here.</p><a class="button" href="#/browse" data-close-drawer>Explore novels</a></div>`}<p class="notifications-footnote">Updates refresh when you visit NovelNest.</p>`;
+    openDrawer(dialog);
   }
   async function start() {
     if (busy || ready) return;
@@ -187,6 +251,9 @@
   }
   document.addEventListener('click', event => {
     const target = event.target;
+    if (target.closest('[data-profile]')) showProfile();
+    if (target.closest('[data-menu]')) showMenu();
+    if (target.closest('[data-close-drawer]')) closeDrawers();
     if (target.closest('[data-account-retry]')) start();
     if (target.closest('[data-signin]') && ready && !busy) {
       busy = true;
@@ -211,13 +278,18 @@
       } catch (error) { fail(error); }
     }
     if (target.closest('[data-updates]')) showUpdates();
-    if (target.closest('[data-close-updates]')) document.querySelector('#updates-dialog')?.close();
     if (target.closest('[data-seen-updates]')) {
       const state = current();
       for (const n of books) if (state.data.saved.includes(n.id)) state.seen[n.id] = n.chapters.length;
       localStorage.setItem(SEEN, JSON.stringify(state.seen)); changed();
-      document.querySelector('#updates-dialog')?.close();
+      showUpdates();
     }
+  });
+  document.addEventListener('submit', event => {
+    if (!event.target.matches('[data-menu-search]')) return;
+    event.preventDefault();
+    const query = new FormData(event.target).get('q').trim();
+    closeDrawers(); location.hash = '#/browse?q=' + encodeURIComponent(query);
   });
   window.NovelNestAccounts = { changed, synchronize };
   window.addEventListener('novelnest:view-ready', render);

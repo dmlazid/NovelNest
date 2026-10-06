@@ -16,8 +16,8 @@ Each authenticated user reads/writes only `/users/{uid}` with this schema:
 The rules grant ownership by authenticated UID and deny other document paths.
 The site stores no passwords or OAuth access tokens in its reading-data document.
 
-Open **My library → Continue with Google**. Existing device-only reading data
-remains in the guest library. Use **Add guest reading data** after signing in to
+Open the profile icon and choose **Continue with Google**. Existing device-only reading data
+remains in the guest library. Use **Settings → Add guest reading data** after signing in to
 merge it into the account. Signing out restores the guest library. Local caches
 and unsent changes remain separately scoped to each account on this browser.
 The SDK manages persisted sign-in; use sign out on shared devices.
@@ -28,7 +28,7 @@ apply this device's changes to the latest server state. Bookmark removals and
 finished-label undo are preserved; newer timestamped reading positions win.
 The site can read offline data already loaded in the browser. Unsent data is
 retained locally for retry. Clearing browser storage before sync loses unsent
-changes, so the JSON backup remains available. Appearance is device-only.
+changes. The manual backup interface has been removed. Appearance is device-only.
 
 The Updates button reports chapters added to saved novels since their last
 acknowledged count. The first use establishes a baseline, so existing chapters
