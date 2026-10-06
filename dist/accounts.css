@@ -102,3 +102,12 @@
   .compact-menu-button{width:40px;height:40px;padding:7px}
   .compact-menu-button svg{width:26px;height:26px}
 }
+
+
+/* Visible chapter-update button beside the compact menu. */
+.compact-header-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+.compact-notification-button,.compact-menu-button{position:relative;display:grid;place-items:center;width:44px;height:44px;margin-left:0;padding:8px;border:0;border-radius:7px;background:transparent;color:var(--green);cursor:pointer}
+.compact-notification-button:hover,.compact-menu-button:hover{background:var(--soft)}
+.compact-notification-button svg,.compact-menu-button svg{width:27px;height:27px}
+.compact-notification-button .notification-dot{top:5px;right:5px;box-shadow:0 0 0 2px #fff}
+@media(max-width:760px){.compact-header-actions{gap:1px}.compact-notification-button,.compact-menu-button{width:40px;height:40px;padding:7px}.compact-notification-button svg,.compact-menu-button svg{width:25px;height:25px}}
