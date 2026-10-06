@@ -102,7 +102,7 @@ def main():
             'genre': tags[0] if tags else 'Fiction', 'tags': tags or ['Fiction'],
             'status': args.status, 'cover': f'assets/{ID}.jpg', 'updated': args.updated, 'sample': False,
             'synopsis': synopsis,
-            'license': {'type': 'EPUB edition', 'note': 'Text and cover imported from the EPUB supplied by the site owner.'},
+            'license': {'type': 'Authorized publication', 'note': 'Published on NovelNest with permission from the rights holder, as confirmed by the site owner.'},
             'lazyChunks': {'prefix': f'data/{args.key}-chapters-', 'capacity': CAPACITY, 'global': global_name},
             'chapters': [{'number': c['number'], 'title': c['title'], 'paragraphs': ['Loading chapter…'], 'lazy': True} for c in chapters]
         }
