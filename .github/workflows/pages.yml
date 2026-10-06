@@ -9,6 +9,7 @@ on:
       - "Import licensed Astral Pet Store"
       - "Import licensed Cultivation Online"
       - "Import licensed Investing novel"
+      - "Import ongoing FreeWebNovel books"
     types: [completed]
   workflow_dispatch:
 
