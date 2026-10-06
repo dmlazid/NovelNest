@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: novel-chapter-import
+  group: cultivation-v4-import
   cancel-in-progress: false
 
 jobs:
