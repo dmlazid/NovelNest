@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: cultivation-v4-import
+  group: cultivation-freewebnovel-v5
   cancel-in-progress: false
 
 jobs:
