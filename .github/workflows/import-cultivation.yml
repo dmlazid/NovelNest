@@ -51,7 +51,6 @@ jobs:
           git add dist/data/cultivation-chapters-*.js
           git add dist/assets/cultivation-online.jpg
           git add dist/licensed-cultivation.js
-          git add dist/index.html
           if git diff --cached --quiet; then
             echo "No Cultivation Online chapter changes to commit."
             exit 0
