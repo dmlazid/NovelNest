@@ -229,6 +229,7 @@
     fixDetail(n);
     fixReader(n);
     fixAbout();
+    window.dispatchEvent(new Event('novelnest:view-ready'));
   }
 
   main.addEventListener('click', e => {

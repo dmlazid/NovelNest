@@ -64,3 +64,9 @@ Changes pushed to `main` run checks and the **Publish to GitHub Pages** workflow
 Publication runs the regression tests, validates every chapter, builds `_site/`, and deploys that folder. The **Check and package website** workflow also saves the built website as a downloadable artifact. A failed check prevents the new build from being deployed.
 
 After an update, refresh the page to load the new catalog. If an old open tab tries to fetch an asset from a previous deployment, its retry message explains when a refresh is needed.
+
+## Back up reading data
+
+Open **My library → Backup & restore → Download backup** to save a JSON file containing bookmarks, last-opened chapters, up to 200 recent paragraph positions, and all chapter status labels. This file contains reading data, not novel text or browser passwords. Keep it outside browser storage before clearing data or switching devices.
+
+To restore, choose the JSON backup on the destination browser, review its contents, and select **Restore this backup**. The site merges saved novels and Finished labels and keeps the newest dated reading positions. It restores only novels currently in this catalog, leaves appearance settings unchanged, validates the file before writing, and reloads the library after a successful restore. Files over 1 MB or with an unsupported format are rejected. Nothing is uploaded to a server.
