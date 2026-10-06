@@ -209,3 +209,14 @@
 .reader-position-bar button{min-height:44px;padding:6px 10px;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:8px;font:inherit;cursor:pointer}
 .reader-position-bar button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
 @media print{.reader-position-bar{display:none}}
+
+/* Chapter state labels are text as well as color, and wrap on narrow screens. */
+.toc .chapter-entry-number{flex:0 0 28px}
+.toc .chapter-entry-text{display:grid;gap:9px;min-width:0;flex:1}
+.toc .chapter-entry-title{color:var(--ink);font-size:15px;overflow-wrap:anywhere}
+.toc .chapter-entry-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chapter-state,.toc .chapter-state{display:inline-flex;align-items:center;width:fit-content;border:1px solid var(--line);border-radius:20px;padding:3px 9px;font:600 12px system-ui,sans-serif;line-height:1.5;color:var(--muted);background:var(--paper)}
+.chapter-state[data-state="in-progress"]{color:var(--ink);background:var(--soft)}
+.chapter-state[data-state="finished"]{color:var(--green);border-color:var(--green);background:var(--soft)}
+.chapter-completion{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.chapter-completion button{min-height:44px}

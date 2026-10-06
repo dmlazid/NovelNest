@@ -11,6 +11,8 @@ The current collection contains **Got a Gallery in the Wild** (ongoing) and **As
 
 Readers can search by title, author or genre, filter by status, browse paginated chapter lists, jump between chapters, and adjust appearance, font size, spacing and reading width. Bookmarks, preferences and reading progress are saved in the browser on the current device. The reader also remembers the paragraph and position within each chapter, shows a reading-progress percentage, and provides a Back to top button. Turn off Auto resume in reader settings to start at the top. Positions are kept for the 200 most recently read chapters on this device. There are no accounts or cross-device synchronization.
 
+Chapter lists label each chapter **Unread**, **In progress**, or **Finished**. Opening a successfully loaded chapter marks it in progress. Use **Mark chapter finished** below the chapter navigation to finish it, or **Mark as in progress** to undo that choice. Scrolling or reopening does not erase a finished label. These labels stay on this device even when older exact reading positions leave the 200-chapter position history.
+
 Both novels load chapter text on demand. The homepage downloads chapter titles and metadata, not the full books. Failed chapter requests display a retry button. Ongoing novels show a caught-up message at the latest chapter; completed novels show an ending.
 
 ## Edit and check

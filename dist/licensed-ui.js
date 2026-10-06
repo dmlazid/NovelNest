@@ -64,6 +64,12 @@
     return `C.${start} - C.${end}`;
   }
 
+  function chapterLink(n, c, index, progress) {
+    const state = window.NovelNestReading?.status(n.id, index + 1) || 'unread';
+    const label = {unread: 'Unread', 'in-progress': 'In progress', finished: 'Finished'}[state];
+    return `<a href="#/read/${n.id}/${index + 1}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
+  }
+
   function renderTocPage(n, tocSection, requestedPage) {
     if (!tocSection) return;
     const toc = tocSection.querySelector('.toc');
@@ -84,7 +90,7 @@
 
     toc.innerHTML = n.chapters.slice(start, end).map((c, offset) => {
       const i = start + offset;
-      return `<a href="#/read/${n.id}/${i + 1}"><span>${String(i + 1).padStart(2, '0')}</span>${esc(c.title)} ${progress?.chapter === i ? '<span>Last opened</span>' : ''}</a>`;
+      return chapterLink(n, c, i, progress);
     }).join('');
 
     tocSection.querySelector('.toc-pager')?.remove();
@@ -130,7 +136,7 @@
       const latest = n.chapters.map((c, i) => ({c, i})).slice(-6).reverse();
       const section = document.createElement('section');
       section.dataset.latestLicensed = n.id;
-      section.innerHTML = `<div class="section-head"><h2>Latest chapters</h2><span class="meta">Newest first</span></div><div class="toc">${latest.map(({c,i}) => `<a href="#/read/${n.id}/${i+1}"><span>${String(i+1).padStart(2,'0')}</span>${esc(c.title)}</a>`).join('')}</div>`;
+      section.innerHTML = `<div class="section-head"><h2>Latest chapters</h2><span class="meta">Newest first</span></div><div class="toc">${latest.map(({c,i}) => chapterLink(n, c, i, progressFor(n.id))).join('')}</div>`;
       tocSection.parentNode.insertBefore(section, tocSection);
     }
 
