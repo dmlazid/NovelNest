@@ -159,8 +159,7 @@
       const updates = sync.updates(books, current());
       const bell = document.querySelector('[data-updates]');
       if (bell) bell.setAttribute('aria-label', updates.length ? `Notifications: ${updates.length} novels with new chapters` : 'Notifications');
-      const dot = document.querySelector('[data-notification-dot]');
-      if (dot) dot.hidden = !updates.length;
+      document.querySelectorAll('[data-notification-dot]').forEach(dot => { dot.hidden = !updates.length; });
     } catch {}
   }
   function drawer(id, title) {
