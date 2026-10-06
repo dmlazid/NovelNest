@@ -70,6 +70,8 @@ def detect_latest(page_raw: str) -> int:
     if not numbers:
         numbers = {int(n) for n in re.findall(r"/chapter-(\\d+)", page_raw, flags=re.I)}
     if not numbers:
+        numbers = {int(n) for n in re.findall(r"\\bChapter\\s+(\\d+)\\b", page_raw, flags=re.I)}
+    if not numbers:
         raise RuntimeError("Could not detect Cultivation Online chapter numbers from the source page")
     latest = max(numbers)
     print(f"Latest Cultivation Online source chapter detected: {latest}", flush=True)
