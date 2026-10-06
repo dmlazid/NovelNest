@@ -219,7 +219,7 @@
     const about = main.querySelector('.about');
     if (!about) return;
     const titles = (window.NOVELS || []).map(n => esc(n.title)).join(' and ');
-    about.innerHTML = `<span class="eyebrow">A home for stories</span><h1>About NovelNest</h1><p>NovelNest is a place to read authorized novels chapter by chapter.</p><h2>Our collection</h2><p>${titles || 'Authorized novels'} ${(window.NOVELS || []).length === 1 ? 'is' : 'are'} available on-site with publication permission confirmed by the site owner.</p><h2>Your reading data</h2><p>Bookmarks, reading preferences, your last opened chapter, and your position inside each chapter are stored in your browser on this device.</p>`;
+    about.innerHTML = `<span class="eyebrow">A home for stories</span><h1>About NovelNest</h1><p>NovelNest is a place to read authorized novels chapter by chapter.</p><h2>Our collection</h2><p>${titles || 'Authorized novels'} ${(window.NOVELS || []).length === 1 ? 'is' : 'are'} available on-site with publication permission confirmed by the site owner.</p><h2>Your reading data</h2><p>You can read as a guest, with bookmarks and reading progress stored on this device, or sign in with Google to sync bookmarks, chapter labels, and reading positions using Firebase. Each account has its own library. Appearance preferences stay on this device. Google processes sign-in information; NovelNest uses your account ID to store your reading data. Chapter alerts appear inside the site for saved novels when you revisit or refresh. No email or phone push notifications are sent.</p>`;
   }
 
   function fix() {

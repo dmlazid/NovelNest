@@ -22,7 +22,7 @@
       started: [...entry.started].sort((a, b) => a - b),
       finished: [...entry.finished].sort((a, b) => a - b),
     }]));
-    try { localStorage.setItem(KEY, JSON.stringify(value)); } catch {}
+    try { localStorage.setItem(KEY, JSON.stringify(value)); window.NovelNestAccounts?.changed(); } catch {}
   }
 
   // Preserve earlier reading history without assuming that opening a chapter finished it.
@@ -64,7 +64,18 @@
     persist();
   }
 
-  window.NovelNestReading = { status, opened, setFinished };
+  function reload() {
+    const value = read(KEY);
+    for (const [id, entry] of records) {
+      const valid = n => Number.isInteger(n) && n > 0 && n <= entry.count;
+      entry.started = new Set((value[id]?.started || []).filter(valid));
+      entry.finished = new Set((value[id]?.finished || []).filter(valid));
+      for (const n of entry.finished) entry.started.add(n);
+    }
+    const current = target(), control = document.querySelector('.chapter-completion');
+    if (current && control) updateControl(control, current);
+  }
+  window.NovelNestReading = { status, opened, setFinished, reload };
 
   function target() {
     const match = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);

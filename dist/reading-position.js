@@ -11,7 +11,7 @@
     // Keep storage small even after reading hundreds of chapters.
     const entries = Object.entries(positions).sort((a, b) => (b[1]?.at || 0) - (a[1]?.at || 0)).slice(0, 200);
     positions = Object.fromEntries(entries);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(positions)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(positions)); window.NovelNestAccounts?.changed(); } catch {}
   }
 
   function measure() {
@@ -39,6 +39,8 @@
     if (!active || active.restoring) return;
     const position = measure();
     if (!position) return;
+    const previous = positions[active.key];
+    if (previous && ['paragraph', 'fraction', 'percent', 'start'].every(key => previous[key] === position[key])) position.at = previous.at;
     active.position = position;
     positions[active.key] = position;
     active.label.textContent = `${position.percent}% read`;
@@ -107,13 +109,18 @@
     scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; capture(); });
   }
 
-  window.addEventListener('novelnest:before-route', () => {
-    capture(true);
+  function stop() {
+    clearTimeout(saveTimer);
     active = null;
     generation++;
     cancelAnimationFrame(scrollFrame);
     scrollFrame = 0;
-  });
+  }
+  window.NovelNestPositions = { capture: () => capture(true), stop, reload() {
+    clearTimeout(saveTimer);
+    try { positions = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { positions = {}; }
+  } };
+  window.addEventListener('novelnest:before-route', () => { capture(true); stop(); });
   window.addEventListener('novelnest:reader-ready', ready);
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('pagehide', () => capture(true));
