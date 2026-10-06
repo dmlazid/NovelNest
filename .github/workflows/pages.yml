@@ -8,6 +8,7 @@ on:
       - "Import licensed gallery novel"
       - "Import licensed Astral Pet Store"
       - "Import licensed Cultivation Online"
+      - "Import licensed Investing novel"
     types: [completed]
   workflow_dispatch:
 
