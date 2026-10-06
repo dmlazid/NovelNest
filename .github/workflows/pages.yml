@@ -7,6 +7,7 @@ on:
     workflows:
       - "Import licensed gallery novel"
       - "Import licensed Astral Pet Store"
+      - "Import licensed Cultivation Online"
     types: [completed]
   workflow_dispatch:
 
