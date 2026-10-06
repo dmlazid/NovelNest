@@ -18,7 +18,7 @@ NOVEL_PAGE = "https://novelrare.com/novel/cultivation-online/"
 CHAPTER_URL = "https://novelrare.com/novel/cultivation-online/chapter-{number}/"
 TITLE = "Cultivation Online"
 AUTHOR = "Mylittlebrother"
-INITIAL_TARGET = 2663
+TARGET = 2663
 FIXED_CHUNK_FILES = 40
 MIN_CHUNK_CAPACITY = 75
 MAX_WORKERS = 6
@@ -27,9 +27,8 @@ DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
 CATALOG_PATH = DIST / "licensed-cultivation.js"
 COVER_PATH = ASSET_DIR / "cultivation-online.jpg"
-INDEX_PATH = DIST / "index.html"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/3.0; +https://github.com/dmlazid/NovelNest)",
+    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/3.1; +https://github.com/dmlazid/NovelNest)",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -63,31 +62,21 @@ def get(url: str, *, binary: bool = False):
 
 def clean_text(value: str) -> str:
     value = " ".join(value.split()).strip()
-    normalized = unicodedata.normalize("NFKC", value)
-    normalized = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", normalized, flags=re.I)
-    return " ".join(normalized.split()).strip()
+    value = unicodedata.normalize("NFKC", value)
+    value = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", value, flags=re.I)
+    return " ".join(value.split()).strip()
 
 
 def is_noise(value: str) -> bool:
     low = value.lower().strip()
     if not low:
         return True
-    exact = {
-        "previous chapter", "next chapter", "chapter list", "home", "novelrare.com",
-        "read novel", "table of contents", "bookmark", "report chapter",
-    }
-    if low in exact:
+    if low in {"previous chapter", "next chapter", "chapter list", "home", "novelrare.com", "read novel", "table of contents", "bookmark", "report chapter"}:
         return True
     return any(piece in low for piece in (
         "this story originates from", "ensure the author gets the support",
         "read more chapters", "please disable adblock", "novelrare is",
     ))
-
-
-def detect_latest(raw: str) -> int | None:
-    numbers = {int(n) for n in re.findall(r"chapter-(\d+)", raw, flags=re.I)}
-    numbers.update(int(n) for n in re.findall(r"Chapter\s+(\d+)", raw, flags=re.I))
-    return max(numbers) if numbers else None
 
 
 def load_existing_chapters() -> list[dict]:
@@ -116,12 +105,10 @@ def content_candidate(soup: BeautifulSoup):
     candidates = []
     for selector in selectors:
         for node in soup.select(selector):
-            text = clean_text(node.get_text(" ", strip=True))
-            if len(text) > 500:
-                candidates.append((len(text), node))
-    if candidates:
-        return max(candidates, key=lambda item: item[0])[1]
-    return soup.body or soup
+            value = clean_text(node.get_text(" ", strip=True))
+            if len(value) > 500:
+                candidates.append((len(value), node))
+    return max(candidates, key=lambda item: item[0])[1] if candidates else (soup.body or soup)
 
 
 def parse_chapter(number: int) -> dict:
@@ -140,9 +127,8 @@ def parse_chapter(number: int) -> dict:
     paragraphs = []
     for p in container.find_all("p"):
         value = clean_text(p.get_text(" ", strip=True))
-        if not is_noise(value):
+        if value and not is_noise(value):
             paragraphs.append(value)
-
     if len(paragraphs) < 3:
         paragraphs = []
         for value in container.stripped_strings:
@@ -150,7 +136,6 @@ def parse_chapter(number: int) -> dict:
             if value and not is_noise(value) and value != title:
                 paragraphs.append(value)
 
-    # Remove obvious title/navigation fragments that can appear at the edges.
     while paragraphs and (re.fullmatch(rf"(?:Chapter\s+)?{number}(?:\s*[:.-].*)?", paragraphs[0], re.I) or paragraphs[0] == title):
         paragraphs.pop(0)
     paragraphs = [p for p in paragraphs if len(p) > 1]
@@ -186,8 +171,7 @@ def write_chunks(chapters: list[dict]) -> int:
         start = (index - 1) * capacity
         part = chapters[start:start + capacity]
         payload = json.dumps(part, ensure_ascii=False, separators=(",", ":"))
-        path = DATA_DIR / f"cultivation-chapters-{index:02d}.js"
-        path.write_text(
+        (DATA_DIR / f"cultivation-chapters-{index:02d}.js").write_text(
             "window.CULTIVATION_CHAPTERS=(window.CULTIVATION_CHAPTERS||[]).concat(" + payload + ");\n",
             encoding="utf-8",
         )
@@ -200,8 +184,7 @@ def cover_from_page(raw: str) -> str | None:
     if meta and meta.get("content"):
         return urljoin(NOVEL_PAGE, meta["content"])
     for img in soup.find_all("img"):
-        alt = (img.get("alt") or "").lower()
-        if "cultivation online" in alt:
+        if "cultivation online" in (img.get("alt") or "").lower():
             src = img.get("src") or img.get("data-src")
             if src:
                 return urljoin(NOVEL_PAGE, src)
@@ -237,65 +220,35 @@ def write_catalog(chapters: list[dict], capacity: int, updated: str) -> None:
         "updated": updated,
         "sample": False,
         "synopsis": "Yuan was born with an incurable illness that left him blind at a young age and crippled a few years later, rendering everything below his head useless. Deemed hopeless and irredeemable, his parents quickly gave up on him, and the world ignored him. In this dark and still world, his younger sister became his sole reason for living. Watch as this young man reaches for the apex as a genius in Cultivation Online, the newest VRMMORPG, becoming a legendary figure in both worlds.",
-        "license": {
-            "type": "Authorized publication",
-            "note": "Published on NovelNest with permission from the rights holder, as confirmed by the site owner."
-        },
+        "license": {"type": "Authorized publication", "note": "Published on NovelNest with permission from the rights holder, as confirmed by the site owner."},
         "source": "NovelRare",
         "sourceUrl": NOVEL_PAGE,
         "lazyChunks": {"prefix": "data/cultivation-chapters-", "capacity": capacity, "global": "CULTIVATION_CHAPTERS"},
         "chapters": metadata,
     }
-    text = "(() => {\n  const novel = " + json.dumps(novel, ensure_ascii=False, separators=(",", ":")) + ";\n  const index = window.NOVELS.findIndex(n => n.id === novel.id);\n  if (index >= 0) window.NOVELS[index] = novel;\n  else window.NOVELS.push(novel);\n})();\n"
-    CATALOG_PATH.write_text(text, encoding="utf-8")
-
-
-def ensure_index() -> None:
-    html = INDEX_PATH.read_text(encoding="utf-8")
-    marker = '<script defer src="licensed-cultivation.js"></script>'
-    if marker not in html:
-        insert_after = '<script defer src="licensed-farming.js"></script>'
-        if insert_after in html:
-            html = html.replace(insert_after, insert_after + marker)
-        else:
-            html = html.replace('<script defer src="app.js"></script>', marker + '<script defer src="app.js"></script>')
-        INDEX_PATH.write_text(html, encoding="utf-8")
+    CATALOG_PATH.write_text(
+        "(() => {\n  const novel = " + json.dumps(novel, ensure_ascii=False, separators=(",", ":")) + ";\n  const index = window.NOVELS.findIndex(n => n.id === novel.id);\n  if (index >= 0) window.NOVELS[index] = novel;\n  else window.NOVELS.push(novel);\n})();\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> None:
     page = get(NOVEL_PAGE)
-    existing = load_existing_chapters()
-    existing_count = len(existing)
-    detected = detect_latest(page)
-
-    if existing_count == 0:
-        target = INITIAL_TARGET
-        print(f"Initial Cultivation Online build target: {target}", flush=True)
-    else:
-        target = max(existing_count, detected or existing_count)
-        print(f"NovelNest currently has {existing_count}; source reports {detected or 'unknown'}; target {target}", flush=True)
-
-    if target < INITIAL_TARGET:
-        target = INITIAL_TARGET
-
-    chapters = list(existing)
-    if len(chapters) < target:
-        needed = list(range(len(chapters) + 1, target + 1))
-        chapters.extend(fetch_chapters(needed))
-    elif len(chapters) > target:
-        target = len(chapters)
+    chapters = load_existing_chapters()
+    if len(chapters) > TARGET:
+        print(f"Trimming Cultivation Online from {len(chapters)} to requested target {TARGET}.", flush=True)
+        chapters = chapters[:TARGET]
+    if len(chapters) < TARGET:
+        chapters.extend(fetch_chapters(list(range(len(chapters) + 1, TARGET + 1))))
 
     numbers = [int(ch.get("number", i + 1)) for i, ch in enumerate(chapters)]
-    expected = list(range(1, target + 1))
-    if numbers != expected:
+    if numbers != list(range(1, TARGET + 1)):
         raise RuntimeError("Cultivation Online chapters are missing, duplicated, or out of order")
 
     capacity = write_chunks(chapters)
     ensure_cover(page)
-    updated = datetime.now(timezone.utc).date().isoformat()
-    write_catalog(chapters, capacity, updated)
-    ensure_index()
-    print(f"Import complete: Cultivation Online has a clean 1-{target} sequence with no gaps or duplicate chapter numbers.", flush=True)
+    write_catalog(chapters, capacity, datetime.now(timezone.utc).date().isoformat())
+    print(f"Import complete: Cultivation Online has exactly 1-{TARGET}, with no gaps or duplicate chapter numbers.", flush=True)
 
 
 if __name__ == "__main__":
