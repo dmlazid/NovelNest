@@ -65,18 +65,68 @@ def clean_text(value: str) -> str:
     return " ".join(value.split()).strip()
 
 
+def chapter_exists(number: int) -> bool:
+    url = f"{BASE}/chapter-{number}"
+    last = None
+    for attempt in range(6):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=30)
+            if r.status_code == 404:
+                return False
+            if r.status_code == 429:
+                retry = r.headers.get("Retry-After")
+                try:
+                    retry = float(retry) if retry else 0
+                except (TypeError, ValueError):
+                    retry = 0
+                delay = max(retry, min(60, 6 + attempt * 8))
+                time.sleep(delay)
+                continue
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
+            article = soup.select_one("div#article") or soup.select_one("div.txt") or soup.select_one("article") or soup.select_one("main")
+            if article is None:
+                return False
+            article_text = clean_text(article.get_text(" ", strip=True))
+            page_text = clean_text(soup.get_text(" ", strip=True))
+            return len(article_text) >= 300 and re.search(rf"\\b{number}\\b", page_text) is not None
+        except Exception as exc:
+            last = exc
+            if attempt < 5:
+                time.sleep(min(30, 2 ** (attempt + 1)))
+    raise RuntimeError(f"Could not probe Cultivation chapter {number}: {last}")
+
+
 def detect_latest(page_raw: str) -> int:
     numbers = {int(n) for n in re.findall(r"cultivation-online-novel/chapter-(\\d+)", page_raw, flags=re.I)}
     if not numbers:
         numbers = {int(n) for n in re.findall(r"/chapter-(\\d+)", page_raw, flags=re.I)}
     if not numbers:
         numbers = {int(n) for n in re.findall(r"\\bChapter\\s+(\\d+)\\b", page_raw, flags=re.I)}
-    if not numbers:
-        raise RuntimeError("Could not detect Cultivation Online chapter numbers from the source page")
-    latest = max(numbers)
-    print(f"Latest Cultivation Online source chapter detected: {latest}", flush=True)
-    return latest
+    if numbers:
+        latest = max(numbers)
+        print(f"Latest Cultivation Online source chapter detected from index: {latest}", flush=True)
+        return latest
 
+    print("Chapter list hidden in source response; probing chapter pages directly...", flush=True)
+    low, high = 0, 1
+    while chapter_exists(high):
+        low = high
+        high *= 2
+        if high > 32768:
+            raise RuntimeError("Cultivation chapter probe exceeded safety limit")
+
+    while low + 1 < high:
+        mid = (low + high) // 2
+        if chapter_exists(mid):
+            low = mid
+        else:
+            high = mid
+
+    if low < 1:
+        raise RuntimeError("Could not detect any Cultivation Online chapters")
+    print(f"Latest Cultivation Online source chapter detected by probing: {low}", flush=True)
+    return low
 
 def load_existing() -> list[dict]:
     chapters: list[dict] = []
