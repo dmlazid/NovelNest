@@ -25,9 +25,10 @@ DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
 CATALOG_PATH = DIST / "licensed-investing.js"
+INDEX_PATH = DIST / "index.html"
 COVER_PATH = ASSET_DIR / "investing-in-my-three-crippled-wives-get-10000x-times-return.jpg"
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/3.0; +https://github.com/dmlazid/NovelNest)",
+    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/3.1; +https://github.com/dmlazid/NovelNest)",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -195,6 +196,20 @@ def write_catalog(chapters: list[dict], cap: int, updated: str) -> None:
     )
 
 
+def ensure_index_registration() -> None:
+    if not INDEX_PATH.exists():
+        raise RuntimeError("dist/index.html is missing")
+    html = INDEX_PATH.read_text(encoding="utf-8")
+    tag = '<script defer src="licensed-investing.js"></script>'
+    if tag in html:
+        return
+    anchor = '<script defer src="app.js"></script>'
+    if anchor not in html:
+        raise RuntimeError("Could not find app.js script tag in dist/index.html")
+    INDEX_PATH.write_text(html.replace(anchor, tag + anchor, 1), encoding="utf-8")
+    print("Registered licensed-investing.js in dist/index.html", flush=True)
+
+
 def main() -> None:
     raw = get(BASE)
     detected = detect_latest(raw)
@@ -211,6 +226,7 @@ def main() -> None:
     cap = write_chunks(chapters)
     ensure_cover(raw)
     write_catalog(chapters, cap, datetime.now(timezone.utc).date().isoformat())
+    ensure_index_registration()
     print(f"Import complete: Investing novel has a clean 1-{len(chapters)} sequence.", flush=True)
 
 

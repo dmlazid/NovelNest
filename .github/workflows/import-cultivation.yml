@@ -1,12 +1,9 @@
 name: Import licensed Cultivation Online
 
+# Automatic runs are paused because the configured FreeWebNovel source
+# currently returns HTTP 404. Keep this manual-only until a valid,
+# authorized full source is available.
 on:
-  schedule:
-    - cron: "17 */6 * * *"
-  push:
-    paths:
-      - "scripts/import_cultivation.py"
-      - ".github/workflows/import-cultivation.yml"
   workflow_dispatch:
 
 permissions:
