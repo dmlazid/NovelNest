@@ -35,7 +35,59 @@ function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<d
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
 function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>Chapter ${i+1}: ${esc(c.title)}</p></div><time datetime="${n.updated}">${new Date(n.updated+'T00:00:00Z').toLocaleDateString('en',{month:'short',day:'numeric',timeZone:'UTC'})}</time></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
-function home(){const a=novels[0],b=novels[1];return `<section class="intro"><div><span class="eyebrow">Make time for a good story</span><h1>Find your next chapter.</h1><p class="muted">New worlds, unforgettable characters. A story for every mood.</p></div>${searchForm()}</section>${chips()}${continueBox()}<section class="featured" aria-label="Featured stories"><article class="spotlight">${image(a)}<div><span class="eyebrow">The editor’s shelf · Sample</span><h2>${esc(a.title)}</h2><div class="meta">Fantasy · Adventure · 3 chapters</div><p>A letter from the sky. A city forgotten by the world. One extraordinary journey home.</p><a class="button light" href="${bookUrl(a)}">Discover the story</a></div></article><article class="feature-side">${image(b)}<div><span class="eyebrow">A softer escape</span><h3>${esc(b.title)}</h3><p class="muted">Some love stories begin with a little patience.</p><a class="text-link" href="${bookUrl(b)}">Read the story</a></div></article></section><p class="sample-note">Read our original samples here, or discover linked novels on other reading websites. Each listing shows where you can read it.</p><section><div class="section-head"><h2>Stories to get lost in</h2><a class="text-link" href="#/browse">Browse all</a></div><div class="catalog-grid">${[...novels].sort((a,b)=>Number(Boolean(b.externalUrl))-Number(Boolean(a.externalUrl))).map(card).join('')}</div></section><div class="lower-grid"><section><div class="section-head"><h2>Latest chapters</h2><a class="text-link" href="#/latest">View all</a></div><div class="chapter-list">${latestRows(4)}</div></section><section><div class="section-head"><h2>Explore by genre</h2></div><div class="genre-box">${genres.map(g=>`<a class="genre-row" href="#/browse?genre=${encodeURIComponent(g)}">${g}<span>${novels.filter(n=>n.tags.includes(g)).length} ${novels.filter(n=>n.tags.includes(g)).length===1?'story':'stories'}</span></a>`).join('')}</div></section></div>`}
+function homeDate(value){
+  const date=new Date(value+'T00:00:00Z');
+  return Number.isNaN(date.getTime())?'Updated':date.toLocaleDateString('en',{month:'short',day:'numeric',timeZone:'UTC'});
+}
+function homeReleaseRow(n){
+  const i=Math.max(0,n.chapters.length-1),c=n.chapters[i];
+  return `<a class="home-release-row" href="${chapterUrl(n,i)}">
+    <img class="home-release-cover" src="${esc(n.cover)}" alt="" loading="lazy">
+    <span class="home-release-copy">
+      <strong>${esc(n.title)}</strong>
+      <small>${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
+      <span><b>Ch. ${i+1}</b> ${esc(c?.title||'Latest chapter')}</span>
+    </span>
+    <time datetime="${esc(n.updated)}">${homeDate(n.updated)}</time>
+  </a>`;
+}
+function homeNovelTile(n){
+  return `<a class="home-novel-tile" href="${bookUrl(n)}">
+    <span class="home-tile-art">
+      <img src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy">
+      <span class="home-tile-shade"></span>
+      <span class="home-tile-copy">
+        <strong>${esc(n.title)}</strong>
+        <small>▣ English Novel</small>
+        <small>▤ ${esc(n.tags.slice(0,2).join(' · ')||n.genre)}</small>
+      </span>
+    </span>
+    <span class="home-tile-badges">
+      ${n.status==='Completed'?'<b class="home-full-badge">Full</b>':''}
+      <b class="home-chapter-badge">${n.chapters.length} Chapters</b>
+    </span>
+  </a>`;
+}
+function home(){
+  const sorted=[...novels].sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
+  const releases=sorted.slice(0,10);
+  const latestNovels=sorted.slice(0,6);
+  const completed=sorted.filter(n=>n.status==='Completed').slice(0,6);
+  return `<div class="home-feed">
+    <section class="home-feed-section home-release-section">
+      <div class="home-feed-head"><h1><span aria-hidden="true">↻</span> Latest Release Novels</h1><a href="#/latest">See more</a></div>
+      <div class="home-release-list">${releases.map(homeReleaseRow).join('')}</div>
+    </section>
+    <section class="home-feed-section">
+      <div class="home-feed-head"><h2><span aria-hidden="true">↻</span> Latest Novels</h2><a href="#/browse">See more</a></div>
+      <div class="home-cover-grid">${latestNovels.map(homeNovelTile).join('')}</div>
+    </section>
+    <section class="home-feed-section">
+      <div class="home-feed-head"><h2><span aria-hidden="true">✓</span> Completed Novels</h2><a href="#/browse?status=Completed">See more</a></div>
+      ${completed.length?`<div class="home-cover-grid">${completed.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No completed novels yet.</p>'}
+    </section>
+  </div>`;
+}
 function browse(params){const q=params.get('q')||'',genre=params.get('genre')||'All',status=params.get('status')||'All',sort=params.get('sort')||'latest';let results=novels.filter(n=>(genre==='All'||n.tags.includes(genre))&&(status==='All'||n.status===status)&&`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase()));results.sort(sort==='title'?(a,b)=>a.title.localeCompare(b.title):(a,b)=>b.updated.localeCompare(a.updated));return `<section class="intro"><div><span class="eyebrow">Your next escape</span><h1>Browse novels</h1><p class="muted">Find a story that feels like your kind of world.</p></div>${searchForm(q)}</section>${chips(genre)}<div class="toolbar"><span class="muted">${results.length} ${results.length===1?'story':'stories'}${q?` matching “${esc(q)}”`:''}</span><div><label for="status" class="muted">Status </label><select id="status" data-filter="status"><option ${status==='All'?'selected':''}>All</option><option ${status==='Completed'?'selected':''}>Completed</option><option ${status==='Ongoing'?'selected':''}>Ongoing</option></select> <label for="sort" class="muted">Sort </label><select id="sort" data-filter="sort"><option value="latest" ${sort==='latest'?'selected':''}>Latest added</option><option value="title" ${sort==='title'?'selected':''}>Title A–Z</option></select></div></div>${results.length?`<div class="catalog-grid">${results.map(card).join('')}</div>`:`<div class="empty"><h2>No stories found</h2><p>Try a different title or genre, or clear your filters.</p><a class="button" href="#/browse">Clear filters</a></div>`}<p class="sample-note">Sample stories can be read here. External reading links open the novel on the named website.</p>`}
 function detail(id){const n=novels.find(x=>x.id===id);if(!n)return missing();if(n.externalUrl)return externalDetail(n);const p=lastRead(n);return `<div class="breadcrumb"><a href="#/browse">Browse novels</a><span>/</span><span>${esc(n.title)}</span></div><article class="detail">${image(n)}<div class="book-info"><span class="eyebrow">${n.tags.map(esc).join(' / ')}</span><h1>${esc(n.title)}</h1><p class="muted">by ${esc(n.author)}</p><span class="status-pill">${esc(n.status)}</span><p class="meta">${n.chapters.length} chapters · English · Licensed edition</p></div><div class="description" style="grid-column:1/-1"><h2>About the story</h2>${synopsisHtml(n)}<p class="meta">${esc(n.license?.note || "Licensed edition on NovelNest.")}</p></div><div class="actions" style="grid-column:1/-1"><a class="button" href="${chapterUrl(n,p?p.chapter:0)}">${p?'Continue reading':'Start reading'}</a><button class="button outline" data-save="${n.id}" aria-pressed="${saved.includes(n.id)}">${saved.includes(n.id)?'♥ Saved in library':'♡ Save to library'}</button></div></article><section><div class="section-head"><h2>Chapters <span class="muted">(${n.chapters.length})</span></h2><span class="meta">${n.status==='Completed'?'Complete story':'Ongoing · More chapters to come'}</span></div><div class="toc">${n.chapters.map((c,i)=>`<a href="${chapterUrl(n,i)}"><span>${String(i+1).padStart(2,'0')}</span>${esc(c.title)} ${p?.chapter===i?'<span>Last opened</span>':''}</a>`).join('')}</div></section>`}
 function externalDetail(n){return `<div class="breadcrumb"><a href="#/browse">Browse novels</a><span>/</span><span>${esc(n.title)}</span></div><article class="detail">${image(n)}<div class="book-info"><span class="eyebrow">${n.tags.map(esc).join(' / ')}</span><h1>${esc(n.title)}</h1><p class="muted">Credits on ${esc(n.externalSource)}: ${esc(n.author)}</p><span class="status-pill">${esc(n.status)}</span><p class="meta">External reading link</p></div><div class="description" style="grid-column:1/-1"><h2>About the story</h2>${synopsisHtml(n)}<p class="meta">This is a reading-list entry. Chapters are hosted on ${esc(n.externalSource)}, and opening the reading link takes you to that website.</p></div><div class="actions" style="grid-column:1/-1"><a class="button" href="${esc(n.externalUrl)}" target="_blank" rel="noopener noreferrer">Read on ${esc(n.externalSource)} <span class="meta external-tab-note">(new tab)</span></a><button class="button outline" data-save="${n.id}" aria-pressed="${saved.includes(n.id)}">${saved.includes(n.id)?'♥ Saved in library':'♡ Save to library'}</button></div></article>`}
