@@ -228,3 +228,14 @@
 .backup-preview{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
 .backup-preview[hidden]{display:none}
 @media(max-width:430px){.library-backup{padding:18px}.library-backup .actions button{width:100%}}
+
+/* Keep long About sections compact without hiding the full synopsis. */
+.synopsis-collapsible [hidden]{display:none !important}
+.synopsis-toggle{
+  display:inline-flex;align-items:center;padding:6px 0;margin:0 0 5px;
+  border:0;background:transparent;color:var(--green);
+  font:700 14px 'DM Sans',system-ui,sans-serif;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;
+}
+.synopsis-toggle:hover{opacity:.85}
+.synopsis-toggle:focus-visible{outline:2px solid var(--green);outline-offset:4px;border-radius:2px}

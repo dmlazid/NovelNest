@@ -119,3 +119,20 @@ test('validation rejects empty catalogs, missing chunks, and mismatched chapter 
     assert.throws(() => validateSite(root), /catalog number mismatch/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('licensed edition and collapsible summaries appear in novel details', () => {
+  const h = harness();
+  const novel = h.window.NOVELS.find(n => String(n.synopsis || '').length > 340);
+  assert(novel, 'At least one novel should have a long synopsis for this test');
+  h.go(`#/novel/${novel.id}`);
+  const detail = h.node('#main').innerHTML;
+  assert.match(detail, /Licensed edition/);
+  assert.match(detail, /data-synopsis-preview/);
+  assert.match(detail, /data-synopsis-full hidden/);
+  assert.match(detail, /data-synopsis-toggle[^>]+aria-controls/);
+  assert.match(detail, /See more/);
+  assert.doesNotMatch(detail, /EPUB edition|Sample story/);
+  h.go(`#/read/${novel.id}/1`);
+  assert.match(h.node('#main').innerHTML, /Licensed edition/);
+  assert.doesNotMatch(h.node('#main').innerHTML, /EPUB edition|Sample story/);
+});

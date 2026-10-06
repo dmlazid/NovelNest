@@ -117,7 +117,7 @@
 
   function fixDetail(n) {
     if (!n || !location.hash.startsWith(`#/novel/${n.id}`)) return;
-    setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${n.license?.type === 'EPUB edition' ? 'EPUB edition' : 'Licensed edition'}`);
+    setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${'Licensed edition'}`);
     setText(main.querySelector('.description .meta'), n.license?.note || 'Published on NovelNest.');
 
     const p = prefs();
@@ -195,7 +195,7 @@
     const current = currentReaderNumber();
     if (!current) return;
 
-    setText(main.querySelector('.reader-heading .meta'), `${n.title} · ${n.license?.type === 'EPUB edition' ? 'EPUB edition' : 'Licensed edition'}`);
+    setText(main.querySelector('.reader-heading .meta'), `${n.title} · ${'Licensed edition'}`);
 
     const oldTools = main.querySelector('.reader-tools');
     if (oldTools) {
@@ -233,6 +233,20 @@
   }
 
   main.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-synopsis-toggle]');
+    if (toggle) {
+      const container = toggle.closest('[data-synopsis]');
+      const preview = container?.querySelector('[data-synopsis-preview]');
+      const full = container?.querySelector('[data-synopsis-full]');
+      if (preview && full) {
+        const expand = toggle.getAttribute('aria-expanded') !== 'true';
+        preview.hidden = expand;
+        full.hidden = !expand;
+        toggle.setAttribute('aria-expanded', String(expand));
+        toggle.textContent = expand ? 'See less' : 'See more';
+      }
+      return;
+    }
     const action = e.target.closest('[data-toc-action]');
     if (action) {
       const pager = action.closest('.toc-pager');
