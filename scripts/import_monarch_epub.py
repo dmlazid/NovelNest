@@ -39,6 +39,7 @@ def main():
             raise ValueError('This importer is for the Monarch novel only')
         manifest = {item.attrib['id']: item.attrib for item in package.find('{*}manifest')}
         chapters = []
+        synopsis = text(metadata.find('{*}description'))
         for item in package.find('{*}spine'):
             entry = manifest[item.attrib['idref']]
             if entry.get('media-type') != 'application/xhtml+xml':
@@ -48,6 +49,10 @@ def main():
             heading = text(body.find('.//{*}h1'))
             match = re.match(r'^Chapter\s+(\d+)\b', heading, re.I)
             if not match:
+                if heading == 'Information':
+                    description = next((node for node in body.iter() if node.get('class') == 'inner'), None)
+                    if description is not None:
+                        synopsis = ' '.join(text(p) for p in description.iter() if p.tag.rsplit('}', 1)[-1] == 'p')
                 continue
             number = int(match.group(1))
             if number != len(chapters) + 1:
@@ -76,7 +81,7 @@ def main():
             'id': ID, 'title': title, 'author': text(metadata.find('{*}creator')),
             'genre': 'Fantasy', 'tags': [t.strip() for t in text(metadata.find('{*}subject')).split(',') if t.strip()],
             'status': 'Ongoing', 'cover': f'assets/{ID}.jpg', 'updated': '2026-10-06', 'sample': False,
-            'synopsis': text(metadata.find('{*}description')),
+            'synopsis': synopsis,
             'license': {'type': 'EPUB edition', 'note': 'Text and cover imported from the EPUB supplied by the site owner.'},
             'lazyChunks': {'prefix': 'data/monarch-chapters-', 'capacity': CAPACITY, 'global': 'MONARCH_CHAPTERS'},
             'chapters': [{'number': c['number'], 'title': c['title'], 'paragraphs': ['Loading chapter…'], 'lazy': True} for c in chapters]
