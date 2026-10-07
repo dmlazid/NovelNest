@@ -151,6 +151,14 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
   assert.match(index, /class="compact-header-brand" href="\.\/#\//);
 });
 
+test('novel update lists do not show upload or update dates', () => {
+  const h = harness();
+  const home = h.node('#main').innerHTML;
+  assert.doesNotMatch(home, /<time\b/);
+  h.go('#/latest');
+  assert.doesNotMatch(h.node('#main').innerHTML, /<time\b/);
+});
+
 test('novel directories support search, genre, status and sorting query controls', () => {
   const h = harness();
   const first = h.window.NOVELS[0];
