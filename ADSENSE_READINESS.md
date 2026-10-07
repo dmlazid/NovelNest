@@ -17,18 +17,14 @@ This file tracks what is done and what still requires the site owner or a real A
 - robots.txt
 - sitemap.xml
 - Privacy Choices page for local NovelNest data
-- No live AdSense script or fake publisher ID is installed
+- Real AdSense publisher code installed for ca-pub-9356195452195758
 
 ## Still required before AdSense activation
-1. Use a standard domain that can be entered in AdSense without a path. The custom domain novelhaven.top is connected to GitHub Pages.
-2. Create or open the AdSense account.
-3. Add the custom domain in AdSense.
-4. Copy the exact ca-pub publisher ID / verification snippet supplied by AdSense.
-5. Add the AdSense verification code to NovelNest.
-6. Create a real /ads.txt using the exact line supplied by AdSense. Do not publish the example placeholder.
-7. Configure Google Privacy & Messaging or another Google-certified CMP before serving personalized ads to EEA, UK, or Switzerland visitors.
-8. Request site review.
-9. Only add ad placements after the site is approved and the account/site status is ready.
+1. In AdSense, verify ownership of novelhaven.top.
+2. Request site review.
+3. Configure Google Privacy & Messaging or another Google-certified CMP before serving personalized ads to EEA, UK, or Switzerland visitors.
+4. Wait for Google to mark the site Ready/approved.
+5. Only finalize ad placements after the site/account status permits serving ads.
 
 ## Official references
 - Site URL requirements: https://support.google.com/adsense/answer/2784438
