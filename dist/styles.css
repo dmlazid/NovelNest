@@ -997,3 +997,35 @@
   .editorial-card{padding:18px}
   .editorial-card strong{font-size:18px}
 }
+
+
+/* Crawlable static trust/editorial pages use the same NovelNest visual language. */
+.static-site-header{
+  background:var(--paper);
+  border-bottom:1px solid var(--line);
+}
+.static-site-header .wrap{
+  min-height:76px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+.static-site-header .static-home-link{
+  color:var(--green);
+  font-size:13px;
+  font-weight:800;
+}
+.static-site-header .static-home-link:hover{text-decoration:underline;text-underline-offset:3px}
+.static-page-main{min-height:70vh}
+.static-page-main .policy-page{margin-top:18px}
+.static-footer{
+  display:grid!important;
+  grid-template-columns:minmax(180px,1fr) minmax(320px,2fr) auto;
+  align-items:start!important;
+  gap:28px!important;
+}
+.static-footer .footer-brand-block p{margin:7px 0 0!important}
+@media(max-width:820px){
+  .static-footer{grid-template-columns:1fr!important}
+}
