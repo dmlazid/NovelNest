@@ -20,6 +20,7 @@ from PIL import Image, ImageOps
 BASE = "https://www.akknovel.com"
 CHUNK_CAPACITY = 100
 REQUEST_DELAY = float(os.environ.get("AKKNOVEL_REQUEST_DELAY", "0.8"))
+BATCH_SIZE = max(1, int(os.environ.get("AKKNOVEL_BATCH_SIZE", "100")))
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
@@ -439,9 +440,10 @@ def import_series(key: str):
         source = source[:before]
         latest = before
 
-    for item in source[before:]:
+    target = min(latest, before + BATCH_SIZE)
+    for item in source[before:target]:
         existing.append(parse_chapter(item, cfg["title"]))
-        if len(existing) % 10 == 0 or len(existing) == latest:
+        if len(existing) % 10 == 0 or len(existing) == target:
             print(f"{cfg['title']}: imported {len(existing)}/{latest}", flush=True)
         time.sleep(REQUEST_DELAY)
 
@@ -451,9 +453,18 @@ def import_series(key: str):
     ensure_cover(raw, cfg, p)
     write_chunks(key, p, existing)
     updated = datetime.now(timezone.utc).date().isoformat() if len(existing) > before else previous_updated(p["catalog"])
-    write_catalog(key, cfg, p, existing, find_status(soup), find_author(soup, cfg["author"]), updated)
+    source_status = find_status(soup)
+    published_status = source_status if len(existing) >= latest else "Ongoing"
+    write_catalog(key, cfg, p, existing, published_status, find_author(soup, cfg["author"]), updated)
     ensure_index_registration(key)
-    print(f"{cfg['title']}: complete at {len(existing)} chapters.", flush=True)
+    if len(existing) < latest:
+        print(
+            f"{cfg['title']}: checkpoint complete at {len(existing)}/{latest}; "
+            f"the next checkpoint will continue from Chapter {len(existing) + 1}.",
+            flush=True,
+        )
+    else:
+        print(f"{cfg['title']}: complete at {len(existing)} chapters.", flush=True)
 
 
 def main():
