@@ -76,6 +76,24 @@ jobs:
             madams-identities
             authors-pov
             keyboard-immortal
+            villain-clan
+            undead-legion
+            beginning-after-end
+            sss-suicide-hunter
+            cultivation-chat-group
+            long-awaited-mr-han
+            supreme-harem-god
+            my-werewolf-system
+            tyranny-of-steel
+            godly-stay-home-dad
+            my-rich-wife
+            hidden-marriage-billionaire
+            emperor-marry-doctor
+            alchemy-emperor-head
+            versatile-mage
+            alchemy-divine-dao
+            king-of-technology
+            lady-gu-too-weak
           )
 
           start_time="$(date +%s)"
@@ -150,7 +168,7 @@ jobs:
               if [ "$pass_failures" -gt 0 ]; then
                 echo "$pass_failures title(s) could not be checked this pass. They will retry on the next scheduled run."
               else
-                echo "All 26 FreeWebNovel batch titles are fully caught up."
+                echo "All 44 FreeWebNovel batch titles are fully caught up."
               fi
               exit 0
             fi
@@ -162,4 +180,4 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 26 titles." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 44 titles." >> "$GITHUB_STEP_SUMMARY"
