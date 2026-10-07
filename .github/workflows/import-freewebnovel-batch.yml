@@ -63,6 +63,19 @@ jobs:
             my-vampire-system
             mesmerizing-ghost-doctor
             god-of-fishing
+            retirement-world
+            godly-empress-doctor
+            chaotic-sword-god
+            re-evolution-online
+            hero-summoning-peace
+            fey-evolution-merchant
+            remarried-empress
+            overgeared
+            dimensional-descent
+            legend-of-swordsman
+            madams-identities
+            authors-pov
+            keyboard-immortal
           )
 
           start_time="$(date +%s)"
@@ -137,7 +150,7 @@ jobs:
               if [ "$pass_failures" -gt 0 ]; then
                 echo "$pass_failures title(s) could not be checked this pass. They will retry on the next scheduled run."
               else
-                echo "All 13 FreeWebNovel titles are fully caught up."
+                echo "All 26 FreeWebNovel batch titles are fully caught up."
               fi
               exit 0
             fi
@@ -149,4 +162,4 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 13 titles." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 26 titles." >> "$GITHUB_STEP_SUMMARY"
