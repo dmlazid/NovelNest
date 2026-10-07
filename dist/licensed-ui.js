@@ -3,7 +3,7 @@
   const PAGE_SIZE = 40;
   const tocPages = Object.create(null);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const readerHref = (id, number) => `/read/${encodeURIComponent(id)}/?chapter=${number}`;
+  const readerHref = (id, number) => `/novel/${encodeURIComponent(id)}/chapter-${number}/`;
 
   function setText(el, value) {
     if (el && el.textContent !== value) el.textContent = value;
@@ -35,6 +35,8 @@
   function routeNovel() {
     const hashMatch = location.hash.match(/^#\/(?:novel|read)\/([^/?#]+)/);
     if (hashMatch) return (window.NOVELS || []).find(n => n.id === decodeURIComponent(hashMatch[1])) || null;
+    const cleanChapter = (location.pathname || '').match(/^\/novel\/([^/]+)\/chapter-\d+\/?$/);
+    if (cleanChapter) return (window.NOVELS || []).find(n => n.id === decodeURIComponent(cleanChapter[1])) || null;
     const pathMatch = (location.pathname || '').match(/^\/(?:novel|read)\/([^/]+)\/?$/);
     return pathMatch ? (window.NOVELS || []).find(n => n.id === decodeURIComponent(pathMatch[1])) || null : null;
   }
@@ -42,6 +44,8 @@
   function currentReaderNumber() {
     const hashMatch = location.hash.match(/^#\/read\/[^/]+\/(\d+)/);
     if (hashMatch) return Number(hashMatch[1]);
+    const cleanChapter = (location.pathname || '').match(/^\/novel\/[^/]+\/chapter-(\d+)\/?$/);
+    if (cleanChapter) return Number(cleanChapter[1]);
     if (!/^\/read\/[^/]+\/?$/.test(location.pathname || '')) return null;
     const value = Number(new URLSearchParams(location.search || '').get('chapter'));
     return Number.isInteger(value) && value > 0 ? value : null;
@@ -198,7 +202,9 @@
   }
 
   function fixReader(n) {
-    if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || (location.pathname || '').replace(/\/+$/, '') === `/read/${encodeURIComponent(n.id)}`)) return;
+    const pathname=(location.pathname||'').replace(/\/+$/, '');
+    const cleanReader=pathname.startsWith('/novel/'+encodeURIComponent(n.id)+'/chapter-') && /\/chapter-\d+$/.test(pathname);
+    if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || pathname === `/read/${encodeURIComponent(n.id)}` || cleanReader)) return;
     const current = currentReaderNumber();
     if (!current) return;
 
@@ -291,7 +297,11 @@
     const jump = e.target.closest('[data-chapter-jump]');
     if (jump) {
       const number = Number(jump.value);
-      if (Number.isInteger(number) && number > 0) location.href = readerHref(jump.dataset.chapterJump, number);
+      if (Number.isInteger(number) && number > 0) {
+        const href = readerHref(jump.dataset.chapterJump, number);
+        if (window.NovelNestApp?.navigate) window.NovelNestApp.navigate(href);
+        else location.href = href;
+      }
       return;
     }
 
@@ -306,6 +316,6 @@
     }
   });
 
-  window.addEventListener('hashchange', () => setTimeout(fix, 0));
+  window.addEventListener('novelnest:route-rendered', () => setTimeout(fix, 0));
   setTimeout(fix, 0);
 })();
