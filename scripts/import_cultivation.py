@@ -86,10 +86,16 @@ def chapter_exists(number: int) -> bool:
             soup = BeautifulSoup(r.text, "html.parser")
             article = soup.select_one("div#article") or soup.select_one("div.txt") or soup.select_one("article") or soup.select_one("main")
             if article is None:
+                if number == 1:
+                    print(f"Probe chapter 1 returned HTTP {r.status_code}, {len(r.text)} bytes, title={soup.title.get_text(' ', strip=True) if soup.title else 'none'}", flush=True)
+                    print("Probe chapter 1 selectors: #article=no, .txt=no, article=no, main=no", flush=True)
                 return False
             article_text = clean_text(article.get_text(" ", strip=True))
             page_text = clean_text(soup.get_text(" ", strip=True))
-            return len(article_text) >= 300 and re.search(rf"\\b{number}\\b", page_text) is not None
+            exists = len(article_text) >= 300 and re.search(rf"\\b{number}\\b", page_text) is not None
+            if number == 1:
+                print(f"Probe chapter 1 returned HTTP {r.status_code}, {len(r.text)} bytes, article chars={len(article_text)}, detected={exists}", flush=True)
+            return exists
         except Exception as exc:
             last = exc
             if attempt < 5:
