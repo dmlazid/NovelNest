@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: supreme-magus-freewebnovel-v3
@@ -50,6 +51,7 @@ jobs:
           IMPORT_MAX_SECONDS: "9600"
           IMPORT_COMMIT_PREFIX: "Auto-update Supreme Magus chapters"
           IMPORT_RESCHEDULE: "false"
+          GH_TOKEN: ${{ github.token }}
         run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
