@@ -172,7 +172,11 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
     assert.doesNotMatch(text, /href=["']#\//, file + ' still contains a fragment-only internal href');
   }
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  assert.match(index, /class="compact-header-brand" href="\.\/#\//);
+  assert.match(index, /class="compact-header-brand" href="\//);
+  assert.match(index, /src="clean-routes\.js"/);
+  const cleanRoutes = fs.readFileSync('dist/clean-routes.js', 'utf8');
+  assert.match(cleanRoutes, /legacyHashToClean/);
+  assert.match(cleanRoutes, /renderGenericRoute/);
 });
 
 test('novel update lists do not show upload or update dates', () => {
