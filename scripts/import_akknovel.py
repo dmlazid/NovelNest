@@ -100,7 +100,7 @@ def get(url: str, *, binary: bool = False):
                 time.sleep(delay)
                 continue
             response.raise_for_status()
-            return response.content if binary else response.text
+            return response.content if binary else response.content.decode("utf-8", errors="replace")
         except Exception as exc:
             last = exc
             if attempt < 6:
@@ -139,10 +139,19 @@ def discover_chapters(raw: str, cfg: dict) -> list[dict]:
             continue
         number = int(match.group(1))
         label = clean_text(anchor.get_text(" ", strip=True))
+        label = re.sub(r"^Last chapter:\s*", "", label, flags=re.I)
+        if label.lower() == "read":
+            label = ""
         suffix = re.sub(rf"^(?:Ch\.?|Chapter)\s*{number}\s*", "", label, flags=re.I).strip(" :-")
+        if re.fullmatch(rf"0*{number}", suffix or ""):
+            suffix = ""
         item = {"number": number, "url": absolute, "suffix": suffix}
-        if number not in found or len(suffix) > len(found[number]["suffix"]):
+        if number not in found:
             found[number] = item
+        else:
+            current = found[number]["suffix"]
+            if (not current and suffix) or (current.lower().startswith("last chapter") and not suffix.lower().startswith("last chapter")):
+                found[number] = item
     chapters = [found[n] for n in sorted(found)]
     if not chapters:
         raise RuntimeError(f"{cfg['title']}: no chapter links found")
@@ -307,6 +316,18 @@ def ensure_cover(raw: str, cfg: dict, p: dict):
     p["cover"].write_bytes(data)
 
 
+def ensure_index_registration(key: str) -> None:
+    index_path = DIST / "index.html"
+    html = index_path.read_text(encoding="utf-8")
+    tag = f'<script defer src="licensed-akk-{key}.js"></script>'
+    if tag in html:
+        return
+    anchor = '<script defer src="licensed-supreme-magus.js"></script>'
+    if anchor not in html:
+        raise RuntimeError("Could not locate licensed script anchor in index.html")
+    index_path.write_text(html.replace(anchor, anchor + tag), encoding="utf-8")
+
+
 def previous_updated(catalog: Path) -> str:
     if not catalog.exists():
         return datetime.now(timezone.utc).date().isoformat()
@@ -347,8 +368,11 @@ def import_series(key: str):
     raw = get(series_url(cfg))
     soup = BeautifulSoup(raw, "html.parser")
     source = discover_chapters(raw, cfg)
-    existing = load_existing(key, p)
+    rebuild = os.environ.get("AKKNOVEL_REBUILD", "0") == "1"
+    existing = [] if rebuild else load_existing(key, p)
     before = len(existing)
+    if rebuild:
+        print(f"{cfg['title']}: rebuilding existing chapters with the corrected parser.", flush=True)
     latest = source[-1]["number"]
     print(f"{cfg['title']}: NovelNest has {before}; source has {latest}.", flush=True)
     if latest < before:
@@ -368,6 +392,7 @@ def import_series(key: str):
     write_chunks(key, p, existing)
     updated = datetime.now(timezone.utc).date().isoformat() if len(existing) > before else previous_updated(p["catalog"])
     write_catalog(key, cfg, p, existing, find_status(soup), find_author(soup, cfg["author"]), updated)
+    ensure_index_registration(key)
     print(f"{cfg['title']}: complete at {len(existing)} chapters.", flush=True)
 
 
