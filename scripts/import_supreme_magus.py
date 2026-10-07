@@ -135,7 +135,7 @@ def chapter_url(source_index: int) -> str:
 
 
 CHAPTER_WORD_RE = re.compile(
-    r"\\b(?:chapter|chpater|chaper|chater|capter|chapte|chaptre)\\s*:?[\\s-]*(-?\\d+)\\b",
+    r"\b(?:chapter|chpater|chaper|chater|capter|chapte|chaptre)\s*:?[\s-]*(-?\d+)\b",
     flags=re.I,
 )
 
@@ -150,7 +150,7 @@ def extract_chapter_number(value: str):
     match = CHAPTER_WORD_RE.search(value or "")
     if match:
         return int(match.group(1))
-    match = re.match(r"^(-?\\d+)\\b", value or "")
+    match = re.match(r"^(-?\d+)\b", value or "")
     return int(match.group(1)) if match else None
 
 
@@ -229,7 +229,7 @@ def parse_actual_chapter(page: dict, expected_number: int) -> dict:
     title_match = CHAPTER_WORD_RE.search(source_title)
     if title_match and int(title_match.group(1)) == expected_number:
         suffix = source_title[title_match.end():].strip()
-        suffix = re.sub(r"^[\\s:.-]+", "", suffix)
+        suffix = re.sub(r"^[\s:.-]+", "", suffix)
         title = f"Chapter {expected_number}" + (f" {suffix}" if suffix else "")
     else:
         title = f"Chapter {expected_number}"
