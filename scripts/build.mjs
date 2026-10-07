@@ -63,12 +63,12 @@ function staticNovelMarkup(novel) {
   const omitted = chapters.length - preview.length;
   const chapterLinks = preview.map(chapter => {
     const number = Number(chapter.number) || 1;
-    return '<a href="/read/' + id + '/?chapter=' + number + '"><span>' +
+    return '<a href="/novel/' + id + '/chapter-' + number + '/"><span>' +
       String(number).padStart(2, '0') + '</span>' + htmlEscape(chapter.title || ('Chapter ' + number)) + '</a>';
   }).join('');
   const action = novel.externalUrl
     ? '<a class="button" href="' + htmlEscape(novel.externalUrl) + '" target="_blank" rel="noopener noreferrer">Read on ' + htmlEscape(novel.externalSource || 'source') + '</a>'
-    : '<a class="button" href="/read/' + id + '/?chapter=1">Start reading</a>';
+    : '<a class="button" href="/novel/' + id + '/chapter-1/">Start reading</a>';
   return '<nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">' +
     htmlEscape(novel.title) + '</span></nav>' +
     '<article class="detail"><img class="cover" src="' + cover + '" alt="' + htmlEscape(novel.title) + ' cover" width="200" height="300">' +
@@ -132,6 +132,13 @@ function readerPageHtml(baseHtml, novel) {
   page = page.replace(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="' + canonical + '">');
   return page;
 }
+function chapterFallbackHtml(baseHtml) {
+  let page = baseHtml;
+  page = page.replace('<head>', '<head><base href="/">');
+  page = page.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">');
+  page = page.replace(/<link rel="canonical" href="[^"]*">/, '');
+  return page;
+}
 const seoNovels = loadNovelCatalog();
 for (const novel of seoNovels) {
   if (!novel?.id || !novel?.title) continue;
@@ -142,6 +149,7 @@ for (const novel of seoNovels) {
   fs.mkdirSync(readerDirectory, { recursive: true });
   fs.writeFileSync(path.join(readerDirectory, 'index.html'), readerPageHtml(html, novel));
 }
+fs.writeFileSync(path.join(output, '404.html'), chapterFallbackHtml(html));
 let sitemap = fs.readFileSync(path.join('dist', 'sitemap.xml'), 'utf8');
 const novelUrls = seoNovels
   .filter(novel => novel?.id)
@@ -149,7 +157,7 @@ const novelUrls = seoNovels
   .join('\n');
 sitemap = sitemap.replace(/\s*<\/urlset>\s*$/, '\n' + novelUrls + '\n</urlset>\n');
 fs.writeFileSync(path.join(output, 'sitemap.xml'), sitemap);
-console.log('Generated ' + seoNovels.length + ' crawlable novel pages and added them to sitemap.xml.');
+console.log('Generated ' + seoNovels.length + ' crawlable novel pages, clean chapter-route fallback, and sitemap entries.');
 
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
 for (const file of Object.values(assets)) {
