@@ -214,7 +214,44 @@
   }
   function showMenu() {
     const panel = drawer('navigation-drawer', 'Navigation');
-    panel.innerHTML = drawerTop('menu') + `<div class="menu-content"><form class="drawer-search" data-menu-search><label class="sr-only" for="menu-search">Search novels</label>${icon('search')}<input id="menu-search" name="q" placeholder="Search novels…" type="search"><button type="submit" aria-label="Search">${icon('search')}</button></form><nav class="menu-grid" aria-label="Main navigation"><a href="./#/" data-close-drawer>${icon('book')}<span>Novels</span></a><a href="./#/library" data-close-drawer>${icon('bookmark')}<span>Bookmarks</span></a><a href="./#/browse" data-close-drawer>${icon('grid')}<span>Browse</span></a></nav><div class="menu-divider">ACCOUNT &amp; UPDATES</div><div class="drawer-rows"><button type="button" class="drawer-row drawer-action-row" data-profile><span class="row-icon">${icon('user')}</span><span><strong>My account</strong><small>${user ? 'Profile, sync &amp; settings' : 'Sign in or continue as guest'}</small></span><span class="row-chevron" aria-hidden="true">›</span></button><button type="button" class="drawer-row drawer-action-row" data-updates><span class="row-icon">${icon('bell')}</span><span><strong>Notifications</strong><small>Chapter updates from saved novels</small></span><span class="menu-update-dot notification-dot" data-notification-dot hidden></span><span class="row-chevron" aria-hidden="true">›</span></button></div><div class="menu-divider">YOUR READING</div><div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelNest','Stories &amp; reading information','info')}</div></div>`;
+    const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
+    const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
+    const genreLinks = genres.map(genre => `<a href="./#/browse?genre=${encodeURIComponent(genre)}" data-close-drawer>${escape(genre)}</a>`).join('');
+    panel.innerHTML = drawerTop('menu') + `<div class="menu-content">
+      <form class="drawer-search" data-menu-search>
+        <label class="sr-only" for="menu-search">Search novels</label>
+        ${icon('search')}<input id="menu-search" name="q" placeholder="Search novels…" type="search">
+        <button type="submit" aria-label="Search">${icon('search')}</button>
+      </form>
+
+      <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelNest">
+        <button type="button" role="tab" aria-selected="true" data-catalog-tab="novels">${icon('book')}<span>Novel list</span></button>
+        <button type="button" role="tab" aria-selected="false" data-catalog-tab="genres">${icon('grid')}<span>Genres</span></button>
+      </div>
+
+      <section class="catalog-menu-panel" data-catalog-panel="novels">
+        <nav class="catalog-menu-list" aria-label="Novel list">
+          ${menuLink('./#/library','Your Library','bookmark')}
+          ${menuLink('./#/latest-novels','Latest Novels','book')}
+          ${menuLink('./#/latest-releases','Latest Release','bell')}
+          ${menuLink('./#/latest-novels?sort=chapters','Most Chapters','grid')}
+          ${menuLink('./#/completed','Completed Novels','bookmark')}
+          ${menuLink('./#/browse','Novel Finder','search')}
+        </nav>
+      </section>
+
+      <section class="catalog-menu-panel" data-catalog-panel="genres" hidden>
+        <nav class="catalog-genre-grid" aria-label="Genres">${genreLinks}</nav>
+      </section>
+
+      <div class="menu-divider">ACCOUNT &amp; UPDATES</div>
+      <div class="drawer-rows">
+        <button type="button" class="drawer-row drawer-action-row" data-profile><span class="row-icon">${icon('user')}</span><span><strong>My account</strong><small>${user ? 'Profile, sync &amp; settings' : 'Sign in or continue as guest'}</small></span><span class="row-chevron" aria-hidden="true">›</span></button>
+        <button type="button" class="drawer-row drawer-action-row" data-updates><span class="row-icon">${icon('bell')}</span><span><strong>Notifications</strong><small>Chapter updates from saved novels</small></span><span class="menu-update-dot notification-dot" data-notification-dot hidden></span><span class="row-chevron" aria-hidden="true">›</span></button>
+      </div>
+      <div class="menu-divider">YOUR READING</div>
+      <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelNest','Stories &amp; reading information','info')}</div>
+    </div>`;
     renderStatus();
     openDrawer(panel);
   }
@@ -253,6 +290,12 @@
     const target = event.target;
     if (target.closest('[data-profile]')) showProfile();
     if (target.closest('[data-menu]')) showMenu();
+    const catalogTab = target.closest('[data-catalog-tab]');
+    if (catalogTab) {
+      const drawer = catalogTab.closest('.site-drawer');
+      drawer?.querySelectorAll('[data-catalog-tab]').forEach(button => button.setAttribute('aria-selected', String(button === catalogTab)));
+      drawer?.querySelectorAll('[data-catalog-panel]').forEach(section => { section.hidden = section.dataset.catalogPanel !== catalogTab.dataset.catalogTab; });
+    }
     if (target.closest('[data-close-drawer]')) closeDrawers();
     if (target.closest('[data-account-retry]')) start();
     if (target.closest('[data-signin]') && ready && !busy) {
