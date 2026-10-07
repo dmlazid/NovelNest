@@ -12,7 +12,7 @@ export function validateSite(root = 'dist') {
   assert(scripts.includes('catalog.js'), 'The catalog must be loaded by the page');
   assert(!scripts.some(s => s.startsWith('data/')), 'Chapter text must load on demand');
   for (const ref of [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1])) {
-    if (/^(?:https?:|data:|#)/.test(ref)) continue;
+    if (/^(?:https?:|data:|#|\.\/#\/)/.test(ref)) continue;
     assert(fs.existsSync(path.join(root, ref.split('?')[0])), `Missing page asset: ${ref}`);
   }
   for (const name of fs.readdirSync(root).filter(n => n.endsWith('.js'))) new vm.Script(read(name), { filename: name });
