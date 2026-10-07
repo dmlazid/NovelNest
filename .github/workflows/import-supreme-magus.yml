@@ -55,6 +55,7 @@ jobs:
 
             git add -A -- \
               dist/data/supreme-magus-chapters-*.js \
+              dist/data/supreme-magus-state.json \
               dist/assets/supreme-magus.jpg \
               dist/licensed-supreme-magus.js
 
