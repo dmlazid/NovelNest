@@ -358,3 +358,182 @@
 .breadcrumb-home svg{width:18px;height:18px;fill:currentColor;flex:0 0 18px}
 .breadcrumb-separator{color:#9aa8a4;font-weight:700}
 @media(max-width:760px){.novel-breadcrumb{margin:12px 0 18px;padding:12px 13px;gap:7px;font-size:13px;border-radius:6px}.breadcrumb-home svg{width:17px;height:17px;flex-basis:17px}}
+
+
+/* Full novel directories opened from the home "See more" links. */
+.directory-page{
+  max-width:980px;
+  margin:18px auto 42px;
+}
+.directory-breadcrumb{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  margin-bottom:18px;
+  padding:12px 4px;
+  color:var(--muted);
+  font:600 14px/1.3 'DM Sans',system-ui,sans-serif;
+}
+.directory-breadcrumb a{color:var(--muted);font-weight:700}
+.directory-breadcrumb a:hover{color:var(--green)}
+.directory-breadcrumb [aria-current="page"]{color:var(--ink)}
+.directory-shell{
+  display:grid;
+  gap:16px;
+}
+.directory-heading{
+  text-align:center;
+  padding:22px 16px 8px;
+}
+.directory-heading .eyebrow{display:block;margin-bottom:8px}
+.directory-heading h1{
+  margin:0;
+  color:var(--ink);
+  font:800 clamp(28px,4vw,42px)/1.12 'DM Sans',system-ui,sans-serif;
+}
+.directory-heading h1 span{color:var(--green)}
+.directory-heading p{
+  max-width:620px;
+  margin:10px auto 0;
+  color:var(--muted);
+  font:500 15px/1.55 'DM Sans',system-ui,sans-serif;
+}
+.directory-switch{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  margin:0 auto 4px;
+}
+.directory-switch a{
+  min-width:128px;
+  padding:10px 16px;
+  border:1px solid var(--line);
+  border-radius:5px;
+  background:var(--paper);
+  color:var(--green);
+  text-align:center;
+  text-transform:uppercase;
+  font:800 12px/1 'DM Sans',system-ui,sans-serif;
+}
+.directory-switch a[aria-current="page"]{
+  border-color:var(--green);
+  box-shadow:inset 0 0 0 1px var(--green);
+}
+.directory-novel-list{
+  display:grid;
+  gap:18px;
+}
+.directory-novel-row{
+  display:grid;
+  grid-template-columns:190px minmax(0,1fr);
+  gap:26px;
+  align-items:center;
+  min-height:270px;
+  padding:24px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--paper);
+  color:inherit;
+  box-shadow:0 8px 22px rgba(31,54,50,.045);
+}
+.directory-novel-row:hover{
+  border-color:#b9cbc6;
+  box-shadow:0 10px 28px rgba(31,54,50,.08);
+}
+.directory-novel-cover{
+  width:190px;
+  height:250px;
+  display:block;
+  object-fit:cover;
+  object-position:center;
+  border-radius:4px;
+  background:var(--soft);
+}
+.directory-novel-copy{
+  min-width:0;
+  display:grid;
+  align-content:center;
+  gap:10px;
+}
+.directory-novel-title{
+  color:var(--ink);
+  font:800 clamp(22px,3vw,31px)/1.22 'DM Sans',system-ui,sans-serif;
+}
+.directory-novel-author{
+  color:var(--muted);
+  font:600 14px/1.3 'DM Sans',system-ui,sans-serif;
+}
+.directory-novel-meta{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:#4e5d59;
+  font:600 16px/1.3 'DM Sans',system-ui,sans-serif;
+}
+.directory-novel-meta>span{
+  width:20px;
+  color:var(--ink);
+  text-align:center;
+}
+.directory-novel-badges{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-top:3px;
+}
+.directory-novel-badges b{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:6px 10px;
+  border-radius:3px;
+  color:#fff;
+  font:800 13px/1 'DM Sans',system-ui,sans-serif;
+}
+.directory-chapter-badge{background:var(--green)}
+.directory-full-badge{background:#d5a21a}
+
+@media(max-width:760px){
+  .directory-page{margin:8px auto 28px}
+  .directory-breadcrumb{margin-bottom:4px;padding:10px 0;font-size:13px}
+  .directory-heading{padding:14px 4px 4px}
+  .directory-heading h1{font-size:28px}
+  .directory-heading p{font-size:13px}
+  .directory-switch{justify-content:flex-start;overflow-x:auto;padding-bottom:2px}
+  .directory-switch a{min-width:116px;padding:9px 12px;font-size:11px}
+  .directory-novel-list{gap:14px}
+  .directory-novel-row{
+    grid-template-columns:112px minmax(0,1fr);
+    gap:16px;
+    min-height:176px;
+    padding:14px;
+    border-radius:5px;
+  }
+  .directory-novel-cover{width:112px;height:154px}
+  .directory-novel-copy{gap:7px}
+  .directory-novel-title{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:3;
+    overflow:hidden;
+    font-size:18px;
+    line-height:1.25;
+  }
+  .directory-novel-author{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:11px;
+  }
+  .directory-novel-meta{gap:6px;font-size:13px}
+  .directory-novel-meta>span{width:17px}
+  .directory-novel-badges{gap:4px}
+  .directory-novel-badges b{min-height:25px;padding:5px 7px;font-size:11px}
+}
+@media(max-width:390px){
+  .directory-novel-row{grid-template-columns:98px minmax(0,1fr);gap:13px;padding:12px}
+  .directory-novel-cover{width:98px;height:142px}
+  .directory-novel-title{font-size:16px}
+  .directory-novel-meta{font-size:12px}
+  .directory-novel-badges b{font-size:10px}
+}
