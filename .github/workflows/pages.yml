@@ -27,7 +27,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-live-v2
   # Finish the current deployment; newer updates wait instead of cancelling it.
   cancel-in-progress: false
 
@@ -36,7 +36,7 @@ jobs:
     # An updater may save valid checkpoints before failing or being cancelled.
     # Always validate current main; only a passing test/build can reach Deploy.
     environment:
-      name: github-pages
+      name: github-pages-live
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
