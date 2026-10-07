@@ -4,8 +4,9 @@
 
   function currentTarget() {
     const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
-    const pathMatch = (location.pathname || '').match(/^\/read\/([^/]+)\/?$/);
-    const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search || '').get('chapter')] : null);
+    const cleanPathMatch = (location.pathname || '').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
+    const oldPathMatch = (location.pathname || '').match(/^\/read\/([^/]+)\/?$/);
+    const match = hashMatch || cleanPathMatch || (oldPathMatch ? [null, oldPathMatch[1], new URLSearchParams(location.search || '').get('chapter')] : null);
     if (!match || !match[2]) return null;
     const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
     const number = Number(match[2]);
@@ -37,7 +38,8 @@
     const loaded = findLoaded(novel, number);
     if (loaded) {
       novel.chapters[index] = { ...chapter, ...loaded, number, lazy: false };
-      window.dispatchEvent(new Event('hashchange'));
+      if (window.NovelNestApp?.refresh) window.NovelNestApp.refresh();
+      else window.dispatchEvent(new Event('hashchange'));
       return;
     }
     if (failed.has(key)) { showError(key); return; }
@@ -72,6 +74,6 @@
     if (prose) prose.innerHTML = '<p>Loading chapter…</p>';
     hydrateCurrent();
   });
-  window.addEventListener('hashchange', () => setTimeout(hydrateCurrent, 0));
+  window.addEventListener('novelnest:route-rendered', () => setTimeout(hydrateCurrent, 0));
   setTimeout(hydrateCurrent, 0);
 })();
