@@ -166,16 +166,16 @@ fs.writeFileSync(path.join(output, '404.html'), chapterFallbackHtml(html));
 let sitemap = fs.readFileSync(path.join('dist', 'sitemap.xml'), 'utf8');
 const novelUrls = seoNovels
   .filter(novel => novel?.id)
-  .map(novel => '  <url>\\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/</loc>\\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\\n  </url>')
-  .join('\\n');
+  .map(novel => '  <url>\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/</loc>\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\n  </url>')
+  .join('\n');
 const chapterUrls = seoNovels
   .filter(novel => novel?.id && !novel.externalUrl && Array.isArray(novel.chapters))
   .flatMap(novel => novel.chapters.map(chapter => {
     const number = Number(chapter.number) || 1;
-    return '  <url>\\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/chapter-' + number + '/</loc>\\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\\n  </url>';
+    return '  <url>\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/chapter-' + number + '/</loc>\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\n  </url>';
   }))
-  .join('\\n');
-sitemap = sitemap.replace(/\\s*<\\/urlset>\\s*$/, '\\n' + novelUrls + '\\n' + chapterUrls + '\\n</urlset>\\n');
+  .join('\n');
+sitemap = sitemap.replace(/\s*<\/urlset>\s*$/, '\n' + novelUrls + '\n' + chapterUrls + '\n</urlset>\n');
 fs.writeFileSync(path.join(output, 'sitemap.xml'), sitemap);
 console.log('Generated ' + seoNovels.length + ' crawlable novel pages, clean chapter pages, and sitemap entries.');
 
