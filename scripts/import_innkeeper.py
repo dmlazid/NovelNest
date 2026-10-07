@@ -348,6 +348,18 @@ def write_catalog(chapters: list[dict], updated: str) -> None:
     )
 
 
+def ensure_index_registration() -> None:
+    index_path = DIST / "index.html"
+    html = index_path.read_text(encoding="utf-8")
+    tag = '<script defer src="licensed-innkeeper.js"></script>'
+    if tag in html:
+        return
+    anchor = '<script defer src="licensed-supreme-magus.js"></script>'
+    if anchor not in html:
+        raise RuntimeError("Could not locate licensed script anchor in index.html")
+    index_path.write_text(html.replace(anchor, anchor + tag), encoding="utf-8")
+
+
 def current_updated_date() -> str:
     if not CATALOG_PATH.exists():
         return datetime.now(timezone.utc).date().isoformat()
@@ -407,6 +419,7 @@ def main() -> None:
         else current_updated_date()
     )
     write_catalog(chapters, updated)
+    ensure_index_registration()
 
     if target > existing:
         print(
