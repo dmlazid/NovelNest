@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: akknovel-series-v1
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   import:
@@ -41,6 +41,7 @@ jobs:
       - name: Import all authorized AkkNovel series
         env:
           AKKNOVEL_REQUEST_DELAY: "0.8"
+          AKKNOVEL_BATCH_SIZE: "100"
           AKKNOVEL_REBUILD: "0"
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -63,36 +64,39 @@ jobs:
 
           for key in "${series[@]}"; do
             echo "=== AkkNovel import: $key ==="
-            python scripts/import_akknovel.py "$key"
 
-            git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js dist/index.html
-            if git diff --cached --quiet; then
-              echo "$key is already caught up."
-              continue
-            fi
+            for checkpoint in $(seq 1 60); do
+              python scripts/import_akknovel.py "$key"
 
-            git commit -m "Auto-update AkkNovel $key"
-
-            pushed=0
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              git rebase origin/main
-              if git push origin HEAD:main; then
-                pushed=1
+              git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js dist/index.html
+              if git diff --cached --quiet; then
+                echo "$key is fully caught up."
                 break
               fi
-              echo "Push raced with another updater; retrying ($attempt/5)..."
-              sleep 3
-            done
-            if [ "$pushed" -ne 1 ]; then
-              echo "Could not push $key after 5 attempts."
-              exit 1
-            fi
 
-            echo "Queueing NovelHaven deployment after $key..."
-            gh workflow run pages.yml --ref main || {
-              echo "$key was saved; the workflow completion will still request publication."
-            }
+              git commit -m "Auto-update AkkNovel $key (checkpoint $checkpoint)"
+
+              pushed=0
+              for attempt in 1 2 3 4 5; do
+                git fetch origin main
+                git rebase origin/main
+                if git push origin HEAD:main; then
+                  pushed=1
+                  break
+                fi
+                echo "Push raced with another updater; retrying ($attempt/5)..."
+                sleep 3
+              done
+              if [ "$pushed" -ne 1 ]; then
+                echo "Could not push $key checkpoint after 5 attempts."
+                exit 1
+              fi
+
+              echo "Queueing NovelHaven deployment after $key checkpoint $checkpoint..."
+              gh workflow run pages.yml --ref main || {
+                echo "$key checkpoint was saved; workflow completion will still request publication."
+              }
+            done
           done
 
       - name: Record updater result
