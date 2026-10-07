@@ -153,6 +153,19 @@ test('home See more routes open novel directories instead of chapter feeds', () 
   assert.equal((h.node('#main').innerHTML.match(/directory-novel-row/g) || []).length, completed.length);
 });
 
+test('chapter links use clean path URLs and direct clean links have a GitHub Pages fallback', () => {
+  const app = fs.readFileSync('dist/app.js', 'utf8');
+  const ui = fs.readFileSync('dist/licensed-ui.js', 'utf8');
+  const build = fs.readFileSync('scripts/build.mjs', 'utf8');
+  assert.match(app, /chapterUrl=.*chapter-/);
+  assert.match(ui, /readerHref.*chapter-/);
+  assert.match(build, /chapterFallbackHtml/);
+  assert.match(build, /404\.html/);
+  const h = harness();
+  h.go('#/novel/got-a-gallery-in-the-wild');
+  assert.match(h.node('#main').innerHTML, /\/novel\/got-a-gallery-in-the-wild\/chapter-1\//);
+});
+
 test('internal anchors use explicit same-site routes for precise mobile new-tab opening', () => {
   for (const file of ['dist/index.html', 'dist/app.js', 'dist/accounts.js', 'dist/licensed-ui.js']) {
     const text = fs.readFileSync(file, 'utf8');
