@@ -29,6 +29,27 @@ queue_continuation() {
   }
 }
 
+queue_pages_deploy() {
+  if [[ "${IMPORT_DEPLOY_EACH_CHECKPOINT:-true}" != "true" ]]; then
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "${IMPORT_NAME}: GitHub CLI is unavailable; final workflow completion will publish the site."
+    return 0
+  fi
+  if [[ -z "${GH_TOKEN:-}" ]]; then
+    echo "${IMPORT_NAME}: GH_TOKEN is unavailable; final workflow completion will publish the site."
+    return 0
+  fi
+
+  echo "${IMPORT_NAME}: queueing NovelHaven deployment for this checkpoint..."
+  gh workflow run pages.yml --ref main || {
+    echo "${IMPORT_NAME}: checkpoint was saved, but an immediate Pages deploy could not be queued."
+    echo "${IMPORT_NAME}: the final workflow completion will still request publication."
+    return 0
+  }
+}
+
 for checkpoint in $(seq 1 "$max_checkpoints"); do
   echo "=== ${IMPORT_NAME} catch-up checkpoint ${checkpoint}/${max_checkpoints} ==="
 
@@ -63,6 +84,11 @@ for checkpoint in $(seq 1 "$max_checkpoints"); do
     echo "${IMPORT_NAME}: could not push checkpoint after 3 attempts."
     exit 1
   fi
+
+  # Commits created with GITHUB_TOKEN do not start new push-triggered workflows.
+  # Explicitly request a Pages run so each safe checkpoint can become visible
+  # while a long catch-up import is still running.
+  queue_pages_deploy
 
   elapsed="$(( $(date +%s) - start_time ))"
   if (( elapsed >= max_seconds )); then
