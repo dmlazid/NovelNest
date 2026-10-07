@@ -21,7 +21,8 @@ function harness(hash = '#/') {
   const context = vm.createContext({ window, document, location: { hash }, Event, URLSearchParams, console, setTimeout: callback => timers.push(callback), clearTimeout() {}, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) } });
   const run = text => vm.runInContext(text, context);
   const load = name => run(fs.readFileSync(`dist/${name}`, 'utf8'));
-  for (const file of ['catalog.js', 'licensed-gallery.js', 'licensed-astral.js', 'licensed-monarch.js', 'licensed-signin.js', 'licensed-luna.js', 'licensed-sss.js', 'licensed-farming.js', 'licensed-cultivation.js', 'licensed-investing.js', 'app.js', 'lazy-chapters.js']) load(file);
+  const licensed = fs.readdirSync('dist').filter(name => /^licensed-(?!ui\.js$).+\.js$/.test(name)).sort();
+  for (const file of ['catalog.js', ...licensed, 'app.js', 'lazy-chapters.js']) load(file);
   const flush = () => { let count = 0; while (timers.length) { assert(++count < 100, 'Unexpected render loop'); timers.shift()(); } };
   const go = next => { context.location.hash = next; window.dispatchEvent(new Event('hashchange')); flush(); };
   const complete = script => { const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === script.src)?.[0] || script.src; load(original); script.onload(); flush(); };
