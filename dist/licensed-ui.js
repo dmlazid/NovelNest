@@ -118,7 +118,8 @@
   function fixDetail(n) {
     if (!n || !location.hash.startsWith(`#/novel/${n.id}`)) return;
     setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${'Licensed edition'}`);
-    setText(main.querySelector('.description .meta'), n.license?.note || 'Published on NovelNest.');
+    const licenseNote = main.querySelector('.description .meta');
+    if (licenseNote) licenseNote.remove();
 
     const p = prefs();
     if (p.autoResume === 'no') {
