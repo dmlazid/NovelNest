@@ -193,6 +193,56 @@ test('See More directories keep the approved clean novel-list layout', () => {
   assert.doesNotMatch(html, /directory-search/);
 });
 
+test('AdSense preparation pages and original Reading Desk are reachable', () => {
+  const h = harness();
+  const routes = [
+    ['#/about', /About NovelNest/],
+    ['#/privacy', /Privacy Policy/],
+    ['#/terms', /Terms of Use/],
+    ['#/contact', /Contact NovelNest/],
+    ['#/copyright', /Copyright &amp; Takedown Requests/],
+    ['#/reading-desk', /NovelNest Reading Desk/],
+  ];
+  for (const [route, pattern] of routes) {
+    h.go(route);
+    assert.match(h.node('#main').innerHTML, pattern);
+    assert.doesNotMatch(h.node('#main').innerHTML, /Page not found/);
+  }
+
+  h.go('#/editorial/choosing-a-long-web-novel');
+  let html = h.node('#main').innerHTML;
+  assert.match(html, /How to choose a long web novel without burning out/);
+  assert.match(html, /Start with the reading rhythm/);
+  assert.match(html, /NovelNest tip/);
+
+  h.go('#/');
+  html = h.node('#main').innerHTML;
+  assert.match(html, /NovelNest Reading Desk/);
+  assert.match(html, /Original NovelNest guide/);
+});
+
+test('footer exposes trust and policy navigation', () => {
+  const index = fs.readFileSync('dist/index.html', 'utf8');
+  for (const route of ['reading-desk','about','privacy','terms','contact','copyright']) {
+    assert.match(index, new RegExp('href="\\.\\/#\\/' + route + '"'));
+  }
+});
+
+test('privacy and copyright pages disclose service and rights handling clearly', () => {
+  const h = harness();
+  h.go('#/privacy');
+  let html = h.node('#main').innerHTML;
+  assert.match(html, /Firebase Authentication/);
+  assert.match(html, /Google AdSense/);
+  assert.match(html, /cookies/);
+
+  h.go('#/copyright');
+  html = h.node('#main').innerHTML;
+  assert.match(html, /rights holder/);
+  assert.match(html, /requesting review or removal/);
+  assert.match(html, /github\.com\/dmlazid\/NovelNest\/issues\/new/);
+});
+
 test('licensed edition and collapsible summaries appear in novel details', () => {
   const h = harness();
   const novel = h.window.NOVELS.find(n => String(n.synopsis || '').length > 340);
