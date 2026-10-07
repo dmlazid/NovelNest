@@ -41,7 +41,7 @@
       window.NovelNestApp?.reloadData();
       cache();
     } finally { applying = false; }
-    if (!(location.hash.startsWith('#/read/') || /^\/read\/[^/]+\/?$/.test(location.pathname || ''))) window.dispatchEvent(new Event('hashchange'));
+    if (!(location.hash.startsWith('#/read/') || /^\/read\/[^/]+\/?$/.test(location.pathname || '') || /^\/novel\/[^/]+\/chapter-\d+\/?$/.test(location.pathname || ''))) window.dispatchEvent(new Event('hashchange'));
     render();
   }
   function fail(error) {
@@ -258,7 +258,7 @@
   function showUpdates() {
     const dialog = drawer('updates-dialog', 'Notifications');
     const entries = sync.updates(books, current());
-    dialog.innerHTML = drawerTop('notifications') + `<div class="notifications-heading"><h2>Notifications</h2><button class="quiet-button" data-seen-updates ${entries.length ? '' : 'disabled'}>Mark all read</button></div><div class="notification-tabs"><span>Chapters <b>${entries.length}</b></span></div>${entries.length ? '<ul class="update-list">' + entries.map(n => { const book = books.find(b => b.id === n.id); return `<li><a data-close-drawer href="/read/${encodeURIComponent(n.id)}/?chapter=${n.first}"><img src="${escape(book.cover)}" alt=""><div><strong>${escape(n.title)}</strong><span><em>New</em> Chapter ${n.first}${n.count > 1 ? '–' + book.chapters.length : ''}</span></div></a></li>`; }).join('') + '</ul>' : `<div class="empty-notifications"><div>${icon('bell')}</div><h3>You’re all caught up</h3><p>New chapters from your bookmarked novels will appear here.</p><a class="button" href="./#/browse" data-close-drawer>Explore novels</a></div>`}<p class="notifications-footnote">Updates refresh when you visit NovelNest.</p>`;
+    dialog.innerHTML = drawerTop('notifications') + `<div class="notifications-heading"><h2>Notifications</h2><button class="quiet-button" data-seen-updates ${entries.length ? '' : 'disabled'}>Mark all read</button></div><div class="notification-tabs"><span>Chapters <b>${entries.length}</b></span></div>${entries.length ? '<ul class="update-list">' + entries.map(n => { const book = books.find(b => b.id === n.id); return `<li><a data-close-drawer href="/novel/${encodeURIComponent(n.id)}/chapter-${n.first}/"><img src="${escape(book.cover)}" alt=""><div><strong>${escape(n.title)}</strong><span><em>New</em> Chapter ${n.first}${n.count > 1 ? '–' + book.chapters.length : ''}</span></div></a></li>`; }).join('') + '</ul>' : `<div class="empty-notifications"><div>${icon('bell')}</div><h3>You’re all caught up</h3><p>New chapters from your bookmarked novels will appear here.</p><a class="button" href="./#/browse" data-close-drawer>Explore novels</a></div>`}<p class="notifications-footnote">Updates refresh when you visit NovelNest.</p>`;
     openDrawer(dialog);
   }
   async function start() {
@@ -295,6 +295,13 @@
       const drawer = catalogTab.closest('.site-drawer');
       drawer?.querySelectorAll('[data-catalog-tab]').forEach(button => button.setAttribute('aria-selected', String(button === catalogTab)));
       drawer?.querySelectorAll('[data-catalog-panel]').forEach(section => { section.hidden = section.dataset.catalogPanel !== catalogTab.dataset.catalogTab; });
+    }
+    const cleanNovelLink = target.closest('a[href^="/novel/"]');
+    if (cleanNovelLink && window.NovelNestApp?.navigate) {
+      event.preventDefault();
+      closeDrawers();
+      window.NovelNestApp.navigate(cleanNovelLink.getAttribute('href'));
+      return;
     }
     if (target.closest('[data-close-drawer]')) closeDrawers();
     if (target.closest('[data-account-retry]')) start();
