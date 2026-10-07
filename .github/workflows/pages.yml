@@ -14,6 +14,7 @@ on:
       - "Import licensed The Innkeeper"
       - "Import licensed AkkNovel series"
     types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,11 +24,13 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Finish the current deployment; newer updates wait instead of cancelling it.
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    # An updater may save valid checkpoints before failing or being cancelled.
+    # Always validate current main; only a passing test/build can reach Deploy.
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
