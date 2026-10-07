@@ -15,7 +15,7 @@ const internalUrl=path=>`./#${path.startsWith('/')?path:'/'+path}`;
 const bookUrl=n=>`/novel/${encodeURIComponent(n.id)}/`;
 const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${i+1}/`;
 const chapterPathMatch=pathname=>String(pathname||'').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
-function navigate(url,replace=false){if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',url);route();main.focus({preventScroll:true});return}location.href=url}
+function navigate(url,replace=false){const u=new URL(url,location.href);const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',next);route();main.focus({preventScroll:true});return}location.href=next}
 const SYNOPSIS_PREVIEW_LENGTH = 340;
 function synopsisHtml(n){
   const full = String(n.synopsis || '').trim();
@@ -415,11 +415,11 @@ function route(){
     if(legacyRead)window.history.replaceState(null,'',`/novel/${encodeURIComponent(decodeURIComponent(legacyRead[1]))}/chapter-${legacyRead[2]}/`);
     else if(legacyNovel)window.history.replaceState(null,'',`/novel/${encodeURIComponent(decodeURIComponent(legacyNovel[1]))}/`);
     else if(oldReadPath){const chapter=new URLSearchParams(search).get('chapter')||'1';window.history.replaceState(null,'',`/novel/${encodeURIComponent(decodeURIComponent(oldReadPath[1]))}/chapter-${chapter}/`)}
-    else if((cleanNovelPath||cleanChapter)&&location.hash&&location.hash!=='#')window.history.replaceState(null,'','/'+location.hash);
+    else if(location.hash==='#/'||location.hash==='#')window.history.replaceState(null,'',pathname+search);
     pathname=location.pathname||'/';search=location.search||'';
     cleanNovelPath=/^\/novel\/[^/]+\/?$/.test(pathname);cleanChapter=chapterPathMatch(pathname);
   }
-  let raw=(cleanNovelPath||cleanChapter||oldReadPath)?'':location.hash.slice(1);
+  let raw=(cleanNovelPath||cleanChapter||oldReadPath)?'':(location.hash.startsWith('#/')?location.hash.slice(1):pathname+search);
   if(!raw&&cleanChapter)raw=`/read/${decodeURIComponent(cleanChapter[1])}/${cleanChapter[2]}`;
   if(!raw&&cleanNovelPath){const match=pathname.match(/^\/novel\/([^/]+)\/?$/);raw=match?`/novel/${decodeURIComponent(match[1])}`:'/'}
   if(!raw&&oldReadPath){const chapter=new URLSearchParams(search).get('chapter')||'1';raw=`/read/${decodeURIComponent(oldReadPath[1])}/${chapter}`}
@@ -429,33 +429,33 @@ function route(){
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
   switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · Chapter ${parts[2]}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelNest';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
-  main.innerHTML=html;document.title=`${title} — NovelNest`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
+  main.innerHTML=html;main.querySelectorAll('a[href]').forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelNest`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
 }
 main.addEventListener('submit',e=>{
   if(e.target.matches('.search-form')){
     e.preventDefault();
-    location.hash='/browse?q='+encodeURIComponent(new FormData(e.target).get('q').trim());
+    navigate('/browse?q='+encodeURIComponent(new FormData(e.target).get('q').trim()));
     return;
   }
   if(e.target.matches('.directory-search')){
     e.preventDefault();
     const route=e.target.dataset.directoryRoute;
-    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const p=new URLSearchParams(location.search.slice(1));
     const q=String(new FormData(e.target).get('q')||'').trim();
     if(q)p.set('q',q);else p.delete('q');
-    location.hash='/'+route+(p.toString()?'?'+p.toString():'');
+    navigate('/'+route+(p.toString()?'?'+p.toString():''));
     return;
   }
   if(e.target.matches('.finder-form')){
     e.preventDefault();
     const p=new URLSearchParams(new FormData(e.target));
     for(const [key,value] of [...p.entries()]) if(!String(value).trim()||value==='All') p.delete(key);
-    location.hash='/finder'+(p.toString()?'?'+p.toString():'');
+    navigate('/finder'+(p.toString()?'?'+p.toString():''));
   }
 });
 main.addEventListener('click',e=>{
   const anchor=e.target.closest?.('a[href]'),href=anchor?.getAttribute?.('href')||'';
-  if(anchor&&!e.defaultPrevented&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&(!anchor.target||anchor.target==='_self')&&/^\/novel\/[^/]+\/(?:chapter-\d+\/)?$/.test(href)){e.preventDefault();navigate(href);return}
+  if(anchor&&!e.defaultPrevented&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey&&(!anchor.target||anchor.target==='_self')){const u=new URL(href,location.href);if(u.origin===location.origin&&(/^\/(?:novel\/|browse|genre|finder|library|latest|completed|reading-desk|editorial|about|privacy|terms|contact|copyright)/.test(u.pathname)||u.pathname==='/')){e.preventDefault();navigate(u.pathname+u.search);return}}
   const save=e.target.closest('[data-save]');if(save)toggleSave(save.dataset.save);
   const font=e.target.closest('[data-font]');if(font){preferences.size=Math.min(28,Math.max(16,(Number(preferences.size)||20)+Number(font.dataset.font)));persist('novelnest.preferences',preferences);applySettings();document.querySelector('#font-size').textContent=preferences.size+'px'}
 });
@@ -466,24 +466,24 @@ main.addEventListener('change',e=>{
     applySettings();
   }
   if(e.target.dataset.filter){
-    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const p=new URLSearchParams(location.search.slice(1));
     p.set(e.target.dataset.filter,e.target.value);
-    location.hash='/browse?'+p.toString();
+    navigate('/browse?'+p.toString());
     return;
   }
   if(e.target.dataset.directoryFilter){
-    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const p=new URLSearchParams(location.search.slice(1));
     const key=e.target.dataset.directoryFilter;
     const value=e.target.value;
     if(value==='All'||!value)p.delete(key);else p.set(key,value);
     const route=e.target.dataset.directoryRoute;
-    location.hash='/'+route+(p.toString()?'?'+p.toString():'');
+    navigate('/'+route+(p.toString()?'?'+p.toString():''));
     return;
   }
   if(e.target.dataset.genreSort){
-    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const p=new URLSearchParams(location.search.slice(1));
     if(e.target.value==='latest')p.delete('sort');else p.set('sort',e.target.value);
-    location.hash='/genre/'+encodeURIComponent(e.target.dataset.genreSort)+(p.toString()?'?'+p.toString():'');
+    navigate('/genre/'+encodeURIComponent(e.target.dataset.genreSort)+(p.toString()?'?'+p.toString():''));
   }
 });
 window.addEventListener('hashchange',()=>{route();main.focus({preventScroll:true})});
