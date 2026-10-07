@@ -216,7 +216,29 @@ test('navigation drawer includes Novel list and Genres catalog tabs', () => {
   assert.match(accounts, /Latest Release/);
   assert.match(accounts, /Completed Novels/);
   assert.match(accounts, /Novel Finder/);
-  assert.match(accounts, /browse\?genre=/);
+  assert.match(accounts, /#\/genre\//);
+  assert.match(accounts, /#\/finder/);
+});
+
+test('genre links open dedicated genre directory pages and finder has real filters', () => {
+  const h = harness();
+  const genre = h.window.NOVELS.flatMap(n => n.tags || []).find(Boolean);
+  assert(genre);
+  h.go('#/genre/' + encodeURIComponent(genre));
+  let html = h.node('#main').innerHTML;
+  assert.match(html, /genre-directory-page/);
+  assert.match(html, new RegExp(genre.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\test('top header exposes notifications beside menu and novel breadcrumbs use home and genre', () => {') + ' NOVELS'));
+  assert.match(html, /COMPLETED/);
+  assert.match(html, /directory-novel-row/);
+
+  h.go('#/finder');
+  html = h.node('#main').innerHTML;
+  assert.match(html, /NOVEL FINDER/);
+  assert.match(html, /finder-check-grid/);
+  assert.match(html, /name="genre"/);
+  assert.match(html, /name="chapters"/);
+  assert.match(html, /name="status"/);
+  assert.match(html, /Apply Filters/);
 });
 
 test('top header exposes notifications beside menu and novel breadcrumbs use home and genre', () => {
