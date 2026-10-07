@@ -79,9 +79,11 @@
     const ticket = ++generation;
     requestAnimationFrame(() => {
       if (ticket !== generation) return;
-      const match = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
-      if (!match) return;
-      const novel = (window.NOVELS || []).find(n => n.id === match[1]);
+      const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
+      const pathMatch = location.pathname.match(/^\/read\/([^/]+)\/?$/);
+      const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search).get('chapter')] : null);
+      if (!match || !match[2]) return;
+      const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
       const chapter = novel?.chapters[Number(match[2]) - 1];
       const wrap = document.querySelector('.reader-wrap');
       const prose = wrap?.querySelector('.prose');

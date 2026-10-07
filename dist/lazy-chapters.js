@@ -3,9 +3,11 @@
   const failed = new Set();
 
   function currentTarget() {
-    const match = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
-    if (!match) return null;
-    const novel = (window.NOVELS || []).find(n => n.id === match[1]);
+    const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
+    const pathMatch = location.pathname.match(/^\/read\/([^/]+)\/?$/);
+    const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search).get('chapter')] : null);
+    if (!match || !match[2]) return null;
+    const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
     const number = Number(match[2]);
     if (!novel?.lazyChunks || number < 1 || number > novel.chapters.length) return null;
     const index = number - 1;

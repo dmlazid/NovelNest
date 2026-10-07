@@ -3,6 +3,7 @@
   const PAGE_SIZE = 40;
   const tocPages = Object.create(null);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const readerHref = (id, number) => `/read/${encodeURIComponent(id)}/?chapter=${number}`;
 
   function setText(el, value) {
     if (el && el.textContent !== value) el.textContent = value;
@@ -32,13 +33,18 @@
   }
 
   function routeNovel() {
-    const match = location.hash.match(/^#\/(?:novel|read)\/([^/?#]+)/);
-    return match ? (window.NOVELS || []).find(n => n.id === match[1]) : null;
+    const hashMatch = location.hash.match(/^#\/(?:novel|read)\/([^/?#]+)/);
+    if (hashMatch) return (window.NOVELS || []).find(n => n.id === decodeURIComponent(hashMatch[1])) || null;
+    const pathMatch = location.pathname.match(/^\/(?:novel|read)\/([^/]+)\/?$/);
+    return pathMatch ? (window.NOVELS || []).find(n => n.id === decodeURIComponent(pathMatch[1])) || null : null;
   }
 
   function currentReaderNumber() {
-    const match = location.hash.match(/^#\/read\/[^/]+\/(\d+)/);
-    return match ? Number(match[1]) : null;
+    const hashMatch = location.hash.match(/^#\/read\/[^/]+\/(\d+)/);
+    if (hashMatch) return Number(hashMatch[1]);
+    if (!/^\/read\/[^/]+\/?$/.test(location.pathname)) return null;
+    const value = Number(new URLSearchParams(location.search).get('chapter'));
+    return Number.isInteger(value) && value > 0 ? value : null;
   }
 
   function cleanCommon() {
@@ -67,7 +73,7 @@
   function chapterLink(n, c, index, progress) {
     const state = window.NovelNestReading?.status(n.id, index + 1) || 'unread';
     const label = {unread: 'Unread', 'in-progress': 'In progress', finished: 'Finished'}[state];
-    return `<a href="./#/read/${n.id}/${index + 1}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
+    return `<a href="${readerHref(n.id, index + 1)}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
   }
 
   function renderTocPage(n, tocSection, requestedPage) {
@@ -116,7 +122,7 @@
   }
 
   function fixDetail(n) {
-    if (!n || !location.hash.startsWith(`#/novel/${n.id}`)) return;
+    if (!n || !(location.hash.startsWith(`#/novel/${n.id}`) || location.pathname.replace(/\/+$/, '') === `/novel/${encodeURIComponent(n.id)}`)) return;
     setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${'Licensed edition'}`);
     const licenseNote = main.querySelector('.description .meta');
     if (licenseNote) licenseNote.remove();
@@ -125,7 +131,7 @@
     if (p.autoResume === 'no') {
       const primary = main.querySelector('.actions a.button');
       if (primary) {
-        primary.href = `#/read/${n.id}/1`;
+        primary.href = readerHref(n.id, 1);
         primary.textContent = 'Start reading';
       }
     }
@@ -192,7 +198,7 @@
   }
 
   function fixReader(n) {
-    if (!n || !location.hash.startsWith(`#/read/${n.id}/`)) return;
+    if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || location.pathname.replace(/\/+$/, '') === `/read/${encodeURIComponent(n.id)}`)) return;
     const current = currentReaderNumber();
     if (!current) return;
 
@@ -203,10 +209,10 @@
       const modern = document.createElement('div');
       modern.className = 'modern-reader-shell';
       modern.innerHTML = `<div class="modern-reader-tools">
-        ${current > 1 ? `<a class="reader-nav-button" href="./#/read/${n.id}/${current - 1}" aria-label="Previous chapter">‹</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">‹</span>'}
+        ${current > 1 ? `<a class="reader-nav-button" href="${readerHref(n.id, current - 1)}" aria-label="Previous chapter">‹</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">‹</span>'}
         <select class="reader-chapter-select" data-chapter-jump="${n.id}" aria-label="Jump to chapter">${chapterOptions(n, current)}</select>
         <button class="reader-settings-button" type="button" data-reader-settings-toggle aria-label="Reader settings">⚙</button>
-        ${current < n.chapters.length ? `<a class="reader-nav-button" href="./#/read/${n.id}/${current + 1}" aria-label="Next chapter">›</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">›</span>'}
+        ${current < n.chapters.length ? `<a class="reader-nav-button" href="${readerHref(n.id, current + 1)}" aria-label="Next chapter">›</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">›</span>'}
       </div>${settingsPanel(prefs())}`;
       oldTools.replaceWith(modern);
     }
@@ -285,7 +291,7 @@
     const jump = e.target.closest('[data-chapter-jump]');
     if (jump) {
       const number = Number(jump.value);
-      if (Number.isInteger(number) && number > 0) location.hash = `#/read/${jump.dataset.chapterJump}/${number}`;
+      if (Number.isInteger(number) && number > 0) location.href = readerHref(jump.dataset.chapterJump, number);
       return;
     }
 
