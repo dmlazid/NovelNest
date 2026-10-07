@@ -74,6 +74,10 @@ def request(url: str, *, binary: bool = False, optional: bool = False):
 def clean_text(value: str) -> str:
     value = " ".join(value.split())
     value = unicodedata.normalize("NFKC", value)
+    # Some FreeWebNovel chapter headings begin with U+FEFF/zero-width
+    # format characters. Remove them so headings like "﻿2151 Big Guns"
+    # are recognized instead of being treated as unnumbered extras.
+    value = "".join(ch for ch in value if unicodedata.category(ch) != "Cf")
     value = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", value, flags=re.I)
     return " ".join(value.split()).strip()
 
