@@ -95,6 +95,31 @@ Another 13 authorized FreeWebNovel titles have been registered in the same resum
 
 When both 13-title FreeWebNovel batches have produced their first successful catalog checkpoints, NovelHaven will have 67 registered novels in total.
 
+### Third authorized FreeWebNovel import batch
+
+A third authorized FreeWebNovel batch has been registered in the same resumable importer. These 18 titles will join the existing queue and use the same 100-chapter checkpoint system:
+
+- Turns Out I'm in a Villain Clan
+- Evolving My Undead Legion in a Game-Like World
+- The Beginning After The End
+- SSS-Class Suicide Hunter
+- Cultivation Chat Group
+- The Long-awaited Mr Han
+- Supreme Harem God System
+- My Werewolf System
+- Tyranny of Steel
+- Godly Stay-Home Dad
+- My Rich Wife
+- Hidden Marriage: A Heaven-sent Billionaire Husband
+- The Emperor Wants to Marry the Doctor
+- I Have the Alchemy Emperor in My Head
+- Versatile Mage
+- Alchemy Emperor of the Divine Dao
+- I'm the King of Technology
+- Lady Gu Is Too Weak to Fend for Herself
+
+After all 18 titles produce their first successful catalog checkpoints, NovelHaven will have 85 registered novels in total.
+
 ## Reading and discovery
 
 - Browse latest novels, latest releases, completed novels, genre pages, or the Novel Finder.
