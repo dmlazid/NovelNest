@@ -217,7 +217,13 @@
     const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
     const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
     const genreLinks = genres.map(genre => `<a href="./#/genre/${encodeURIComponent(genre)}" data-close-drawer>${escape(genre)}</a>`).join('');
-    panel.innerHTML = drawerTop('menu') + `<div class="menu-content catalog-navigation-content">
+    panel.innerHTML = drawerTop('menu') + `<div class="menu-content">
+      <form class="drawer-search" data-menu-search>
+        <label class="sr-only" for="menu-search">Search novels</label>
+        ${icon('search')}<input id="menu-search" name="q" placeholder="Search novels…" type="search">
+        <button type="submit" aria-label="Search">${icon('search')}</button>
+      </form>
+
       <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelNest">
         <button type="button" role="tab" aria-selected="true" data-catalog-tab="novels">${icon('book')}<span>Novel list</span></button>
         <button type="button" role="tab" aria-selected="false" data-catalog-tab="genres">${icon('grid')}<span>Genres</span></button>
@@ -238,20 +244,13 @@
         <nav class="catalog-genre-grid" aria-label="Genres">${genreLinks}</nav>
       </section>
 
-      <div class="catalog-menu-account">
-        <button type="button" class="catalog-login-button" data-profile>${icon('user')}<span>${user ? 'My account' : 'Login / Signup'}</span></button>
-        <form class="drawer-search catalog-bottom-search" data-menu-search>
-          <label class="sr-only" for="menu-search">Search novels</label>
-          ${icon('search')}<input id="menu-search" name="q" placeholder="Search…" type="search">
-          <button type="submit" aria-label="Search">${icon('search')}</button>
-        </form>
-      </div>
-
-      <div class="catalog-menu-utility">
+      <div class="menu-divider">ACCOUNT &amp; UPDATES</div>
+      <div class="drawer-rows">
+        <button type="button" class="drawer-row drawer-action-row" data-profile><span class="row-icon">${icon('user')}</span><span><strong>My account</strong><small>${user ? 'Profile, sync &amp; settings' : 'Sign in or continue as guest'}</small></span><span class="row-chevron" aria-hidden="true">›</span></button>
         <button type="button" class="drawer-row drawer-action-row" data-updates><span class="row-icon">${icon('bell')}</span><span><strong>Notifications</strong><small>Chapter updates from saved novels</small></span><span class="menu-update-dot notification-dot" data-notification-dot hidden></span><span class="row-chevron" aria-hidden="true">›</span></button>
-        ${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}
-        ${row('./#/library?tab=history','History','Continue your reading journey','history')}
       </div>
+      <div class="menu-divider">YOUR READING</div>
+      <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelNest','Stories &amp; reading information','info')}</div>
     </div>`;
     renderStatus();
     openDrawer(panel);
