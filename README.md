@@ -75,6 +75,26 @@ A new 13-title authorized FreeWebNovel batch is now importing in resumable 100-c
 
 These titles should be counted as live only after their catalog/chapter checkpoint is committed and a Pages deployment succeeds.
 
+### Second authorized FreeWebNovel import batch
+
+Another 13 authorized FreeWebNovel titles have been registered in the same resumable importer. They will use the same 100-chapter checkpoint system and automatic six-hour updater:
+
+- She Shocks The Whole World After Retirement
+- Godly Empress Doctor
+- Chaotic Sword God
+- Re: Evolution Online
+- I Was Caught up in a Hero Summoning, but That World Is at Peace
+- Fey Evolution Merchant
+- Remarried Empress
+- Overgeared
+- Dimensional Descent
+- Legend of Swordsman
+- Madam's Identities Shocks the Entire City Again
+- The Author's POV
+- Keyboard Immortal
+
+When both 13-title FreeWebNovel batches have produced their first successful catalog checkpoints, NovelHaven will have 67 registered novels in total.
+
 ## Reading and discovery
 
 - Browse latest novels, latest releases, completed novels, genre pages, or the Novel Finder.
