@@ -52,7 +52,9 @@ test('homepage loads no chapter bodies; direct chapter links work across chunk b
       assert.equal(JSON.parse(h.storage.get('novelnest.progress'))[id].chapter, number - 1);
     }
   }
-  h.go(`#/read/got-a-gallery-in-the-wild/${h.window.NOVELS[0].chapters.length + 1}`);
+  const gallery = h.window.NOVELS.find(n => n.id === 'got-a-gallery-in-the-wild');
+  assert(gallery);
+  h.go(`#/read/got-a-gallery-in-the-wild/${gallery.chapters.length + 1}`);
   assert.match(h.node('#main').innerHTML, /Page not found/);
 });
 
