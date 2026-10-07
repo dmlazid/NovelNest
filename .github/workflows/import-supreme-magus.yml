@@ -1,4 +1,5 @@
 name: Import licensed Supreme Magus
+# source-index-aware importer
 
 on:
   schedule:
