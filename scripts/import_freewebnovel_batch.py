@@ -238,6 +238,150 @@ SERIES = {
         "genre": "Action",
         "tags": ["Action", "Comedy", "Fantasy", "Harem", "Martial Arts", "Xuanhuan"],
     },
+    "villain-clan": {
+        "id": "turns-out-im-in-a-villain-clan",
+        "slug": "turns-out-im-in-a-villain-clan",
+        "title": "Turns Out I'm in a Villain Clan",
+        "author": "Unknown",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "System", "Transmigration", "Adventure"],
+    },
+    "undead-legion": {
+        "id": "evolving-my-undead-legion-in-a-game-like-world",
+        "slug": "evolving-my-undead-legion-in-a-game-like-world",
+        "title": "Evolving My Undead Legion in a Game-Like World",
+        "author": "Unknown",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Game", "System", "Necromancer", "Adventure"],
+    },
+    "beginning-after-end": {
+        "id": "the-beginning-after-the-end",
+        "slug": "the-beginning-after-the-end-novel",
+        "title": "The Beginning After The End",
+        "author": "TurtleMe",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Action", "Adventure", "Reincarnation"],
+    },
+    "sss-suicide-hunter": {
+        "id": "sss-class-suicide-hunter",
+        "slug": "sssclass-suicide-hunter",
+        "title": "SSS-Class Suicide Hunter",
+        "author": "Shin Noah",
+        "genre": "Action",
+        "tags": ["Action", "Adventure", "Fantasy", "Game", "System"],
+    },
+    "cultivation-chat-group": {
+        "id": "cultivation-chat-group",
+        "slug": "cultivation-chat-group",
+        "title": "Cultivation Chat Group",
+        "author": "Legend of the Paladin",
+        "genre": "Xianxia",
+        "tags": ["Xianxia", "Cultivation", "Comedy", "Fantasy", "Modern"],
+    },
+    "long-awaited-mr-han": {
+        "id": "the-long-awaited-mr-han",
+        "slug": "the-long-awaited-mr-han",
+        "title": "The Long-awaited Mr Han",
+        "author": "As If Dawn",
+        "genre": "Romance",
+        "tags": ["Romance", "Modern", "Drama", "Rebirth"],
+    },
+    "supreme-harem-god": {
+        "id": "supreme-harem-god-system",
+        "slug": "supreme-harem-god-system",
+        "title": "Supreme Harem God System",
+        "author": "SleepDeprivedSloth",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Harem", "System", "Cultivation", "Action"],
+    },
+    "my-werewolf-system": {
+        "id": "my-werewolf-system",
+        "slug": "my-werewolf-system-novel",
+        "title": "My Werewolf System",
+        "author": "JKSManga",
+        "genre": "Action",
+        "tags": ["Action", "Fantasy", "System", "Supernatural"],
+    },
+    "tyranny-of-steel": {
+        "id": "tyranny-of-steel",
+        "slug": "tyranny-of-steel",
+        "title": "Tyranny of Steel",
+        "author": "Zentmeister",
+        "genre": "Historical",
+        "tags": ["Historical", "War", "Kingdom Building", "Reincarnation", "Action"],
+    },
+    "godly-stay-home-dad": {
+        "id": "godly-stay-home-dad",
+        "slug": "godly-stay-home-dad",
+        "title": "Godly Stay-Home Dad",
+        "author": "Shan Wang Zhang",
+        "genre": "Romance",
+        "tags": ["Romance", "Cultivation", "Modern", "Family", "Comedy"],
+    },
+    "my-rich-wife": {
+        "id": "my-rich-wife",
+        "slug": "my-rich-wife",
+        "title": "My Rich Wife",
+        "author": "Unknown",
+        "genre": "Romance",
+        "tags": ["Romance", "Urban", "Cultivation", "Action"],
+    },
+    "hidden-marriage-billionaire": {
+        "id": "hidden-marriage-heaven-sent-billionaire-husband",
+        "slug": "hidden-marriage-a-heaven-sent-billionaire-husband",
+        "title": "Hidden Marriage: A Heaven-sent Billionaire Husband",
+        "author": "Unknown",
+        "genre": "Romance",
+        "tags": ["Romance", "Modern", "Marriage", "Entertainment"],
+    },
+    "emperor-marry-doctor": {
+        "id": "the-emperor-wants-to-marry-the-doctor",
+        "slug": "the-emperor-wants-to-marry-the-doctor",
+        "title": "The Emperor Wants to Marry the Doctor",
+        "author": "Unknown",
+        "genre": "Romance",
+        "tags": ["Romance", "Fantasy", "Rebirth", "Cultivation", "Historical"],
+    },
+    "alchemy-emperor-head": {
+        "id": "i-have-the-alchemy-emperor-in-my-head",
+        "slug": "i-have-the-alchemy-emperor-in-my-head",
+        "title": "I Have the Alchemy Emperor in My Head",
+        "author": "Fu Xiaochen",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Action", "Cultivation", "Martial Arts", "Alchemy"],
+    },
+    "versatile-mage": {
+        "id": "versatile-mage",
+        "slug": "versatile-mage",
+        "title": "Versatile Mage",
+        "author": "Chaos",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Action", "Magic", "Adventure", "School Life"],
+    },
+    "alchemy-divine-dao": {
+        "id": "alchemy-emperor-of-the-divine-dao",
+        "slug": "alchemy-emperor-of-the-divine-dao",
+        "title": "Alchemy Emperor of the Divine Dao",
+        "author": "Flying Alone",
+        "genre": "Xuanhuan",
+        "tags": ["Xuanhuan", "Action", "Cultivation", "Alchemy", "Reincarnation"],
+    },
+    "king-of-technology": {
+        "id": "im-the-king-of-technology",
+        "slug": "im-the-king-of-technology",
+        "title": "I'm the King of Technology",
+        "author": "Lumii_",
+        "genre": "Fantasy",
+        "tags": ["Fantasy", "Kingdom Building", "Technology", "System", "Transmigration"],
+    },
+    "lady-gu-too-weak": {
+        "id": "lady-gu-is-too-weak-to-fend-for-herself",
+        "slug": "lady-gu-is-too-weak-to-fend-for-herself",
+        "title": "Lady Gu Is Too Weak to Fend for Herself",
+        "author": "Unknown",
+        "genre": "Romance",
+        "tags": ["Romance", "Modern", "Family", "Mystery"],
+    },
 }
 
 session = requests.Session()
@@ -312,6 +456,16 @@ def find_status(soup: BeautifulSoup) -> str:
         if value in {"OnGoing", "Ongoing"}:
             return "Ongoing"
     return "Ongoing"
+
+
+def find_author(soup: BeautifulSoup, fallback: str) -> str:
+    page_text = " ".join(clean_text(value) for value in soup.stripped_strings if clean_text(value))
+    match = re.search(r"\bAuthor\s*:\s*(.+?)(?=\s+(?:Genre|Status|View|SUMMARY|Summary|Latest|Chapter)\b|$)", page_text, flags=re.I)
+    if match:
+        author = clean_text(match.group(1))
+        if author and len(author) <= 160:
+            return author
+    return fallback
 
 
 def find_synopsis(soup: BeautifulSoup, fallback: str) -> str:
@@ -518,7 +672,7 @@ def previous_updated(catalog: Path) -> str:
     return match.group(1) if match else datetime.now(timezone.utc).date().isoformat()
 
 
-def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: str, synopsis: str, updated: str) -> None:
+def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: str, synopsis: str, updated: str, author: str) -> None:
     metadata = [
         {"number": c["number"], "title": c["title"], "paragraphs": ["Loading chapter…"], "lazy": True}
         for c in chapters
@@ -526,7 +680,7 @@ def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: st
     novel = {
         "id": cfg["id"],
         "title": cfg["title"],
-        "author": cfg["author"],
+        "author": author,
         "genre": cfg["genre"],
         "tags": cfg["tags"],
         "status": status,
@@ -604,7 +758,7 @@ def import_series(key: str) -> None:
         soup,
         f"{cfg['title']} is an authorized FreeWebNovel title available to read on NovelNest.",
     )
-    write_catalog(key, cfg, p, chapters, status, synopsis, updated)
+    write_catalog(key, cfg, p, chapters, status, synopsis, updated, find_author(soup, cfg["author"]))
     ensure_index_registration(key)
 
     if len(chapters) < latest:
