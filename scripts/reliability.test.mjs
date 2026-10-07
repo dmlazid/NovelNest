@@ -227,7 +227,7 @@ test('genre links open dedicated genre directory pages and finder has real filte
   h.go('#/genre/' + encodeURIComponent(genre));
   let html = h.node('#main').innerHTML;
   assert.match(html, /genre-directory-page/);
-  assert.match(html, new RegExp(genre.toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\test('top header exposes notifications beside menu and novel breadcrumbs use home and genre', () => {') + ' NOVELS'));
+  assert(html.includes(genre.toUpperCase() + ' NOVELS'));
   assert.match(html, /COMPLETED/);
   assert.match(html, /directory-novel-row/);
 
