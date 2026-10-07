@@ -13,11 +13,10 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 concurrency:
-  group: supreme-magus-freewebnovel-v2
-  cancel-in-progress: false
+  group: supreme-magus-freewebnovel-v3
+  cancel-in-progress: true
 
 jobs:
   import:
@@ -50,9 +49,7 @@ jobs:
           IMPORT_MAX_CHECKPOINTS: "60"
           IMPORT_MAX_SECONDS: "9600"
           IMPORT_COMMIT_PREFIX: "Auto-update Supreme Magus chapters"
-          IMPORT_WORKFLOW: "import-supreme-magus.yml"
-          IMPORT_RESCHEDULE: "true"
-          GH_TOKEN: ${{ github.token }}
+          IMPORT_RESCHEDULE: "false"
         run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
@@ -61,5 +58,4 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "Supreme Magus updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer now continues until the source is fully caught up, saving every 100 chapters." >> "$GITHUB_STEP_SUMMARY"
-          echo "If the safe runtime budget is reached, another run is queued automatically from the last saved checkpoint." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer continues until the source is caught up, saving every 100 chapters." >> "$GITHUB_STEP_SUMMARY"
