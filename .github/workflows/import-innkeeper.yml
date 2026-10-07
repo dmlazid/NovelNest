@@ -44,7 +44,7 @@ jobs:
           INNKEEPER_BATCH_SIZE: "100"
           IMPORT_NAME: "The Innkeeper"
           IMPORT_COMMAND: "python scripts/import_innkeeper.py"
-          IMPORT_GIT_PATHS: "dist/data/innkeeper-chapters-*.js dist/assets/the-innkeeper.jpg dist/licensed-innkeeper.js"
+          IMPORT_GIT_PATHS: "dist/data/innkeeper-chapters-*.js dist/assets/the-innkeeper.jpg dist/licensed-innkeeper.js dist/index.html"
           IMPORT_MAX_CHECKPOINTS: "30"
           IMPORT_MAX_SECONDS: "9600"
           IMPORT_COMMIT_PREFIX: "Auto-update The Innkeeper chapters"
