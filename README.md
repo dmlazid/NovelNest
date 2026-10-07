@@ -8,7 +8,7 @@ NovelNest is a web-novel library and chapter reader hosted on GitHub Pages at **
 
 ## Current collection
 
-The catalog contains these 17 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
+The catalog contains these 21 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
 
 | Novel | Source / edition |
 | --- | --- |
@@ -29,6 +29,10 @@ The catalog contains these 17 novels as of October 7, 2026. Chapter counts chang
 | Who Gets It! The Marquis’s Concubine-Born Daughter’s Inner Voice is Auto-Broadcasting | AkkNovel |
 | Raiding a Home and Finding His Own Daughter, the Tyrant Father Chickened Out | AkkNovel |
 | Zombie Apocalypse: Me and My Cat | AkkNovel |
+| Directed Leakage of Inner Voice: I Pretended to Be a God Undergoing Tribulations | AkkNovel |
+| After Kicking Over the Scumbag, the Whole City Wants to Marry Me | AkkNovel |
+| You Make Money, I’ll Spend It: Stepmother’s Ultimate Pleasure in the Aristocratic Family | AkkNovel |
+| The Ancient Miss Transmigrates into a CEO’s Wife | AkkNovel |
 
 ## Reading and discovery
 
