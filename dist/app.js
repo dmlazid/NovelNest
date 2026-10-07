@@ -419,7 +419,7 @@ function route(){
     pathname=location.pathname||'/';search=location.search||'';
     cleanNovelPath=/^\/novel\/[^/]+\/?$/.test(pathname);cleanChapter=chapterPathMatch(pathname);
   }
-  let raw=location.hash.slice(1);
+  let raw=(cleanNovelPath||cleanChapter||oldReadPath)?'':location.hash.slice(1);
   if(!raw&&cleanChapter)raw=`/read/${decodeURIComponent(cleanChapter[1])}/${cleanChapter[2]}`;
   if(!raw&&cleanNovelPath){const match=pathname.match(/^\/novel\/([^/]+)\/?$/);raw=match?`/novel/${decodeURIComponent(match[1])}`:'/'}
   if(!raw&&oldReadPath){const chapter=new URLSearchParams(search).get('chapter')||'1';raw=`/read/${decodeURIComponent(oldReadPath[1])}/${chapter}`}
