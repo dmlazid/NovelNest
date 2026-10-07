@@ -270,7 +270,7 @@ def ensure_cover(page_raw: str) -> None:
     soup = BeautifulSoup(page_raw, "html.parser")
     url = None
     for image in soup.find_all("img"):
-        if "cultivation online" in (image.get("alt") or "").lower():
+        if "the innkeeper" in (image.get("alt") or "").lower():
             src = image.get("src") or image.get("data-src")
             if src:
                 url = urljoin(BASE, src)
@@ -320,12 +320,9 @@ def write_catalog(chapters: list[dict], updated: str) -> None:
         "updated": updated,
         "sample": False,
         "synopsis": (
-            "Yuan was born with an incurable illness that left him blind at a young age and "
-            "crippled a few years later, rendering everything below his head useless. Deemed "
-            "hopeless and irredeemable, his parents quickly gave up on him, and the world "
-            "ignored him. In this dark and still world, his younger sister became his sole "
-            "reason for living. Watch as this young man reaches for the apex as a genius in "
-            "The Innkeeper, the newest VRMMORPG, becoming a legendary figure in both worlds."
+            "A young man is unexpectedly chosen by a mysterious system and becomes the host of the Midnight Inn, "
+            "a supernatural establishment connected to worlds far beyond Earth. As the inn grows, he meets powerful "
+            "guests, uncovers larger cosmic mysteries, and slowly learns what his unusual role truly means."
         ),
         "license": {
             "type": "Authorized publication",
