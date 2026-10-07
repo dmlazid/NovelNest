@@ -27,6 +27,10 @@ export function validateSite(root = 'dist') {
     ids.add(novel.id);
     assert(novel.title && novel.chapters?.length, `${novel.id}: empty catalog`);
     assert(fs.existsSync(path.join(root, novel.cover)), `${novel.id}: missing cover`);
+    if (/\.jpe?g$/i.test(novel.cover)) {
+      const signature = fs.readFileSync(path.join(root, novel.cover)).subarray(0, 3);
+      assert(signature.equals(Buffer.from([0xff, 0xd8, 0xff])), `${novel.id}: cover is not a JPEG image`);
+    }
     assert(['Ongoing', 'Completed'].includes(novel.status), `${novel.id}: invalid status`);
     const config = novel.lazyChunks;
     assert(config && Number.isInteger(config.capacity) && config.capacity > 0, `${novel.id}: invalid chunk configuration`);

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 import math
 import os
 import re
@@ -14,6 +15,7 @@ from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image, ImageOps
 
 BASE = "https://www.akknovel.com"
 CHUNK_CAPACITY = 100
@@ -117,7 +119,7 @@ def series_url(cfg: dict) -> str:
 def paths(key: str):
     return {
         "catalog": DIST / f"licensed-akk-{key}.js",
-        "cover": ASSET_DIR / f"akk-{key}.jpg",
+        "cover": ASSET_DIR / f"akk-{key}-cover.jpg",
         "prefix": f"data/akk-{key}-chapters-",
         "glob": f"akk-{key}-chapters-*.js",
         "global": "AKK_" + re.sub(r"[^A-Z0-9]+", "_", key.upper()) + "_CHAPTERS",
@@ -291,29 +293,51 @@ def write_chunks(key: str, p: dict, chapters: list[dict]):
             old.unlink()
 
 
-def ensure_cover(raw: str, cfg: dict, p: dict):
-    if p["cover"].exists() and p["cover"].stat().st_size > 4_000:
-        return
+def cover_url(raw: str, cfg: dict) -> str:
     soup = BeautifulSoup(raw, "html.parser")
-    url = None
-    meta = soup.find("meta", attrs={"property": "og:image"})
-    if meta and meta.get("content"):
-        url = urljoin(BASE, meta["content"])
-    if not url:
-        for image in soup.find_all("img"):
-            alt = clean_text(image.get("alt") or "")
-            if cfg["title"].lower() in alt.lower() or alt.lower() in cfg["title"].lower():
-                src = image.get("src") or image.get("data-src")
-                if src:
-                    url = urljoin(BASE, src)
-                    break
-    if not url:
-        raise RuntimeError(f"{cfg['title']}: cover not found")
-    data = get(url, binary=True)
-    if len(data) < 4_000:
-        raise RuntimeError(f"{cfg['title']}: downloaded cover is unexpectedly small")
+    # The page's og:image is AkkNovel's site logo, not the novel cover.
+    def title_key(value):
+        return "".join(c for c in clean_text(value).casefold() if c.isalnum())
+    titles = {title_key(cfg["title"])}
+    heading = soup.find("h1")
+    if heading:
+        titles.add(title_key(heading.get_text(" ", strip=True)))
+    for image in soup.find_all("img"):
+        labels = {title_key(image.get(attr) or "") for attr in ("title", "alt")}
+        if any(label and label in titles for label in labels):
+            src = image.get("data-src") or image.get("src")
+            if src and not src.startswith("data:"):
+                return urljoin(BASE, src)
+    raise RuntimeError(f"{cfg['title']}: matching novel cover not found")
+
+
+def jpeg_cover(data: bytes) -> bytes:
+    # Decode before saving: a large SVG/logo or HTML error page is not a JPEG.
+    with Image.open(BytesIO(data)) as image:
+        image.load()
+        image = ImageOps.exif_transpose(image)
+        if image.width < 100 or image.height < 150 or image.height <= image.width:
+            raise ValueError("Expected a portrait novel cover, not a logo or thumbnail")
+        image = image.convert("RGB")
+        output = BytesIO()
+        image.save(output, format="JPEG", quality=92)
+        return output.getvalue()
+
+
+def ensure_cover(raw: str, cfg: dict, p: dict):
+    if p["cover"].exists():
+        try:
+            data = p["cover"].read_bytes()
+            jpeg_cover(data)
+            if data.startswith(b"\xff\xd8\xff"):
+                return
+        except (OSError, ValueError):
+            pass
+    data = jpeg_cover(get(cover_url(raw, cfg), binary=True))
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
-    p["cover"].write_bytes(data)
+    temporary = p["cover"].with_suffix(".jpg.tmp")
+    temporary.write_bytes(data)
+    temporary.replace(p["cover"])
 
 
 def ensure_index_registration(key: str) -> None:
@@ -343,7 +367,7 @@ def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: st
     novel = {
         "id": cfg["id"], "title": cfg["title"], "author": author,
         "genre": cfg["genre"], "tags": cfg["tags"], "status": status,
-        "cover": f"assets/akk-{key}.jpg", "updated": updated, "sample": False,
+        "cover": p["cover"].relative_to(DIST).as_posix(), "updated": updated, "sample": False,
         "synopsis": cfg["synopsis"],
         "license": {
             "type": "Authorized publication",

@@ -1,23 +1,79 @@
 # NovelNest
 
-NovelNest is a static novel library and chapter reader hosted on GitHub Pages.
+NovelNest is a web-novel library and chapter reader hosted on GitHub Pages at **NovelHaven**.
 
-- Website: https://dmlazid.github.io/NovelNest/
-- Repository: https://github.com/dmlazid/NovelNest
+- **Live website:** https://novelhaven.top/
+- **Repository:** https://github.com/dmlazid/NovelNest
+- **Deployments and chapter updates:** https://github.com/dmlazid/NovelNest/actions
 
-## Current collection and reader
+## Current collection
 
-The current collection contains **Got a Gallery in the Wild** (ongoing) and **Astral Pet Store** (completed). Chapter counts come from the catalog; the reliability update was checked against 170 and 1,581 chapters respectively.
+The catalog contains these 17 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
 
-Readers can search by title, author or genre, filter by status, browse paginated chapter lists, jump between chapters, and adjust appearance, font size, spacing and reading width. Bookmarks, preferences and reading progress are saved in the browser on the current device. The reader also remembers the paragraph and position within each chapter, shows a reading-progress percentage, and provides a Back to top button. Turn off Auto resume in reader settings to start at the top. Positions are kept for the 200 most recently read chapters on this device. There are no accounts or cross-device synchronization.
+| Novel | Source / edition |
+| --- | --- |
+| Got a Gallery in the Wild | FreeWebNovel |
+| Astral Pet Store | FreeWebNovel |
+| Extra's Path: The Eternal Frost Monarch | EPUB with ongoing updates |
+| Getting $10 Million From My First Sign-In | EPUB with ongoing updates |
+| His Discarded Luna, the Rival's Obsession | EPUB with ongoing updates |
+| SSS Rank Awakening: The World Beyond Redemption | EPUB with ongoing updates |
+| Farming Space Makes Me Rich | EPUB |
+| Cultivation Online | FreeWebNovel |
+| Investing In My Three Crippled Wives Get 10,000x Times Return | FreeWebNovel |
+| Supreme Magus | FreeWebNovel |
+| The Innkeeper | FreeWebNovel |
+| Farming? No, She Is Cultivating Immortality | AkkNovel |
+| Mistakenly Bound by the System? Let’s Squeeze Out a Space First! | AkkNovel |
+| Transmigrated as Long Aotian’s Love Rival | AkkNovel |
+| Who Gets It! The Marquis’s Concubine-Born Daughter’s Inner Voice is Auto-Broadcasting | AkkNovel |
+| Raiding a Home and Finding His Own Daughter, the Tyrant Father Chickened Out | AkkNovel |
+| Zombie Apocalypse: Me and My Cat | AkkNovel |
 
-Chapter lists label each chapter **Unread**, **In progress**, or **Finished**. Opening a successfully loaded chapter marks it in progress. Use **Mark chapter finished** below the chapter navigation to finish it, or **Mark as in progress** to undo that choice. Scrolling or reopening does not erase a finished label. These labels stay on this device even when older exact reading positions leave the 200-chapter position history.
+## Reading and discovery
 
-Both novels load chapter text on demand. The homepage downloads chapter titles and metadata, not the full books. Failed chapter requests display a retry button. Ongoing novels show a caught-up message at the latest chapter; completed novels show an ending.
+- Browse latest novels, latest releases, completed novels, genre pages, or the Novel Finder.
+- Search by title, author, or genre and filter the collection.
+- Open a novel's summary and paginated chapter list, jump to a chapter, or use previous/next navigation.
+- Adjust reading appearance, text size, spacing, and width. The reader supports scroll and page modes.
+- Resume the saved paragraph and position within a chapter; use **Back to top** or disable **Auto resume** when preferred.
+- Track chapters as **Unread**, **In progress**, or **Finished**. **Mark chapter finished** and **Mark as in progress** let readers change the status explicitly.
+- Read original guides in the **Reading Desk**. About, contact, privacy, terms, editorial, licensing, and copyright pages are linked in the footer.
 
-## Edit and check
+The original teal appearance is retained. Chapter text loads on demand, with a retry control for failed requests. Ongoing stories show a caught-up message; completed stories show an ending.
 
-The editable website is in `dist/`. Node.js 22 is used by GitHub Actions. No npm installation is required.
+## Accounts, bookmarks, and notifications
+
+Open the menu and choose **My account → Continue with Google**, or continue reading as a guest. Firebase Authentication handles Google sign-in; Firestore stores each signed-in reader's own reading data.
+
+Signed-in accounts synchronize bookmarks, chapter progress, reading positions, and chapter status across devices. Guest reading data stays on the current device and remains separate from account data. After signing in, **Add guest reading data** can copy existing guest bookmarks and progress into the account. Signing out restores the guest library. Appearance preferences stay local.
+
+**Your Library** contains bookmarks and reading history. The notification bell shows newly available chapters for bookmarked novels when readers visit or refresh the site. These are in-site alerts, not email or browser push notifications.
+
+Offline changes stay on the device and can sync when connectivity returns. Recent exact reading positions are limited to 200 chapters. The former Backup & restore interface has been removed; `backup.js` remains an internal reading-data helper used by account synchronization.
+
+## Project files
+
+| Location | Purpose |
+| --- | --- |
+| `dist/index.html`, `dist/app.js`, `dist/styles.css` | Website shell, routes, catalog views, and base design |
+| `dist/licensed-ui.js`, `dist/reader-enhancements.css` | Chapter pagination and reader controls |
+| `dist/catalog.js`, `dist/licensed-*.js` | Novel metadata and chapter indexes |
+| `dist/data/` | Chapter text chunks |
+| `dist/assets/` | Locally hosted cover images |
+| `dist/lazy-chapters.js` | On-demand chapter loading and retry handling |
+| `dist/reading-position.js`, `dist/chapter-status.js` | Reading position and chapter labels |
+| `dist/accounts.js`, `dist/account-sync.js`, `dist/firebase-config.js` | Google sign-in, library synchronization, and chapter alerts |
+| `firebase/` | Firebase setup and access rules |
+| `dist/*.html`, `dist/sitemap.xml`, `dist/robots.txt` | Standalone information pages and discovery metadata |
+| `dist/CNAME` | Custom domain configuration |
+| `scripts/import_*.py` | EPUB import and source update routines |
+| `scripts/run_novel_catchup.sh` | Checkpointed catch-up runner |
+| `.github/workflows/` | Checks, import schedules, and GitHub Pages deployment |
+
+## Edit, check, and preview
+
+The editable website is in `dist/`. GitHub Actions uses Node.js 22. No npm installation is required.
 
 ```sh
 node scripts/check.mjs
@@ -26,47 +82,38 @@ node scripts/build.mjs
 python -m http.server 8000 --directory _site
 ```
 
-The validator loads both licensed catalogs and all indexed chapter files. It rejects missing files, empty catalogs, missing or duplicate chapter numbers, metadata mismatches, empty text and missing covers. The regression tests cover direct chapter links, chunk boundaries, slow and failed requests, retries, ongoing/completed labels, and invalid chapter data.
+Open http://localhost:8000/ for the local preview. The validator checks all registered catalogs, chapter sequences, metadata, text, and referenced assets. Reader and account regression tests cover navigation, chunk boundaries, retries, reading progress, and synchronization.
 
-`scripts/build.mjs` validates the source and creates `_site/` with content-fingerprinted JavaScript and CSS filenames. An asset manifest gives the chapter loader the matching versioned data URLs. Do not edit or commit `_site/`; it is generated during deployment. Relative URLs support the `/NovelNest/` GitHub Pages path and a future custom domain.
+`scripts/build.mjs` generates `_site/`, fingerprints JavaScript and CSS, and supplies the chapter loader with the asset manifest. Do not edit or commit `_site/`; deployment rebuilds it from `dist/`.
 
-Main files:
-
-| Location | Purpose |
-| --- | --- |
-| `dist/index.html`, `dist/app.js`, `dist/styles.css` | Page shell, routes and base styling |
-| `dist/licensed-ui.js`, `dist/reader-enhancements.css` | Chapter list pagination and reader controls |
-| `dist/catalog.js`, `dist/licensed-*.js` | Novel metadata and chapter title indexes |
-| `dist/data/` | Chapter text chunks |
-| `dist/lazy-chapters.js` | On-demand chapter loading and retry handling |
-| `scripts/import_gallery.py`, `scripts/import_astral.py` | Existing authorized-content update routines |
-
-## Automatic chapter checks
-
-The two importer workflows run about every six hours, subject to GitHub scheduling delays. You can also open **Actions**, select an importer, and choose **Run workflow** on `main`.
-
-They install Python dependencies (`requests` and `beautifulsoup4`), check existing data, compare the source chapter count, fetch new chapters if available, regenerate metadata, validate all chapter data again, and commit only successful updates. Requests respect server errors and rate-limit delays. A failed run does not mean new chapters are available; inspect its failed step and logs. Use **Re-run failed jobs** for a transient runner or connection failure.
-
-To run an importer locally after installing its Python dependencies:
+For AkkNovel importer development:
 
 ```sh
-python scripts/import_gallery.py
-python scripts/import_astral.py
-node scripts/check.mjs
+python -m pip install requests beautifulsoup4 Pillow
+python -m unittest discover -s scripts -p 'test_akknovel_covers.py'
 ```
 
-Run only the importer you need. Preserve the publishing authorization for all text and cover assets maintained in the repository.
+AkkNovel covers are selected from the image matching the novel title, decoded and validated, then saved as real JPEG files. The site's generic social-sharing logo is not a book cover.
 
-## Publishing
+## Automatic chapter updates
 
-Changes pushed to `main` run checks and the **Publish to GitHub Pages** workflow. Successful importer workflows also trigger publication, because commits made with GitHub's workflow token do not normally trigger another push workflow. GitHub Pages must use **GitHub Actions** as its publishing source.
+Eight importer workflows cover the FreeWebNovel and AkkNovel series. They are scheduled approximately every six hours, subject to GitHub scheduling delays. To check a specific source, open **Actions**, select its importer, and choose **Run workflow** on `main`.
 
-Publication runs the regression tests, validates every chapter, builds `_site/`, and deploys that folder. The **Check and package website** workflow also saves the built website as a downloadable artifact. A failed check prevents the new build from being deployed.
+Large catch-up runs save progress in checkpoints. A checkpoint committed to GitHub is not necessarily live yet: the Pages deployment must finish. Importers may still be catching up even when the last published site is working. A failed updater can leave earlier successful checkpoints intact; inspect the failed step before retrying.
 
-After an update, refresh the page to load the new catalog. If an old open tab tries to fetch an asset from a previous deployment, its retry message explains when a refresh is needed.
+The EPUB importer accepts files supplied by the owner and validates chapter numbering before publication. Run `python scripts/import_epub.py --help` for its options. Preserve publication permission for both novel text and cover assets, and do not invent missing chapters or mark a partial import as a complete story.
 
-## Back up reading data
+## Publishing and troubleshooting
 
-Open **My library → Backup & restore → Download backup** to save a JSON file containing bookmarks, last-opened chapters, up to 200 recent paragraph positions, and all chapter status labels. This file contains reading data, not novel text or browser passwords. Keep it outside browser storage before clearing data or switching devices.
+Pushes to `main` trigger **Check and package website** and **Publish to GitHub Pages**. Completed importer runs also trigger publication, including runs that saved checkpoints before failing or being cancelled. Pages checks out current `main`; all tests and the build must pass before deployment. An active deployment finishes while newer updates wait, preventing update jobs from repeatedly cancelling publication.
 
-To restore, choose the JSON backup on the destination browser, review its contents, and select **Restore this backup**. The site merges saved novels and Finished labels and keeps the newest dated reading positions. It restores only novels currently in this catalog, leaves appearance settings unchanged, validates the file before writing, and reloads the library after a successful restore. Files over 1 MB or with an unsupported format are rejected. Nothing is uploaded to a server.
+GitHub Pages uses **GitHub Actions** as its publishing source. The custom domain is `novelhaven.top`. The check workflow saves the built site as a downloadable artifact.
+
+If an update is missing:
+
+1. Check that the importer committed its changes.
+2. Check **Publish to GitHub Pages** for a successful deployment after those changes.
+3. Refresh the website to load its latest catalog.
+4. For a chapter load error, use **Try again**; refresh if the open tab belongs to an older deployment.
+
+For account errors, check the status message under **My account**. Firebase must authorize the website domain, and Firestore rules must restrict each reader to their own account data. Keep Google sign-in, existing advertising configuration, and the teal design intact when making unrelated updates.
