@@ -1,5 +1,5 @@
 name: Import licensed Supreme Magus
-# source-index-aware importer
+# Uses the shared NovelNest full-catch-up runner.
 
 on:
   schedule:
@@ -7,15 +7,17 @@ on:
   push:
     paths:
       - "scripts/import_supreme_magus.py"
+      - "scripts/run_novel_catchup.sh"
       - ".github/workflows/import-supreme-magus.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
-  group: supreme-magus-freewebnovel-v1
-  cancel-in-progress: true
+  group: supreme-magus-freewebnovel-v2
+  cancel-in-progress: false
 
 jobs:
   import:
@@ -39,51 +41,19 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Import and checkpoint Supreme Magus
+      - name: Catch Supreme Magus up completely
         env:
           SUPREME_MAGUS_BATCH_SIZE: "100"
-          SUPREME_MAGUS_BATCHES_PER_RUN: "5"
-        run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          batches="${SUPREME_MAGUS_BATCHES_PER_RUN:-5}"
-          for batch in $(seq 1 "$batches"); do
-            echo "=== Supreme Magus checkpoint $batch/$batches ==="
-            python scripts/import_supreme_magus.py
-            node scripts/check.mjs
-
-            git add -A -- \
-              dist/data/supreme-magus-chapters-*.js \
-              dist/data/supreme-magus-state.json \
-              dist/assets/supreme-magus.jpg \
-              dist/licensed-supreme-magus.js
-
-            if git diff --cached --quiet; then
-              echo "Supreme Magus is already caught up. Nothing else to commit."
-              exit 0
-            fi
-
-            git commit -m "Auto-update Supreme Magus chapters (checkpoint $batch)"
-
-            pushed=0
-            for attempt in 1 2 3; do
-              git fetch origin main
-              git rebase origin/main
-              if git push origin HEAD:main; then
-                pushed=1
-                break
-              fi
-              echo "Push raced with another update; retrying ($attempt/3)..."
-              sleep 2
-            done
-
-            if [ "$pushed" -ne 1 ]; then
-              echo "Could not push Supreme Magus checkpoint after 3 attempts."
-              exit 1
-            fi
-          done
+          IMPORT_NAME: "Supreme Magus"
+          IMPORT_COMMAND: "python scripts/import_supreme_magus.py"
+          IMPORT_GIT_PATHS: "dist/data/supreme-magus-chapters-*.js dist/data/supreme-magus-state.json dist/assets/supreme-magus.jpg dist/licensed-supreme-magus.js"
+          IMPORT_MAX_CHECKPOINTS: "60"
+          IMPORT_MAX_SECONDS: "9600"
+          IMPORT_COMMIT_PREFIX: "Auto-update Supreme Magus chapters"
+          IMPORT_WORKFLOW: "import-supreme-magus.yml"
+          IMPORT_RESCHEDULE: "true"
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
         if: always()
@@ -91,5 +61,5 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "Supreme Magus updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "Each successful checkpoint is saved before the next batch begins." >> "$GITHUB_STEP_SUMMARY"
-          echo "After the backlog is imported, the source is checked automatically every 6 hours." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer now continues until the source is fully caught up, saving every 100 chapters." >> "$GITHUB_STEP_SUMMARY"
+          echo "If the safe runtime budget is reached, another run is queued automatically from the last saved checkpoint." >> "$GITHUB_STEP_SUMMARY"
