@@ -83,6 +83,42 @@ SERIES = {
         "tags": ["Sci-fi", "Apocalypse", "Adventure", "Survival"],
         "synopsis": "When a zombie apocalypse begins, Jiang Cheng faces an even stranger problem: the stray cat he rescued has been infected. Their survival story unfolds in a world where familiar rules are rapidly collapsing.",
     },
+    "directed-inner-voice": {
+        "id": "directed-leakage-inner-voice",
+        "slug": "directed-leakage-of-inner-voice-i-pretended-to-be-a-god-undergoing-tribulations",
+        "title": "Directed Leakage of Inner Voice: I Pretended to Be a God Undergoing Tribulations",
+        "author": "Jade is unpolished",
+        "genre": "Comedy",
+        "tags": ["Comedy", "Historical", "System", "Mind Reading"],
+        "synopsis": "Yue Fuguang gets a second chance at life with a defective merit system and discovers she is the doomed real heiress of a familiar story. Rather than shoulder an impossible mission alone, she turns selective leaks of her inner thoughts into a way to push the imperial court toward saving the dynasty.",
+    },
+    "kick-scumbag": {
+        "id": "kick-scumbag-city-marry",
+        "slug": "after-kicking-over-the-scumbag-the-whole-city-wants-to-marry-me",
+        "title": "After Kicking Over the Scumbag, the Whole City Wants to Marry Me",
+        "author": "The moon is falling on the branches.",
+        "genre": "Romance",
+        "tags": ["Romance", "Historical", "Rebirth", "Revenge"],
+        "synopsis": "After a disastrous first life ends in betrayal and the destruction of her family, Gu Ying is reborn determined to change everything. Her plans for revenge and a quiet future become complicated when the powerful man she mistakenly clings to turns out to be far more dangerous—and devoted—than expected.",
+    },
+    "spend-stepmother": {
+        "id": "you-make-money-ill-spend-it",
+        "slug": "you-make-money-ill-spend-it-stepmothers-ultimate-pleasure-in-the-aristocratic-family",
+        "title": "You Make Money, I’ll Spend It: Stepmother’s Ultimate Pleasure in the Aristocratic Family",
+        "author": "Luchi",
+        "genre": "Romance",
+        "tags": ["Romance", "Transmigration", "Modern", "Family"],
+        "synopsis": "Shen Mu Mu transmigrates into a novel and unexpectedly becomes the stepmother of a teenage heir in a wealthy family. What begins as a comfortable contract arrangement grows into a lively new life involving business, family bonds, public attention, and a marriage that becomes much more real than planned.",
+    },
+    "ancient-miss-ceo-wife": {
+        "id": "ancient-miss-ceo-wife",
+        "slug": "the-ancient-miss-transmigrates-into-a-ceos-wife",
+        "title": "The Ancient Miss Transmigrates into a CEO’s Wife",
+        "author": "Zhiyang",
+        "genre": "Romance",
+        "tags": ["Romance", "Transmigration", "Modern", "Marriage"],
+        "synopsis": "Shen Yin, a young woman from another era, wakes in a modern world she barely understands and learns that she now has both a husband and a child. As she adapts to contemporary life, her old-world skills and new relationships reshape the family she has unexpectedly entered.",
+    },
 }
 
 
