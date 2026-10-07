@@ -79,8 +79,9 @@
 
   function target() {
     const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
-    const pathMatch = (location.pathname || '').match(/^\/read\/([^/]+)\/?$/);
-    const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search || '').get('chapter')] : null);
+    const cleanPathMatch = (location.pathname || '').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
+    const oldPathMatch = (location.pathname || '').match(/^\/read\/([^/]+)\/?$/);
+    const match = hashMatch || cleanPathMatch || (oldPathMatch ? [null, oldPathMatch[1], new URLSearchParams(location.search || '').get('chapter')] : null);
     if (!match || !match[2]) return null;
     const number = Number(match[2]);
     const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
