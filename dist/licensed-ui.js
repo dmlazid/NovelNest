@@ -67,7 +67,7 @@
   function chapterLink(n, c, index, progress) {
     const state = window.NovelNestReading?.status(n.id, index + 1) || 'unread';
     const label = {unread: 'Unread', 'in-progress': 'In progress', finished: 'Finished'}[state];
-    return `<a href="#/read/${n.id}/${index + 1}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
+    return `<a href="./#/read/${n.id}/${index + 1}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
   }
 
   function renderTocPage(n, tocSection, requestedPage) {
@@ -202,10 +202,10 @@
       const modern = document.createElement('div');
       modern.className = 'modern-reader-shell';
       modern.innerHTML = `<div class="modern-reader-tools">
-        ${current > 1 ? `<a class="reader-nav-button" href="#/read/${n.id}/${current - 1}" aria-label="Previous chapter">‹</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">‹</span>'}
+        ${current > 1 ? `<a class="reader-nav-button" href="./#/read/${n.id}/${current - 1}" aria-label="Previous chapter">‹</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">‹</span>'}
         <select class="reader-chapter-select" data-chapter-jump="${n.id}" aria-label="Jump to chapter">${chapterOptions(n, current)}</select>
         <button class="reader-settings-button" type="button" data-reader-settings-toggle aria-label="Reader settings">⚙</button>
-        ${current < n.chapters.length ? `<a class="reader-nav-button" href="#/read/${n.id}/${current + 1}" aria-label="Next chapter">›</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">›</span>'}
+        ${current < n.chapters.length ? `<a class="reader-nav-button" href="./#/read/${n.id}/${current + 1}" aria-label="Next chapter">›</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">›</span>'}
       </div>${settingsPanel(prefs())}`;
       oldTools.replaceWith(modern);
     }
