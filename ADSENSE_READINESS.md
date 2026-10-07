@@ -20,7 +20,7 @@ This file tracks what is done and what still requires the site owner or a real A
 - No live AdSense script or fake publisher ID is installed
 
 ## Still required before AdSense activation
-1. Use a standard domain that can be entered in AdSense without a path. The current GitHub Pages URL contains /NovelNest/, so a custom domain is the practical next step.
+1. Use a standard domain that can be entered in AdSense without a path. The custom domain novelhaven.top is connected to GitHub Pages.
 2. Create or open the AdSense account.
 3. Add the custom domain in AdSense.
 4. Copy the exact ca-pub publisher ID / verification snippet supplied by AdSense.
