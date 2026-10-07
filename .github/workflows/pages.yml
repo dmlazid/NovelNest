@@ -3,6 +3,10 @@ name: Publish to GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "dist/data/fwn-*-chapters-*.js"
+      - "dist/assets/fwn-*.jpg"
+      - "dist/licensed-fwn-*.js"
   workflow_run:
     workflows:
       - "Import licensed gallery novel"
