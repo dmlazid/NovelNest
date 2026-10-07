@@ -221,11 +221,30 @@ test('AdSense preparation pages and original Reading Desk are reachable', () => 
   assert.match(html, /Original NovelNest guide/);
 });
 
-test('footer exposes trust and policy navigation', () => {
+test('footer exposes crawlable trust and policy navigation', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  for (const route of ['reading-desk','about','privacy','terms','contact','copyright']) {
-    assert.match(index, new RegExp('href="\\.\\/#\\/' + route + '"'));
+  for (const file of ['reading-desk.html','about.html','privacy.html','terms.html','contact.html','copyright.html']) {
+    assert(index.includes('href="' + file + '"'));
+    assert(fs.existsSync('dist/' + file));
   }
+});
+
+test('standalone trust and editorial pages have canonical metadata and appear in sitemap', () => {
+  const files = [
+    'about.html','privacy.html','terms.html','contact.html','copyright.html',
+    'reading-desk.html','guide-long-web-novel.html','guide-ongoing-vs-completed.html','guide-genres.html'
+  ];
+  const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
+  for (const file of files) {
+    const html = fs.readFileSync('dist/' + file, 'utf8');
+    assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large">/);
+    assert(html.includes('<link rel="canonical" href="https://dmlazid.github.io/NovelNest/' + file + '">'));
+    assert.match(html, /application\/ld\+json/);
+    assert(sitemap.includes('https://dmlazid.github.io/NovelNest/' + file));
+  }
+  const index = fs.readFileSync('dist/index.html', 'utf8');
+  assert.match(index, /rel="canonical" href="https:\/\/dmlazid\.github\.io\/NovelNest\//);
+  assert.match(index, /application\/ld\+json/);
 });
 
 test('privacy and copyright pages disclose service and rights handling clearly', () => {
