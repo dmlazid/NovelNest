@@ -37,7 +37,7 @@ jobs:
       - name: Import all authorized AkkNovel series
         env:
           AKKNOVEL_REQUEST_DELAY: "0.8"
-          AKKNOVEL_REBUILD: "1"
+          AKKNOVEL_REBUILD: "0"
         run: |
           set -e
           git config user.name "github-actions[bot]"
