@@ -151,6 +151,28 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
   assert.match(index, /class="compact-header-brand" href="\.\/#\//);
 });
 
+test('novel directories support search, genre, status and sorting query controls', () => {
+  const h = harness();
+  const first = h.window.NOVELS[0];
+  h.go('#/latest-novels');
+  let html = h.node('#main').innerHTML;
+  assert.match(html, /directory-search/);
+  assert.match(html, /data-directory-filter="genre"/);
+  assert.match(html, /data-directory-filter="sort"/);
+  assert.match(html, /data-directory-filter="status"/);
+
+  h.go('#/latest-novels?q=' + encodeURIComponent(first.title));
+  html = h.node('#main').innerHTML;
+  assert(html.includes(first.title));
+  assert.match(html, /1 novel matching/);
+
+  const completed = h.window.NOVELS.filter(n => n.status === 'Completed');
+  h.go('#/completed?sort=chapters');
+  html = h.node('#main').innerHTML;
+  assert.equal((html.match(/directory-novel-row/g) || []).length, completed.length);
+  assert.doesNotMatch(html, /data-directory-filter="status"/);
+});
+
 test('licensed edition and collapsible summaries appear in novel details', () => {
   const h = harness();
   const novel = h.window.NOVELS.find(n => String(n.synopsis || '').length > 340);
