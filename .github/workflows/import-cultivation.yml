@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: cultivation-freewebnovel-v5
@@ -42,6 +43,7 @@ jobs:
         env:
           CULTIVATION_BATCH_SIZE: "100"
           CULTIVATION_BATCHES_PER_RUN: "22"
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           git config user.name "github-actions[bot]"
@@ -77,6 +79,11 @@ jobs:
               echo "Could not push Cultivation checkpoint after 3 attempts."
               exit 1
             fi
+
+            echo "Queueing NovelHaven deployment for Cultivation checkpoint $batch..."
+            gh workflow run pages.yml --ref main || {
+              echo "Checkpoint was saved; final workflow completion will still publish it."
+            }
           done
 
       - name: Record updater result
