@@ -1,0 +1,89 @@
+name: Import licensed AkkNovel series
+
+on:
+  schedule:
+    - cron: "57 */6 * * *"
+  push:
+    paths:
+      - "scripts/import_akknovel.py"
+      - ".github/workflows/import-akknovel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: akknovel-series-v1
+  cancel-in-progress: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Import all authorized AkkNovel series
+        env:
+          AKKNOVEL_REQUEST_DELAY: "0.8"
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          series=(
+            farming-immortality
+            mistaken-system
+            long-aotian
+            marquis-inner-voice
+            tyrant-father
+            zombie-cat
+          )
+
+          for key in "${series[@]}"; do
+            echo "=== AkkNovel import: $key ==="
+            python scripts/import_akknovel.py "$key"
+
+            git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js
+            if git diff --cached --quiet; then
+              echo "$key is already caught up."
+              continue
+            fi
+
+            git commit -m "Auto-update AkkNovel $key"
+
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                pushed=1
+                break
+              fi
+              echo "Push raced with another updater; retrying ($attempt/5)..."
+              sleep 3
+            done
+            if [ "$pushed" -ne 1 ]; then
+              echo "Could not push $key after 5 attempts."
+              exit 1
+            fi
+          done
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "AkkNovel updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Each series is saved independently so completed imports survive later failures." >> "$GITHUB_STEP_SUMMARY"
