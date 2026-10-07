@@ -164,7 +164,7 @@ test('novel directories support search, genre, status and sorting query controls
   h.go('#/latest-novels?q=' + encodeURIComponent(first.title));
   html = h.node('#main').innerHTML;
   assert(html.includes(first.title));
-  assert.match(html, /1 novel matching/);
+  assert.match(html, /<strong>1<\/strong> novel matching/);
 
   const completed = h.window.NOVELS.filter(n => n.status === 'Completed');
   h.go('#/completed?sort=chapters');
