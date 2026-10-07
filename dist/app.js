@@ -136,17 +136,27 @@ function directoryRow(n){
     </span>
   </a>`;
 }
-function directoryPage(kind){
+function directoryPage(kind,params=new URLSearchParams()){
   const settings={
-    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Fresh updates',description:'Novels with the newest chapter updates first.'},
-    novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelNest',description:'Browse the latest novels available in the NovelNest catalog.'},
-    completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
+    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Fresh updates',description:'Novels with the newest chapter updates first.',route:'latest-releases'},
+    novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelNest',description:'Browse the latest novels available in the NovelNest catalog.',route:'latest-novels'},
+    completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.',route:'completed'}
   };
   const cfg=settings[kind]||settings.novels;
-  let results=[...novels];
-  if(kind==='completed') results=results.filter(n=>n.status==='Completed');
-  if(kind==='novels') results.sort((a,b)=>b.updated.localeCompare(a.updated)||a.title.localeCompare(b.title));
+  const q=(params.get('q')||'').trim();
+  const genre=params.get('genre')||'All';
+  const status=kind==='completed'?'Completed':(params.get('status')||'All');
+  const sort=params.get('sort')||'latest';
+  let results=[...novels].filter(n=>
+    (genre==='All'||n.tags.includes(genre))&&
+    (status==='All'||n.status===status)&&
+    (!q||`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase()))
+  );
+  if(sort==='title') results.sort((a,b)=>a.title.localeCompare(b.title));
+  else if(sort==='chapters') results.sort((a,b)=>b.chapters.length-a.chapters.length||b.updated.localeCompare(a.updated));
   else results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
+
+  const optionGenres=['All',...genres];
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
     <section class="directory-shell">
@@ -155,8 +165,34 @@ function directoryPage(kind){
         <h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1>
         <p>${esc(cfg.description)}</p>
       </header>
+      <form class="directory-search" data-directory-route="${cfg.route}" role="search">
+        <input type="search" name="q" value="${esc(q)}" placeholder="Search titles, authors, genres…" aria-label="Search this novel list">
+        <button type="submit">Search</button>
+      </form>
+      <div class="directory-controls">
+        <label>Genre
+          <select data-directory-filter="genre" data-directory-route="${cfg.route}">
+            ${optionGenres.map(g=>`<option value="${esc(g)}" ${genre===g?'selected':''}>${esc(g)}</option>`).join('')}
+          </select>
+        </label>
+        ${kind==='completed'?'':`<label>Status
+          <select data-directory-filter="status" data-directory-route="${cfg.route}">
+            <option value="All" ${status==='All'?'selected':''}>All</option>
+            <option value="Ongoing" ${status==='Ongoing'?'selected':''}>Ongoing</option>
+            <option value="Completed" ${status==='Completed'?'selected':''}>Completed</option>
+          </select>
+        </label>`}
+        <label>Sort
+          <select data-directory-filter="sort" data-directory-route="${cfg.route}">
+            <option value="latest" ${sort==='latest'?'selected':''}>Latest updated</option>
+            <option value="title" ${sort==='title'?'selected':''}>Title A–Z</option>
+            <option value="chapters" ${sort==='chapters'?'selected':''}>Most chapters</option>
+          </select>
+        </label>
+      </div>
+      <div class="directory-result-summary"><strong>${results.length}</strong> ${results.length===1?'novel':'novels'}${q?` matching “${esc(q)}”`:''}</div>
       ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><a aria-current="page" href="./#/latest-releases">All novels</a><a href="./#/completed">Completed</a></nav>':''}
-      ${results.length?`<div class="directory-novel-list">${results.map(directoryRow).join('')}</div>`:'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
+      ${results.length?`<div class="directory-novel-list">${results.map(directoryRow).join('')}</div>`:`<div class="empty"><h2>No novels found</h2><p>Try another search, genre, or status.</p><a class="button" href="./#/${cfg.route}">Clear filters</a></div>`}
     </section>
   </div>`;
 }
@@ -178,10 +214,44 @@ function library(params = new URLSearchParams()) {
 }
 function missing(){return `<div class="empty"><h1>Page not found</h1><p>This story or chapter is not in the catalog.</p><a class="button" href="./#/browse">Browse novels</a></div>`}
 function about(){return `<article class="about"><span class="eyebrow">A home for stories</span><h1>About NovelNest</h1><p>NovelNest is a place to discover novels and read them chapter by chapter. Browse by genre, save a story to your library, and choose the reading appearance that feels comfortable.</p><h2>Our current collection</h2><p>Our on-site stories are original demonstration stories, clearly marked as samples. Our catalog also includes external reading links, which take you to another website for the chapters. NovelNest has not imported novels or cover art from FreeWebNovel.</p><p>Book listings can be saved to your library whether they are on-site samples or external reads. Chapters may be added to NovelNest when the owner has the necessary publishing permission.</p><h2>Your reading data</h2><p>Bookmarks, reading preferences, and your last opened chapter are stored in your browser on this device. There is no account or cross-device sync. Clearing your browser data removes those saved settings.</p><h2>External services</h2><p>This site loads its display fonts from Google Fonts. Your browser may connect to that service when loading the page. If the font is unavailable, your device’s default font is used.</p></article>`}
-function route(){window.dispatchEvent(new Event('novelnest:before-route'));let raw=location.hash.slice(1)||'/';let [path,query='']=raw.split('?');const parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);applySettings();document.querySelector('#library-count').textContent=saved.length;document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});let html,title='Find your next chapter';switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · Chapter ${parts[2]}`;break;case 'library':html=library(params);title='My library';break;case 'about':html=about();title='About & content';break;default:html=missing();title='Not found'}main.innerHTML=html;document.title=`${title} — NovelNest`;window.scrollTo(0,0)}
-main.addEventListener('submit',e=>{if(e.target.matches('.search-form')){e.preventDefault();location.hash='/browse?q='+encodeURIComponent(new FormData(e.target).get('q').trim())}});
+function route(){window.dispatchEvent(new Event('novelnest:before-route'));let raw=location.hash.slice(1)||'/';let [path,query='']=raw.split('?');const parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);applySettings();document.querySelector('#library-count').textContent=saved.length;document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});let html,title='Find your next chapter';switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'latest-releases':html=directoryPage('releases',params);title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels',params);title='Latest Novels';break;case 'completed':html=directoryPage('completed',params);title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · Chapter ${parts[2]}`;break;case 'library':html=library(params);title='My library';break;case 'about':html=about();title='About & content';break;default:html=missing();title='Not found'}main.innerHTML=html;document.title=`${title} — NovelNest`;window.scrollTo(0,0)}
+main.addEventListener('submit',e=>{
+  if(e.target.matches('.search-form')){
+    e.preventDefault();
+    location.hash='/browse?q='+encodeURIComponent(new FormData(e.target).get('q').trim());
+    return;
+  }
+  if(e.target.matches('.directory-search')){
+    e.preventDefault();
+    const route=e.target.dataset.directoryRoute;
+    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const q=String(new FormData(e.target).get('q')||'').trim();
+    if(q)p.set('q',q);else p.delete('q');
+    location.hash='/'+route+(p.toString()?'?'+p.toString():'');
+  }
+});
 main.addEventListener('click',e=>{const save=e.target.closest('[data-save]');if(save)toggleSave(save.dataset.save);const font=e.target.closest('[data-font]');if(font){preferences.size=Math.min(28,Math.max(16,(Number(preferences.size)||20)+Number(font.dataset.font)));persist('novelnest.preferences',preferences);applySettings();document.querySelector('#font-size').textContent=preferences.size+'px'}});
-main.addEventListener('change',e=>{if(e.target.id==='reader-theme'){preferences.theme=e.target.value;persist('novelnest.preferences',preferences);applySettings()}if(e.target.dataset.filter){const p=new URLSearchParams(location.hash.split('?')[1]||'');p.set(e.target.dataset.filter,e.target.value);location.hash='/browse?'+p.toString()}});
+main.addEventListener('change',e=>{
+  if(e.target.id==='reader-theme'){
+    preferences.theme=e.target.value;
+    persist('novelnest.preferences',preferences);
+    applySettings();
+  }
+  if(e.target.dataset.filter){
+    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    p.set(e.target.dataset.filter,e.target.value);
+    location.hash='/browse?'+p.toString();
+    return;
+  }
+  if(e.target.dataset.directoryFilter){
+    const p=new URLSearchParams(location.hash.split('?')[1]||'');
+    const key=e.target.dataset.directoryFilter;
+    const value=e.target.value;
+    if(value==='All'||!value)p.delete(key);else p.set(key,value);
+    const route=e.target.dataset.directoryRoute;
+    location.hash='/'+route+(p.toString()?'?'+p.toString():'');
+  }
+});
 window.addEventListener('hashchange',()=>{route();main.focus({preventScroll:true})});document.querySelector('#year').textContent=new Date().getFullYear();route();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelNest catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelNest",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
 
