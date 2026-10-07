@@ -223,7 +223,7 @@ test('AdSense preparation pages and original Reading Desk are reachable', () => 
 
 test('footer exposes crawlable trust and policy navigation', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  for (const file of ['reading-desk.html','about.html','privacy.html','terms.html','contact.html','copyright.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
+  for (const file of ['reading-desk.html','about.html','privacy.html','privacy-choices.html','terms.html','contact.html','copyright.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
     assert(index.includes('href="' + file + '"'));
     assert(fs.existsSync('dist/' + file));
   }
@@ -231,7 +231,7 @@ test('footer exposes crawlable trust and policy navigation', () => {
 
 test('standalone trust and editorial pages have canonical metadata and appear in sitemap', () => {
   const files = [
-    'about.html','privacy.html','terms.html','contact.html','copyright.html',
+    'about.html','privacy.html','privacy-choices.html','terms.html','contact.html','copyright.html',
     'reading-desk.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html',
     'guide-long-web-novel.html','guide-ongoing-vs-completed.html','guide-genres.html',
     'guide-pacing.html','guide-progression-fantasy.html','guide-reading-list.html','guide-returning-to-a-novel.html'
@@ -261,6 +261,27 @@ test('expanded Reading Desk links all original guides and trust pages', () => {
     assert.match(html, /NovelNest/);
     assert.match(html, /rel="canonical"/);
   }
+});
+
+test('AdSense activation remains disabled until a real publisher ID is supplied', () => {
+  const index = fs.readFileSync('dist/index.html', 'utf8');
+  assert.doesNotMatch(index, /pagead2\.googlesyndication\.com/);
+  assert.doesNotMatch(index, /ca-pub-\d{10,}/);
+  assert(fs.existsSync('dist/ads.txt.example'));
+  assert(!fs.existsSync('dist/ads.txt'));
+  const example = fs.readFileSync('dist/ads.txt.example', 'utf8');
+  assert.match(example, /pub-0000000000000000/);
+});
+
+test('privacy choices page explains current ad status and can clear local reading data', () => {
+  const html = fs.readFileSync('dist/privacy-choices.html', 'utf8');
+  const js = fs.readFileSync('dist/privacy-controls.js', 'utf8');
+  const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
+  assert.match(html, /Google AdSense has not been activated/);
+  assert.match(html, /Google-certified consent management solution/);
+  assert.match(html, /data-clear-novelnest/);
+  assert.match(js, /startsWith\('novelnest\.'\)/);
+  assert(sitemap.includes('privacy-choices.html'));
 });
 
 test('privacy and copyright pages disclose service and rights handling clearly', () => {
