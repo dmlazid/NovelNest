@@ -37,6 +37,7 @@ jobs:
       - name: Import all authorized AkkNovel series
         env:
           AKKNOVEL_REQUEST_DELAY: "0.8"
+          AKKNOVEL_REBUILD: "1"
         run: |
           set -e
           git config user.name "github-actions[bot]"
@@ -55,7 +56,7 @@ jobs:
             echo "=== AkkNovel import: $key ==="
             python scripts/import_akknovel.py "$key"
 
-            git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js
+            git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js dist/index.html
             if git diff --cached --quiet; then
               echo "$key is already caught up."
               continue
