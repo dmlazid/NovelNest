@@ -173,7 +173,7 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
   }
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /class="compact-header-brand" href="\//);
-  assert.match(index, /src="clean-routes\.js"/);
+  assert.match(index, /src="clean-routes\.js(?:\?v=[^"]*)?"/);
   const cleanRoutes = fs.readFileSync('dist/clean-routes.js', 'utf8');
   assert.match(cleanRoutes, /legacyHashToClean/);
   assert.match(cleanRoutes, /renderGenericRoute/);
