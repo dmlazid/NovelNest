@@ -92,7 +92,7 @@ def chapter_exists(number: int) -> bool:
                 return False
             article_text = clean_text(article.get_text(" ", strip=True))
             page_text = clean_text(soup.get_text(" ", strip=True))
-            exists = len(article_text) >= 300 and re.search(rf"\\b{number}\\b", page_text) is not None
+            exists = len(article_text) >= 300 and re.search(rf"\b{number}\b", page_text) is not None
             if number == 1:
                 print(f"Probe chapter 1 returned HTTP {r.status_code}, {len(r.text)} bytes, article chars={len(article_text)}, detected={exists}", flush=True)
             return exists
@@ -104,11 +104,11 @@ def chapter_exists(number: int) -> bool:
 
 
 def detect_latest(page_raw: str) -> int:
-    numbers = {int(n) for n in re.findall(r"cultivation-online-novel/chapter-(\\d+)", page_raw, flags=re.I)}
+    numbers = {int(n) for n in re.findall(r"cultivation-online-novel/chapter-(\d+)", page_raw, flags=re.I)}
     if not numbers:
-        numbers = {int(n) for n in re.findall(r"/chapter-(\\d+)", page_raw, flags=re.I)}
+        numbers = {int(n) for n in re.findall(r"/chapter-(\d+)", page_raw, flags=re.I)}
     if not numbers:
-        numbers = {int(n) for n in re.findall(r"\\bChapter\\s+(\\d+)\\b", page_raw, flags=re.I)}
+        numbers = {int(n) for n in re.findall(r"\bChapter\s+(\d+)\b", page_raw, flags=re.I)}
     if numbers:
         latest = max(numbers)
         print(f"Latest Cultivation Online source chapter detected from index: {latest}", flush=True)
