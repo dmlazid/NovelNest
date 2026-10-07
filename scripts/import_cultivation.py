@@ -7,7 +7,6 @@ import os
 import re
 import time
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin
@@ -20,12 +19,13 @@ TITLE = "Cultivation Online"
 AUTHOR = "Mylittlebrother"
 CHUNK_CAPACITY = 100
 BATCH_SIZE = max(1, int(os.environ.get("CULTIVATION_BATCH_SIZE", "100")))
-MAX_WORKERS = 5
+REQUEST_DELAY = 1.3
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
 CATALOG_PATH = DIST / "licensed-cultivation.js"
 COVER_PATH = ASSET_DIR / "cultivation-online.jpg"
+LATEST_CACHE_PATH = Path(".cultivation-latest")
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/5.0; +https://github.com/dmlazid/NovelNest)",
     "Accept-Language": "en-US,en;q=0.9",
@@ -224,23 +224,22 @@ def fetch_range(start: int, end: int) -> list[dict]:
     if end < start:
         return []
 
-    numbers = list(range(start, end + 1))
-    results: dict[int, dict] = {}
+    chapters: list[dict] = []
+    total = end - start + 1
     print(
-        f"Fetching Cultivation Online chapters {start}-{end} ({len(numbers)} chapters in this checkpoint)",
+        f"Fetching Cultivation Online chapters {start}-{end} ({total} chapters in this checkpoint)",
         flush=True,
     )
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-        futures = {pool.submit(parse_chapter, number): number for number in numbers}
-        for future in as_completed(futures):
-            number = futures[future]
-            results[number] = future.result()
-            if len(results) % 20 == 0 or len(results) == len(numbers):
-                print(f"Fetched {len(results)}/{len(numbers)}", flush=True)
+    for number in range(start, end + 1):
+        chapters.append(parse_chapter(number))
+        done = number - start + 1
+        if done % 10 == 0 or number == end:
+            print(f"Fetched {done}/{total}", flush=True)
+        if number < end:
+            time.sleep(REQUEST_DELAY)
 
-    return [results[number] for number in numbers]
-
+    return chapters
 
 def write_chunks(chapters: list[dict]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -364,8 +363,23 @@ def current_updated_date() -> str:
 
 
 def main() -> None:
-    page = get(BASE)
-    latest = detect_latest(page)
+    page = None
+    latest = None
+
+    if LATEST_CACHE_PATH.exists():
+        try:
+            cached = int(LATEST_CACHE_PATH.read_text(encoding="utf-8").strip())
+            if cached > 0:
+                latest = cached
+                print(f"Using this workflow run's cached latest source chapter: {latest}", flush=True)
+        except (OSError, ValueError):
+            latest = None
+
+    if latest is None:
+        page = get(BASE)
+        latest = detect_latest(page)
+        LATEST_CACHE_PATH.write_text(str(latest), encoding="utf-8")
+
     chapters = load_existing()
     existing = len(chapters)
     print(f"NovelNest currently has {existing} Cultivation Online chapters.", flush=True)
@@ -386,7 +400,11 @@ def main() -> None:
     if numbers != list(range(1, len(chapters) + 1)):
         raise RuntimeError("Cultivation Online chapters are missing, duplicated, or out of order")
 
-    ensure_cover(page)
+    if page is None and (not COVER_PATH.exists() or COVER_PATH.stat().st_size <= 8_000):
+        page = get(BASE)
+    if page is not None:
+        ensure_cover(page)
+
     write_chunks(chapters)
 
     updated = (
