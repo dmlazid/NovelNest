@@ -29,7 +29,6 @@ DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
 CATALOG_PATH = DIST / "licensed-supreme-magus.js"
 COVER_PATH = ASSET_DIR / "supreme-magus.jpg"
-INDEX_PATH = DIST / "index.html"
 LATEST_CACHE_PATH = Path(".supreme-magus-latest")
 
 HEADERS = {
@@ -320,19 +319,6 @@ def write_catalog(chapters: list[dict], updated: str) -> None:
     )
 
 
-def ensure_index_script() -> None:
-    text = INDEX_PATH.read_text(encoding="utf-8")
-    tag = '<script defer src="licensed-supreme-magus.js"></script>'
-    if tag in text:
-        return
-
-    anchor = '<script defer src="app.js'
-    pos = text.find(anchor)
-    if pos < 0:
-        raise RuntimeError("Could not find app.js script tag in dist/index.html")
-    text = text[:pos] + tag + text[pos:]
-    INDEX_PATH.write_text(text, encoding="utf-8")
-
 
 def current_updated_date() -> str:
     if not CATALOG_PATH.exists():
@@ -389,7 +375,6 @@ def main() -> None:
         else current_updated_date()
     )
     write_catalog(chapters, updated)
-    ensure_index_script()
 
     if target > existing:
         print(f"Checkpoint complete: Supreme Magus advanced {existing} -> {len(chapters)} of {latest}.", flush=True)
