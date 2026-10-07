@@ -47,7 +47,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          batches="\${SUPREME_MAGUS_BATCHES_PER_RUN:-5}"
+          batches="${SUPREME_MAGUS_BATCHES_PER_RUN:-5}"
           for batch in $(seq 1 "$batches"); do
             echo "=== Supreme Magus checkpoint $batch/$batches ==="
             python scripts/import_supreme_magus.py
@@ -87,7 +87,7 @@ jobs:
       - name: Record updater result
         if: always()
         env:
-          RESULT: \${{ job.status }}
+          RESULT: ${{ job.status }}
         run: |
           echo "Supreme Magus updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
           echo "Each successful checkpoint is saved before the next batch begins." >> "$GITHUB_STEP_SUMMARY"
