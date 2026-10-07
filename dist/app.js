@@ -34,12 +34,8 @@ function searchForm(value=''){return `<form class="search-form" role="search"><s
 function chips(selected='All'){return `<div class="chips" aria-label="Filter by genre">${['All',...genres].map(g=>`<a class="chip ${selected===g?'selected':''}" ${selected===g?'aria-current="true"':''} href="./#/browse${g==='All'?'':'?genre='+encodeURIComponent(g)}">${g}</a>`).join('')}</div>`}
 function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<div><span class="tag">${esc(n.genre)}</span><h3>${esc(n.title)}</h3><p>${esc(n.author)}</p><p>${n.externalUrl?"Read on "+esc(n.externalSource):n.chapters.length+" chapters"} · ${esc(n.status)}</p><span class="meta">${n.externalUrl?"External reading link":"Licensed edition"}</span></div></a>`}
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
-function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>Chapter ${i+1}: ${esc(c.title)}</p></div><time datetime="${n.updated}">${new Date(n.updated+'T00:00:00Z').toLocaleDateString('en',{month:'short',day:'numeric',timeZone:'UTC'})}</time></a>`).join('')}
+function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>Chapter ${i+1}: ${esc(c.title)}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
-function homeDate(value){
-  const date=new Date(value+'T00:00:00Z');
-  return Number.isNaN(date.getTime())?'Updated':date.toLocaleDateString('en',{month:'short',day:'numeric',timeZone:'UTC'});
-}
 function homeReleaseRow(n){
   const i=Math.max(0,n.chapters.length-1),c=n.chapters[i];
   return `<a class="home-release-row" href="${chapterUrl(n,i)}">
@@ -49,7 +45,6 @@ function homeReleaseRow(n){
       <small>${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
       <span><b>Ch. ${i+1}</b> ${esc(c?.title||'Latest chapter')}</span>
     </span>
-    <time datetime="${esc(n.updated)}">${homeDate(n.updated)}</time>
   </a>`;
 }
 function homeNovelTile(n){
