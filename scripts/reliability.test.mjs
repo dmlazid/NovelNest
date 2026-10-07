@@ -245,7 +245,7 @@ test('standalone trust and editorial pages have canonical metadata and appear in
     assert(sitemap.includes('https://novelhaven.top/' + file));
   }
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  assert.match(index, /rel="canonical" href="https:\/\/dmlazid\.github\.io\/NovelNest\//);
+  assert.match(index, /rel="canonical" href="https:\/\/novelhaven\.top\///);
   assert.match(index, /application\/ld\+json/);
 });
 
