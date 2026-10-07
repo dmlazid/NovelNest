@@ -223,7 +223,7 @@ test('AdSense preparation pages and original Reading Desk are reachable', () => 
 
 test('footer exposes crawlable trust and policy navigation', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  for (const file of ['reading-desk.html','about.html','privacy.html','terms.html','contact.html','copyright.html']) {
+  for (const file of ['reading-desk.html','about.html','privacy.html','terms.html','contact.html','copyright.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
     assert(index.includes('href="' + file + '"'));
     assert(fs.existsSync('dist/' + file));
   }
@@ -232,7 +232,9 @@ test('footer exposes crawlable trust and policy navigation', () => {
 test('standalone trust and editorial pages have canonical metadata and appear in sitemap', () => {
   const files = [
     'about.html','privacy.html','terms.html','contact.html','copyright.html',
-    'reading-desk.html','guide-long-web-novel.html','guide-ongoing-vs-completed.html','guide-genres.html'
+    'reading-desk.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html',
+    'guide-long-web-novel.html','guide-ongoing-vs-completed.html','guide-genres.html',
+    'guide-pacing.html','guide-progression-fantasy.html','guide-reading-list.html','guide-returning-to-a-novel.html'
   ];
   const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
   for (const file of files) {
@@ -245,6 +247,20 @@ test('standalone trust and editorial pages have canonical metadata and appear in
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /rel="canonical" href="https:\/\/dmlazid\.github\.io\/NovelNest\//);
   assert.match(index, /application\/ld\+json/);
+});
+
+test('expanded Reading Desk links all original guides and trust pages', () => {
+  const desk = fs.readFileSync('dist/reading-desk.html', 'utf8');
+  for (const file of [
+    'guide-long-web-novel.html','guide-ongoing-vs-completed.html','guide-genres.html',
+    'guide-pacing.html','guide-progression-fantasy.html','guide-reading-list.html','guide-returning-to-a-novel.html'
+  ]) assert(desk.includes('href="' + file + '"'));
+  for (const file of ['editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
+    assert(fs.existsSync('dist/' + file));
+    const html = fs.readFileSync('dist/' + file, 'utf8');
+    assert.match(html, /NovelNest/);
+    assert.match(html, /rel="canonical"/);
+  }
 });
 
 test('privacy and copyright pages disclose service and rights handling clearly', () => {
