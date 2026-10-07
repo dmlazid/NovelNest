@@ -1,0 +1,60 @@
+name: Import licensed The Innkeeper
+
+on:
+  schedule:
+    - cron: "47 */6 * * *"
+  push:
+    paths:
+      - "scripts/import_innkeeper.py"
+      - "scripts/run_novel_catchup.sh"
+      - ".github/workflows/import-innkeeper.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: innkeeper-freewebnovel-v1
+  cancel-in-progress: true
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Catch The Innkeeper up completely
+        env:
+          INNKEEPER_BATCH_SIZE: "100"
+          IMPORT_NAME: "The Innkeeper"
+          IMPORT_COMMAND: "python scripts/import_innkeeper.py"
+          IMPORT_GIT_PATHS: "dist/data/innkeeper-chapters-*.js dist/assets/the-innkeeper.jpg dist/licensed-innkeeper.js"
+          IMPORT_MAX_CHECKPOINTS: "30"
+          IMPORT_MAX_SECONDS: "9600"
+          IMPORT_COMMIT_PREFIX: "Auto-update The Innkeeper chapters"
+          IMPORT_RESCHEDULE: "false"
+        run: bash scripts/run_novel_catchup.sh
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "The Innkeeper updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Each successful checkpoint saves 100 chapters before continuing." >> "$GITHUB_STEP_SUMMARY"
