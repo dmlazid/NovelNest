@@ -120,6 +120,37 @@ test('validation rejects empty catalogs, missing chunks, and mismatched chapter 
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('home See more routes open novel directories instead of chapter feeds', () => {
+  const h = harness();
+  const home = h.node('#main').innerHTML;
+  assert.match(home, /href="\.\/#\/latest-releases"/);
+  assert.match(home, /href="\.\/#\/latest-novels"/);
+  assert.match(home, /href="\.\/#\/completed"/);
+
+  h.go('#/latest-releases');
+  assert.match(h.node('#main').innerHTML, /Latest Release Novels/);
+  assert.match(h.node('#main').innerHTML, /directory-novel-row/);
+  assert.doesNotMatch(h.node('#main').innerHTML, /Every available chapter/);
+
+  h.go('#/latest-novels');
+  assert.match(h.node('#main').innerHTML, /Latest Novels/);
+  assert.match(h.node('#main').innerHTML, /directory-novel-row/);
+
+  h.go('#/completed');
+  assert.match(h.node('#main').innerHTML, /Completed Novels/);
+  const completed = h.window.NOVELS.filter(n => n.status === 'Completed');
+  assert.equal((h.node('#main').innerHTML.match(/directory-novel-row/g) || []).length, completed.length);
+});
+
+test('internal anchors use explicit same-site routes for precise mobile new-tab opening', () => {
+  for (const file of ['dist/index.html', 'dist/app.js', 'dist/accounts.js', 'dist/licensed-ui.js']) {
+    const text = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(text, /href=["']#\//, file + ' still contains a fragment-only internal href');
+  }
+  const index = fs.readFileSync('dist/index.html', 'utf8');
+  assert.match(index, /class="compact-header-brand" href="\.\/#\//);
+});
+
 test('licensed edition and collapsible summaries appear in novel details', () => {
   const h = harness();
   const novel = h.window.NOVELS.find(n => String(n.synopsis || '').length > 340);
