@@ -239,7 +239,7 @@ test('privacy and copyright pages disclose service and rights handling clearly',
   h.go('#/copyright');
   html = h.node('#main').innerHTML;
   assert.match(html, /rights holder/);
-  assert.match(html, /requesting review or removal/);
+  assert.match(html, /How to request review or removal/);
   assert.match(html, /github\.com\/dmlazid\/NovelNest\/issues\/new/);
 });
 
