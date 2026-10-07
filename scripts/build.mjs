@@ -119,17 +119,25 @@ function novelPageHtml(baseHtml, novel) {
   page = page.replace(/<main id="main" class="wrap" tabindex="-1"><\/main>/, '<main id="main" class="wrap" tabindex="-1">' + staticNovelMarkup(novel) + '</main>');
   return page;
 }
-function readerPageHtml(baseHtml, novel) {
+function chapterPageHtml(baseHtml, novel, chapter) {
   const id = encodeURIComponent(novel.id);
-  const canonical = 'https://novelhaven.top/novel/' + id + '/';
-  const title = novel.title + ' Reader — NovelNest';
-  const description = 'Read ' + novel.title + ' chapter by chapter on NovelNest.';
+  const number = Number(chapter.number) || 1;
+  const canonical = 'https://novelhaven.top/novel/' + id + '/chapter-' + number + '/';
+  const chapterTitle = String(chapter.title || ('Chapter ' + number)).trim();
+  const title = novel.title + ' — ' + chapterTitle + ' — NovelNest';
+  const description = ('Read ' + chapterTitle + ' of ' + novel.title + ' on NovelNest.').slice(0, 158);
+  const imageUrl = 'https://novelhaven.top/' + String(novel.cover || '').replace(/^\/+/, '');
   let page = baseHtml;
   page = page.replace('<head>', '<head><base href="/">');
   page = page.replace(/<title>[\s\S]*?<\/title>/, '<title>' + htmlEscape(title) + '</title>');
   page = page.replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + htmlEscape(description) + '">');
-  page = page.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">');
+  page = page.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="index,follow">');
   page = page.replace(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="' + canonical + '">');
+  page = page.replace(/<meta property="og:type" content="[^"]*">/, '<meta property="og:type" content="article">');
+  page = page.replace(/<meta property="og:title" content="[^"]*">/, '<meta property="og:title" content="' + htmlEscape(title) + '">');
+  page = page.replace(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + htmlEscape(description) + '">');
+  page = page.replace(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="' + canonical + '">');
+  if (!page.includes('<meta property="og:image"')) page = page.replace('</head>', '<meta property="og:image" content="' + imageUrl + '"></head>');
   return page;
 }
 function chapterFallbackHtml(baseHtml) {
@@ -145,19 +153,31 @@ for (const novel of seoNovels) {
   const directory = path.join(output, 'novel', encodeURIComponent(novel.id));
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(path.join(directory, 'index.html'), novelPageHtml(html, novel));
-  const readerDirectory = path.join(output, 'read', encodeURIComponent(novel.id));
-  fs.mkdirSync(readerDirectory, { recursive: true });
-  fs.writeFileSync(path.join(readerDirectory, 'index.html'), readerPageHtml(html, novel));
+  if (!novel.externalUrl && Array.isArray(novel.chapters)) {
+    for (const chapter of novel.chapters) {
+      const number = Number(chapter.number) || 1;
+      const chapterDirectory = path.join(directory, 'chapter-' + number);
+      fs.mkdirSync(chapterDirectory, { recursive: true });
+      fs.writeFileSync(path.join(chapterDirectory, 'index.html'), chapterPageHtml(html, novel, chapter));
+    }
+  }
 }
 fs.writeFileSync(path.join(output, '404.html'), chapterFallbackHtml(html));
 let sitemap = fs.readFileSync(path.join('dist', 'sitemap.xml'), 'utf8');
 const novelUrls = seoNovels
   .filter(novel => novel?.id)
-  .map(novel => '  <url>\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/</loc>\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\n  </url>')
-  .join('\n');
-sitemap = sitemap.replace(/\s*<\/urlset>\s*$/, '\n' + novelUrls + '\n</urlset>\n');
+  .map(novel => '  <url>\\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/</loc>\\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\\n  </url>')
+  .join('\\n');
+const chapterUrls = seoNovels
+  .filter(novel => novel?.id && !novel.externalUrl && Array.isArray(novel.chapters))
+  .flatMap(novel => novel.chapters.map(chapter => {
+    const number = Number(chapter.number) || 1;
+    return '  <url>\\n    <loc>https://novelhaven.top/novel/' + xmlEscape(encodeURIComponent(novel.id)) + '/chapter-' + number + '/</loc>\\n    <lastmod>' + xmlEscape(novel.updated || new Date().toISOString().slice(0, 10)) + '</lastmod>\\n  </url>';
+  }))
+  .join('\\n');
+sitemap = sitemap.replace(/\\s*<\\/urlset>\\s*$/, '\\n' + novelUrls + '\\n' + chapterUrls + '\\n</urlset>\\n');
 fs.writeFileSync(path.join(output, 'sitemap.xml'), sitemap);
-console.log('Generated ' + seoNovels.length + ' crawlable novel pages, clean chapter-route fallback, and sitemap entries.');
+console.log('Generated ' + seoNovels.length + ' crawlable novel pages, clean chapter pages, and sitemap entries.');
 
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
 for (const file of Object.values(assets)) {
