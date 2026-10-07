@@ -60,6 +60,16 @@ jobs:
             kick-scumbag
             spend-stepmother
             ancient-miss-ceo-wife
+            game-came-true
+            fake-heiress-thoughts
+            villainess-gentle-second
+            modern-life-livestream
+            paranormal-writer
+            assassin-farmer
+            future-gossip-death
+            zen-harem
+            novelist-famous
+            laidback-stepmother
           )
 
           for key in "${series[@]}"; do
