@@ -1029,3 +1029,20 @@
 @media(max-width:820px){
   .static-footer{grid-template-columns:1fr!important}
 }
+
+
+/* Privacy preparation before AdSense activation. */
+.privacy-status-card{
+  margin:18px 0 26px;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--soft);
+}
+.privacy-status-card>strong{
+  display:block;
+  margin-bottom:8px;
+  color:var(--green);
+  font:800 15px/1.2 'DM Sans',sans-serif;
+}
+.privacy-status-card p{margin:0}
