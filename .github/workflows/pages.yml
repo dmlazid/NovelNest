@@ -10,6 +10,9 @@ on:
       - "Import licensed Cultivation Online"
       - "Import licensed Investing novel"
       - "Import ongoing FreeWebNovel books"
+      - "Import licensed Supreme Magus"
+      - "Import licensed The Innkeeper"
+      - "Import licensed AkkNovel series"
     types: [completed]
   workflow_dispatch:
 
