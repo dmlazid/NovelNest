@@ -200,6 +200,17 @@ test('licensed edition and collapsible summaries appear in novel details', () =>
 });
 
 
+test('navigation drawer includes Novel list and Genres catalog tabs', () => {
+  const accounts = fs.readFileSync('dist/accounts.js', 'utf8');
+  assert.match(accounts, /data-catalog-tab="novels"/);
+  assert.match(accounts, /data-catalog-tab="genres"/);
+  assert.match(accounts, /Latest Novels/);
+  assert.match(accounts, /Latest Release/);
+  assert.match(accounts, /Completed Novels/);
+  assert.match(accounts, /Novel Finder/);
+  assert.match(accounts, /browse\?genre=/);
+});
+
 test('top header exposes notifications beside menu and novel breadcrumbs use home and genre', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /class="compact-notification-button"[^>]+data-updates/);
