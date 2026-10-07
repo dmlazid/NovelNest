@@ -4,8 +4,8 @@
 
   function currentTarget() {
     const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
-    const pathMatch = location.pathname.match(/^\/read\/([^/]+)\/?$/);
-    const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search).get('chapter')] : null);
+    const pathMatch = (location.pathname || '').match(/^\/read\/([^/]+)\/?$/);
+    const match = hashMatch || (pathMatch ? [null, decodeURIComponent(pathMatch[1]), new URLSearchParams(location.search || '').get('chapter')] : null);
     if (!match || !match[2]) return null;
     const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
     const number = Number(match[2]);

@@ -41,7 +41,7 @@
       window.NovelNestApp?.reloadData();
       cache();
     } finally { applying = false; }
-    if (!(location.hash.startsWith('#/read/') || /^\/read\/[^/]+\/?$/.test(location.pathname))) window.dispatchEvent(new Event('hashchange'));
+    if (!(location.hash.startsWith('#/read/') || /^\/read\/[^/]+\/?$/.test(location.pathname || ''))) window.dispatchEvent(new Event('hashchange'));
     render();
   }
   function fail(error) {

@@ -35,15 +35,15 @@
   function routeNovel() {
     const hashMatch = location.hash.match(/^#\/(?:novel|read)\/([^/?#]+)/);
     if (hashMatch) return (window.NOVELS || []).find(n => n.id === decodeURIComponent(hashMatch[1])) || null;
-    const pathMatch = location.pathname.match(/^\/(?:novel|read)\/([^/]+)\/?$/);
+    const pathMatch = (location.pathname || '').match(/^\/(?:novel|read)\/([^/]+)\/?$/);
     return pathMatch ? (window.NOVELS || []).find(n => n.id === decodeURIComponent(pathMatch[1])) || null : null;
   }
 
   function currentReaderNumber() {
     const hashMatch = location.hash.match(/^#\/read\/[^/]+\/(\d+)/);
     if (hashMatch) return Number(hashMatch[1]);
-    if (!/^\/read\/[^/]+\/?$/.test(location.pathname)) return null;
-    const value = Number(new URLSearchParams(location.search).get('chapter'));
+    if (!/^\/read\/[^/]+\/?$/.test(location.pathname || '')) return null;
+    const value = Number(new URLSearchParams(location.search || '').get('chapter'));
     return Number.isInteger(value) && value > 0 ? value : null;
   }
 
@@ -122,7 +122,7 @@
   }
 
   function fixDetail(n) {
-    if (!n || !(location.hash.startsWith(`#/novel/${n.id}`) || location.pathname.replace(/\/+$/, '') === `/novel/${encodeURIComponent(n.id)}`)) return;
+    if (!n || !(location.hash.startsWith(`#/novel/${n.id}`) || (location.pathname || '').replace(/\/+$/, '') === `/novel/${encodeURIComponent(n.id)}`)) return;
     setText(main.querySelector('.book-info .meta'), `${n.chapters.length} chapters · English · ${'Licensed edition'}`);
     const licenseNote = main.querySelector('.description .meta');
     if (licenseNote) licenseNote.remove();
@@ -198,7 +198,7 @@
   }
 
   function fixReader(n) {
-    if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || location.pathname.replace(/\/+$/, '') === `/read/${encodeURIComponent(n.id)}`)) return;
+    if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || (location.pathname || '').replace(/\/+$/, '') === `/read/${encodeURIComponent(n.id)}`)) return;
     const current = currentReaderNumber();
     if (!current) return;
 
