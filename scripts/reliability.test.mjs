@@ -62,7 +62,10 @@ test('slow loads do not rerender a different page, and same-chunk navigation sha
   h.go('#/read/got-a-gallery-in-the-wild/2');
   assert.equal(h.scripts.length, 1);
   h.complete(first);
-  assert.equal(h.window.NOVELS[0].chapters[1].lazy, false);
+  const gallery = h.window.NOVELS.find(n => n.id === 'got-a-gallery-in-the-wild');
+  const astral = h.window.NOVELS.find(n => n.id === 'astral-pet-store');
+  assert(gallery && astral);
+  assert.equal(gallery.chapters[1].lazy, false);
   h.go('#/read/astral-pet-store/101');
   const slow = h.scripts.at(-1);
   h.go('#/browse');
@@ -72,12 +75,14 @@ test('slow loads do not rerender a different page, and same-chunk navigation sha
   const requests = h.scripts.length;
   h.go('#/read/astral-pet-store/102');
   assert.equal(h.scripts.length, requests);
-  assert.equal(h.window.NOVELS[1].chapters[101].lazy, false);
+  assert.equal(astral.chapters[101].lazy, false);
 });
 
 test('failed chapter loads have a working retry and use the asset manifest', () => {
   const h = harness();
-  const config = h.window.NOVELS[0].lazyChunks;
+  const gallery = h.window.NOVELS.find(n => n.id === 'got-a-gallery-in-the-wild');
+  assert(gallery);
+  const config = gallery.lazyChunks;
   const chunk = String(Math.floor(169 / config.capacity) + 1).padStart(2, '0');
   const original = `${config.prefix}${chunk}.js`;
   const versioned = `${config.prefix}${chunk}.fingerprint.js`;
@@ -89,7 +94,7 @@ test('failed chapter loads have a working retry and use the asset manifest', () 
   h.events.get('document:click')({ target: { closest: () => true } });
   assert.equal(h.scripts.length, 2);
   h.complete(h.scripts[1]);
-  assert.equal(h.window.NOVELS[0].chapters[169].lazy, false);
+  assert.equal(gallery.chapters[169].lazy, false);
 });
 
 test('ongoing stories show caught-up text; completed stories show an ending', () => {
@@ -97,9 +102,12 @@ test('ongoing stories show caught-up text; completed stories show an ending', ()
   h.go('#/novel/got-a-gallery-in-the-wild');
   assert.match(h.node('#main').innerHTML, /Ongoing · More chapters to come/);
   assert(!h.node('#main').innerHTML.includes('Complete story'));
-  h.go(`#/read/got-a-gallery-in-the-wild/${h.window.NOVELS[0].chapters.length}`);
+  const gallery = h.window.NOVELS.find(n => n.id === 'got-a-gallery-in-the-wild');
+  const astral = h.window.NOVELS.find(n => n.id === 'astral-pet-store');
+  assert(gallery && astral);
+  h.go(`#/read/got-a-gallery-in-the-wild/${gallery.chapters.length}`);
   assert.match(h.node('#main').innerHTML, /You’re caught up/);
-  h.go(`#/read/astral-pet-store/${h.window.NOVELS[1].chapters.length}`);
+  h.go(`#/read/astral-pet-store/${astral.chapters.length}`);
   assert.match(h.node('#main').innerHTML, /The end\. Thank you for reading/);
 });
 
