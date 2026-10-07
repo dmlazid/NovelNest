@@ -134,6 +134,26 @@ def chapter_url(source_index: int) -> str:
     return f"{BASE}/chapter-{source_index}"
 
 
+CHAPTER_WORD_RE = re.compile(
+    r"\\b(?:chapter|chpater|chaper|chater|capter|chapte|chaptre)\\s*:?[\\s-]*(-?\\d+)\\b",
+    flags=re.I,
+)
+
+
+def extract_chapter_number(value: str):
+    """Read source chapter numbers while tolerating common heading typos.
+
+    FreeWebNovel occasionally contains headings such as "Chpater 1953".
+    We still require an explicit chapter-like word plus a number so unrelated
+    page text cannot silently advance the NovelNest sequence.
+    """
+    match = CHAPTER_WORD_RE.search(value or "")
+    if match:
+        return int(match.group(1))
+    match = re.match(r"^(-?\\d+)\\b", value or "")
+    return int(match.group(1)) if match else None
+
+
 def inspect_source_page(source_index: int):
     response = request(chapter_url(source_index), optional=True)
     if response is None:
@@ -156,24 +176,18 @@ def inspect_source_page(source_index: int):
     title = ""
     for node in soup.select("span.chapter, h1, h2, h3"):
         candidate = clean_text(node.get_text(" ", strip=True))
-        if "chapter" in candidate.lower() or re.match(r"^-?\d+\b", candidate):
+        if extract_chapter_number(candidate) is not None:
             title = candidate
             break
 
     if not title:
         breadcrumb = clean_text(soup.get_text(" ", strip=True))
-        match = re.search(r"(Chapter\s+-?\d+[^|]{0,160}|-\d+\s+[^|]{0,160}?Chapter[^|]{0,80})", breadcrumb, flags=re.I)
-        title = clean_text(match.group(1)) if match else ""
-
-    number = None
-    match = re.search(r"\bChapter\s+(-?\d+)\b", title, flags=re.I)
-    if match:
-        number = int(match.group(1))
-    else:
-        match = re.match(r"^(-?\d+)\b", title)
+        match = CHAPTER_WORD_RE.search(breadcrumb)
         if match:
-            number = int(match.group(1))
+            start = match.start()
+            title = clean_text(breadcrumb[start:start + 180])
 
+    number = extract_chapter_number(title)
     return {"response": response, "soup": soup, "article": article, "title": title, "number": number}
 
 
@@ -211,9 +225,16 @@ def parse_actual_chapter(page: dict, expected_number: int) -> dict:
             f"Chapter {expected_number}: only {len(paragraphs)} blocks / {characters} characters found"
         )
 
-    title = page.get("title") or f"Chapter {expected_number}"
-    if not re.match(rf"^Chapter\s+{expected_number}\b", title, flags=re.I):
-        title = f"Chapter {expected_number}: {title}"
+    source_title = page.get("title") or ""
+    title_match = CHAPTER_WORD_RE.search(source_title)
+    if title_match and int(title_match.group(1)) == expected_number:
+        suffix = source_title[title_match.end():].strip()
+        suffix = re.sub(r"^[\\s:.-]+", "", suffix)
+        title = f"Chapter {expected_number}" + (f" {suffix}" if suffix else "")
+    else:
+        title = f"Chapter {expected_number}"
+        if source_title:
+            title += f": {source_title}"
 
     return {"number": expected_number, "title": title, "paragraphs": paragraphs}
 
