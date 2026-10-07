@@ -9,7 +9,6 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,20 +18,20 @@ TITLE = "Supreme Magus"
 AUTHOR = "Legion20"
 KEY = "supreme-magus"
 NOVEL_ID = "supreme-magus"
-SOURCE_OFFSET = 2
 CHUNK_CAPACITY = 100
 BATCH_SIZE = max(1, int(os.environ.get("SUPREME_MAGUS_BATCH_SIZE", "100")))
 REQUEST_DELAY = 1.3
+END_PROBE_MISSES = 8
 
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
 CATALOG_PATH = DIST / "licensed-supreme-magus.js"
 COVER_PATH = ASSET_DIR / "supreme-magus.jpg"
-LATEST_CACHE_PATH = Path(".supreme-magus-latest")
+STATE_PATH = DATA_DIR / "supreme-magus-state.json"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/1.0; +https://github.com/dmlazid/NovelNest)",
+    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedImporter/2.0; +https://github.com/dmlazid/NovelNest)",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -40,11 +39,13 @@ session = requests.Session()
 session.headers.update(HEADERS)
 
 
-def get(url: str, *, binary: bool = False):
+def request(url: str, *, binary: bool = False, optional: bool = False):
     last = None
     for attempt in range(8):
         try:
             response = session.get(url, timeout=30)
+            if response.status_code == 404 and optional:
+                return None
             if response.status_code == 429:
                 retry = response.headers.get("Retry-After")
                 try:
@@ -57,13 +58,16 @@ def get(url: str, *, binary: bool = False):
                 time.sleep(delay)
                 continue
             response.raise_for_status()
-            return response.content if binary else response.text
+            return response.content if binary else response
         except Exception as exc:
             last = exc
             if attempt < 7:
                 delay = min(45, 2 ** (attempt + 1))
                 print(f"Fetch error: {url}: {exc}; retrying in {delay}s", flush=True)
                 time.sleep(delay)
+    if optional:
+        print(f"Optional source page unavailable after retries: {url}: {last}", flush=True)
+        return None
     raise RuntimeError(f"Failed to fetch {url}: {last}")
 
 
@@ -72,60 +76,6 @@ def clean_text(value: str) -> str:
     value = unicodedata.normalize("NFKC", value)
     value = re.sub(r"f?reewebnovel(?:\s*\.\s*com|\s+com)?", "", value, flags=re.I)
     return " ".join(value.split()).strip()
-
-
-def source_index(number: int) -> int:
-    return number + SOURCE_OFFSET
-
-
-def chapter_page(number: int) -> str:
-    return f"{BASE}/chapter-{source_index(number)}"
-
-
-def chapter_exists(number: int) -> bool:
-    if number < 1:
-        return False
-    try:
-        raw = get(chapter_page(number))
-    except Exception:
-        return False
-
-    soup = BeautifulSoup(raw, "html.parser")
-    heading_text = " ".join(
-        clean_text(node.get_text(" ", strip=True))
-        for node in soup.select("span.chapter, h1, h2, h3")
-    )
-    return re.search(rf"\bChapter\s+{number}\b", heading_text, flags=re.I) is not None
-
-
-def detect_latest(page_raw: str) -> int:
-    visible = {int(n) for n in re.findall(r"\bChapter\s+(\d+)\b", page_raw, flags=re.I)}
-    low = max(visible) if visible else 1
-
-    if not chapter_exists(low):
-        low = 1
-        if not chapter_exists(low):
-            raise RuntimeError("Could not verify Supreme Magus Chapter 1 at its source")
-
-    step = 1
-    while chapter_exists(low + step):
-        low += step
-        step *= 2
-        if low > 20000:
-            raise RuntimeError("Supreme Magus chapter probe exceeded safety limit")
-        time.sleep(REQUEST_DELAY)
-
-    high = low + step
-    while low + 1 < high:
-        mid = (low + high) // 2
-        if chapter_exists(mid):
-            low = mid
-        else:
-            high = mid
-        time.sleep(REQUEST_DELAY)
-
-    print(f"Latest Supreme Magus source chapter detected: {low}", flush=True)
-    return low
 
 
 def load_existing() -> list[dict]:
@@ -147,9 +97,53 @@ def load_existing() -> list[dict]:
     return chapters
 
 
-def parse_chapter(number: int) -> dict:
-    raw = get(chapter_page(number))
-    soup = BeautifulSoup(raw, "html.parser")
+def load_state(existing_count: int) -> dict:
+    if not STATE_PATH.exists():
+        if existing_count:
+            raise RuntimeError(
+                "Supreme Magus has imported chapters but no source-index state. "
+                "Refusing to guess because FreeWebNovel inserts unnumbered entries."
+            )
+        return {"source_index": 0, "last_chapter": 0}
+
+    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    source_index = int(state.get("source_index", 0))
+    last_chapter = int(state.get("last_chapter", 0))
+    if source_index < 0 or last_chapter != existing_count:
+        raise RuntimeError(
+            f"Supreme Magus state mismatch: source_index={source_index}, "
+            f"last_chapter={last_chapter}, existing={existing_count}"
+        )
+    return {"source_index": source_index, "last_chapter": last_chapter}
+
+
+def save_state(source_index: int, last_chapter: int) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_PATH.write_text(
+        json.dumps(
+            {"source_index": source_index, "last_chapter": last_chapter},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def chapter_url(source_index: int) -> str:
+    return f"{BASE}/chapter-{source_index}"
+
+
+def inspect_source_page(source_index: int):
+    response = request(chapter_url(source_index), optional=True)
+    if response is None:
+        return None
+
+    expected_suffix = f"/chapter-{source_index}"
+    if not response.url.rstrip("/").endswith(expected_suffix):
+        return None
+
+    soup = BeautifulSoup(response.text, "html.parser")
     article = (
         soup.select_one("div#article")
         or soup.select_one("div.txt")
@@ -157,8 +151,34 @@ def parse_chapter(number: int) -> dict:
         or soup.select_one("main")
     )
     if article is None:
-        raise RuntimeError(f"Chapter {number}: content container not found")
+        return None
 
+    title = ""
+    for node in soup.select("span.chapter, h1, h2, h3"):
+        candidate = clean_text(node.get_text(" ", strip=True))
+        if "chapter" in candidate.lower() or re.match(r"^-?\d+\b", candidate):
+            title = candidate
+            break
+
+    if not title:
+        breadcrumb = clean_text(soup.get_text(" ", strip=True))
+        match = re.search(r"(Chapter\s+-?\d+[^|]{0,160}|-\d+\s+[^|]{0,160}?Chapter[^|]{0,80})", breadcrumb, flags=re.I)
+        title = clean_text(match.group(1)) if match else ""
+
+    number = None
+    match = re.search(r"\bChapter\s+(-?\d+)\b", title, flags=re.I)
+    if match:
+        number = int(match.group(1))
+    else:
+        match = re.match(r"^(-?\d+)\b", title)
+        if match:
+            number = int(match.group(1))
+
+    return {"response": response, "soup": soup, "article": article, "title": title, "number": number}
+
+
+def parse_actual_chapter(page: dict, expected_number: int) -> dict:
+    article = page["article"]
     for node in article.select(
         "script, style, noscript, div[id^='bg-ssp-'], div[id^='pf-'], p sub, nav, aside"
     ):
@@ -188,44 +208,86 @@ def parse_chapter(number: int) -> dict:
     characters = sum(len(p) for p in paragraphs)
     if len(paragraphs) < 3 or characters < 400:
         raise RuntimeError(
-            f"Chapter {number}: only {len(paragraphs)} blocks / {characters} characters found"
+            f"Chapter {expected_number}: only {len(paragraphs)} blocks / {characters} characters found"
         )
 
-    title = ""
-    for node in soup.select("span.chapter, h1, h2, h3"):
-        candidate = clean_text(node.get_text(" ", strip=True))
-        if re.search(rf"\bChapter\s+{number}\b", candidate, flags=re.I):
-            title = candidate
-            break
-    if not title:
-        title = f"Chapter {number}"
+    title = page.get("title") or f"Chapter {expected_number}"
+    if not re.match(rf"^Chapter\s+{expected_number}\b", title, flags=re.I):
+        title = f"Chapter {expected_number}: {title}"
 
-    if not re.match(rf"^Chapter\s+{number}\b", title, flags=re.I):
-        title = f"Chapter {number}: {title}"
-
-    return {"number": number, "title": title, "paragraphs": paragraphs}
+    return {"number": expected_number, "title": title, "paragraphs": paragraphs}
 
 
-def fetch_range(start: int, end: int) -> list[dict]:
-    chapters: list[dict] = []
-    if end < start:
-        return chapters
+def scan_batch(chapters: list[dict], state: dict) -> tuple[list[dict], int, bool]:
+    expected = len(chapters) + 1
+    source_index = int(state["source_index"])
+    last_valid_source_index = source_index
+    added = 0
+    misses = 0
 
-    total = end - start + 1
-    print(f"Fetching Supreme Magus chapters {start}-{end} ({total} chapters)", flush=True)
-    for number in range(start, end + 1):
-        chapters.append(parse_chapter(number))
-        done = number - start + 1
-        if done % 10 == 0 or number == end:
-            print(f"Fetched {done}/{total}", flush=True)
-        if number < end:
+    print(
+        f"Supreme Magus: scanning source after index {source_index}; "
+        f"next NovelNest chapter is {expected}.",
+        flush=True,
+    )
+
+    while added < BATCH_SIZE and misses < END_PROBE_MISSES:
+        source_index += 1
+        page = inspect_source_page(source_index)
+
+        if page is None:
+            misses += 1
+            print(
+                f"Source index {source_index}: no chapter page "
+                f"({misses}/{END_PROBE_MISSES} end probes).",
+                flush=True,
+            )
             time.sleep(REQUEST_DELAY)
-    return chapters
+            continue
+
+        last_valid_source_index = source_index
+        misses = 0
+        actual = page.get("number")
+
+        if actual is None or actual <= 0:
+            print(
+                f"Source index {source_index}: skipped extra entry "
+                f"{page.get('title') or '(unnumbered)'!r}.",
+                flush=True,
+            )
+            time.sleep(REQUEST_DELAY)
+            continue
+
+        if actual < expected:
+            print(
+                f"Source index {source_index}: skipped duplicate/extra Chapter {actual}; "
+                f"expected Chapter {expected}.",
+                flush=True,
+            )
+            time.sleep(REQUEST_DELAY)
+            continue
+
+        if actual > expected:
+            raise RuntimeError(
+                f"Source index {source_index} jumped to Chapter {actual}; "
+                f"expected Chapter {expected}. Import stopped to prevent a gap."
+            )
+
+        chapters.append(parse_actual_chapter(page, expected))
+        added += 1
+        expected += 1
+        if added % 10 == 0 or added == BATCH_SIZE:
+            print(f"Imported {added}/{BATCH_SIZE} chapters in this checkpoint.", flush=True)
+        time.sleep(REQUEST_DELAY)
+
+    caught_up = added < BATCH_SIZE and misses >= END_PROBE_MISSES
+    return chapters, last_valid_source_index, caught_up
 
 
 def write_chunks(chapters: list[dict]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     count = math.ceil(len(chapters) / CHUNK_CAPACITY)
+
     for index in range(1, count + 1):
         start = (index - 1) * CHUNK_CAPACITY
         part = chapters[start:start + CHUNK_CAPACITY]
@@ -244,23 +306,12 @@ def write_chunks(chapters: list[dict]) -> None:
             old.unlink()
 
 
-def ensure_cover(page_raw: str) -> None:
+def ensure_cover() -> None:
     if COVER_PATH.exists() and COVER_PATH.stat().st_size > 8_000:
         return
 
-    soup = BeautifulSoup(page_raw, "html.parser")
-    url = None
-    for image in soup.find_all("img"):
-        if "supreme magus" in (image.get("alt") or "").lower():
-            src = image.get("src") or image.get("data-src")
-            if src:
-                url = urljoin(BASE, src)
-                break
-
-    if not url:
-        url = "https://freewebnovel.com/files/article/image/0/871/871s.jpg"
-
-    data = get(url, binary=True)
+    cover_url = "https://freewebnovel.com/files/article/image/0/871/871s.jpg"
+    data = request(cover_url, binary=True)
     if len(data) < 8_000:
         raise RuntimeError("Downloaded Supreme Magus cover is unexpectedly small")
 
@@ -319,7 +370,6 @@ def write_catalog(chapters: list[dict], updated: str) -> None:
     )
 
 
-
 def current_updated_date() -> str:
     if not CATALOG_PATH.exists():
         return datetime.now(timezone.utc).date().isoformat()
@@ -329,57 +379,40 @@ def current_updated_date() -> str:
 
 
 def main() -> None:
-    page = None
-    latest = None
-
-    if LATEST_CACHE_PATH.exists():
-        try:
-            cached = int(LATEST_CACHE_PATH.read_text(encoding="utf-8").strip())
-            if cached > 0:
-                latest = cached
-                print(f"Using cached latest Supreme Magus chapter: {latest}", flush=True)
-        except (OSError, ValueError):
-            latest = None
-
-    if latest is None:
-        page = get(BASE)
-        latest = detect_latest(page)
-        LATEST_CACHE_PATH.write_text(str(latest), encoding="utf-8")
-
     chapters = load_existing()
     existing = len(chapters)
-    print(f"NovelNest currently has {existing} Supreme Magus chapters.", flush=True)
+    state = load_state(existing)
+    print(
+        f"NovelNest currently has {existing} Supreme Magus chapters "
+        f"(last source index {state['source_index']}).",
+        flush=True,
+    )
 
-    if latest < existing:
-        print(f"Source currently reports {latest}; keeping all {existing} existing chapters.", flush=True)
-        target = existing
-    else:
-        target = min(latest, existing + BATCH_SIZE)
+    chapters, last_valid_source_index, caught_up = scan_batch(chapters, state)
+    imported = len(chapters) - existing
 
-    if target > existing:
-        chapters.extend(fetch_range(existing + 1, target))
+    if not chapters:
+        raise RuntimeError("No Supreme Magus chapters were found at the source")
 
-    numbers = [int(chapter.get("number", 0)) for chapter in chapters]
-    if numbers != list(range(1, len(chapters) + 1)):
-        raise RuntimeError("Supreme Magus chapters are missing, duplicated, or out of order")
-
-    if page is None and (not COVER_PATH.exists() or COVER_PATH.stat().st_size <= 8_000):
-        page = get(BASE)
-    if page is not None:
-        ensure_cover(page)
-
+    ensure_cover()
     write_chunks(chapters)
+    save_state(last_valid_source_index, len(chapters))
+
     updated = (
         datetime.now(timezone.utc).date().isoformat()
-        if target > existing
+        if imported
         else current_updated_date()
     )
     write_catalog(chapters, updated)
 
-    if target > existing:
-        print(f"Checkpoint complete: Supreme Magus advanced {existing} -> {len(chapters)} of {latest}.", flush=True)
-    else:
-        print(f"Supreme Magus is caught up at {len(chapters)} chapters.", flush=True)
+    if imported:
+        print(
+            f"Checkpoint complete: Supreme Magus advanced {existing} -> {len(chapters)} chapters; "
+            f"source index is now {last_valid_source_index}.",
+            flush=True,
+        )
+    if caught_up:
+        print(f"Supreme Magus is caught up at Chapter {len(chapters)}.", flush=True)
 
 
 if __name__ == "__main__":
