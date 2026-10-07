@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: cultivation-freewebnovel-v5
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   import:
@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,39 +38,52 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Import Cultivation Online chapters
-        run: python scripts/import_cultivation.py
-
-      - name: Validate imported chapter data
-        run: node scripts/check.mjs
-
-      - name: Commit Cultivation Online chapter updates
+      - name: Import and checkpoint Cultivation Online
+        env:
+          CULTIVATION_BATCH_SIZE: "100"
+          CULTIVATION_BATCHES_PER_RUN: "5"
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/data/cultivation-chapters-*.js
-          git add dist/assets/cultivation-online.jpg
-          git add dist/licensed-cultivation.js
-          if git diff --cached --quiet; then
-            echo "No Cultivation Online chapter changes to commit."
-            exit 0
-          fi
-          git commit -m "Auto-update Cultivation Online chapters"
-          for attempt in 1 2 3; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
+
+          batches="\${CULTIVATION_BATCHES_PER_RUN:-5}"
+          for batch in $(seq 1 "$batches"); do
+            echo "=== Cultivation checkpoint $batch/$batches ==="
+            python scripts/import_cultivation.py
+            node scripts/check.mjs
+
+            git add -A -- dist/data dist/assets/cultivation-online.jpg dist/licensed-cultivation.js
+            if git diff --cached --quiet; then
+              echo "Cultivation Online is already caught up. Nothing else to commit."
               exit 0
             fi
-            echo "Push raced with another update; retrying ($attempt/3)..."
-            sleep 2
+
+            git commit -m "Auto-update Cultivation Online chapters (checkpoint $batch)"
+
+            pushed=0
+            for attempt in 1 2 3; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                pushed=1
+                break
+              fi
+              echo "Push raced with another update; retrying ($attempt/3)..."
+              sleep 2
+            done
+
+            if [ "$pushed" -ne 1 ]; then
+              echo "Could not push Cultivation checkpoint after 3 attempts."
+              exit 1
+            fi
           done
-          exit 1
 
       - name: Record updater result
         if: always()
         env:
-          RESULT: ${{ job.status }}
+          RESULT: \${{ job.status }}
         run: |
           echo "Cultivation Online updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer validates a continuous chapter sequence before committing." >> "$GITHUB_STEP_SUMMARY"
+          echo "Each successful checkpoint is committed before the next batch begins." >> "$GITHUB_STEP_SUMMARY"
+          echo "Existing published chapters are never removed when the source temporarily reports fewer chapters." >> "$GITHUB_STEP_SUMMARY"
