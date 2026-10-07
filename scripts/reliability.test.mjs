@@ -263,21 +263,20 @@ test('expanded Reading Desk links all original guides and trust pages', () => {
   }
 });
 
-test('AdSense activation remains disabled until a real publisher ID is supplied', () => {
+test('real AdSense verification is installed with matching publisher ID and ads.txt', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
-  assert.doesNotMatch(index, /pagead2\.googlesyndication\.com/);
-  assert.doesNotMatch(index, /ca-pub-\d{10,}/);
-  assert(fs.existsSync('dist/ads.txt.example'));
-  assert(!fs.existsSync('dist/ads.txt'));
-  const example = fs.readFileSync('dist/ads.txt.example', 'utf8');
-  assert.match(example, /pub-0000000000000000/);
+  assert.match(index, /pagead2\.googlesyndication\.com/);
+  assert.match(index, /ca-pub-9356195452195758/);
+  assert(fs.existsSync('dist/ads.txt'));
+  const ads = fs.readFileSync('dist/ads.txt', 'utf8');
+  assert.equal(ads.trim(), 'google.com, pub-9356195452195758, DIRECT, f08c47fec0942fa0');
 });
 
 test('privacy choices page explains current ad status and can clear local reading data', () => {
   const html = fs.readFileSync('dist/privacy-choices.html', 'utf8');
   const js = fs.readFileSync('dist/privacy-controls.js', 'utf8');
   const sitemap = fs.readFileSync('dist/sitemap.xml', 'utf8');
-  assert.match(html, /Google AdSense has not been activated/);
+  assert.match(html, /AdSense publisher code is installed/);
   assert.match(html, /Google-certified consent management solution/);
   assert.match(html, /data-clear-novelnest/);
   assert.match(js, /startsWith\('novelnest\.'\)/);
