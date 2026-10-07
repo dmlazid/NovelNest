@@ -1,0 +1,152 @@
+name: Import authorized FreeWebNovel batch
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  push:
+    paths:
+      - "scripts/import_freewebnovel_batch.py"
+      - ".github/workflows/import-freewebnovel-batch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: freewebnovel-batch-v1
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      FWN_BATCH_SIZE: "100"
+      FWN_REQUEST_DELAY: "0.8"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 Pillow
+
+      - name: Import all authorized FreeWebNovel titles
+        run: |
+          set -u
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          series=(
+            black-tech-internet-cafe
+            shadow-slave
+            martial-god-asura
+            strongest-sword-god
+            martial-peak
+            mechanical-god-emperor
+            prodigiously-amazing-weaponsmith
+            necropolis-immortal
+            infinite-mana
+            reborn-boot-camp
+            my-vampire-system
+            mesmerizing-ghost-doctor
+            god-of-fishing
+          )
+
+          start_time="$(date +%s)"
+          runtime_budget=9000
+          pass=0
+
+          queue_continuation() {
+            echo "Queueing an immediate continuation run for the FreeWebNovel batch..."
+            gh workflow run import-freewebnovel-batch.yml --ref main ||               echo "Could not queue continuation; the normal six-hour schedule will continue the import."
+          }
+
+          while true; do
+            pass=$((pass + 1))
+            echo "=== FreeWebNovel round-robin pass $pass ==="
+            pass_progress=0
+            pass_failures=0
+
+            for key in "${series[@]}"; do
+              elapsed=$(( $(date +%s) - start_time ))
+              if [ "$elapsed" -ge "$runtime_budget" ]; then
+                echo "Safe runtime budget reached after ${elapsed}s."
+                queue_continuation
+                exit 0
+              fi
+
+              echo "=== FreeWebNovel import: $key ==="
+              if ! python scripts/import_freewebnovel_batch.py "$key"; then
+                echo "WARNING: $key failed this pass; continuing with the remaining titles."
+                pass_failures=$((pass_failures + 1))
+                continue
+              fi
+
+              node scripts/check.mjs
+
+              git add -A --                 "dist/data/fwn-$key-chapters-"*.js                 "dist/assets/fwn-$key.jpg"                 "dist/licensed-fwn-$key.js"                 dist/index.html 2>/dev/null || true
+
+              if git diff --cached --quiet; then
+                echo "$key is caught up for this source snapshot."
+                continue
+              fi
+
+              pass_progress=1
+              git commit -m "Auto-update FreeWebNovel $key (pass $pass)"
+
+              pushed=0
+              for attempt in 1 2 3 4 5; do
+                git fetch origin main
+                if ! git rebase origin/main; then
+                  git rebase --abort || true
+                  echo "Rebase raced with another updater; retrying ($attempt/5)..."
+                  sleep 3
+                  continue
+                fi
+                if git push origin HEAD:main; then
+                  pushed=1
+                  break
+                fi
+                echo "Push raced with another updater; retrying ($attempt/5)..."
+                sleep 3
+              done
+
+              if [ "$pushed" -ne 1 ]; then
+                echo "Could not push $key checkpoint after 5 attempts."
+                exit 1
+              fi
+
+              echo "Queueing NovelHaven deployment after $key checkpoint..."
+              gh workflow run pages.yml --ref main ||                 echo "$key checkpoint was saved; a later Pages run can publish it."
+            done
+
+            if [ "$pass_progress" -eq 0 ]; then
+              if [ "$pass_failures" -gt 0 ]; then
+                echo "$pass_failures title(s) could not be checked this pass. They will retry on the next scheduled run."
+              else
+                echo "All 13 FreeWebNovel titles are fully caught up."
+              fi
+              exit 0
+            fi
+          done
+
+      - name: Record updater result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 13 titles." >> "$GITHUB_STEP_SUMMARY"
