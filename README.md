@@ -8,7 +8,7 @@ NovelNest is a web-novel library and chapter reader hosted on GitHub Pages at **
 
 ## Current collection
 
-The catalog contains these 21 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
+The catalog contains these 31 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
 
 | Novel | Source / edition |
 | --- | --- |
@@ -33,6 +33,16 @@ The catalog contains these 21 novels as of October 7, 2026. Chapter counts chang
 | After Kicking Over the Scumbag, the Whole City Wants to Marry Me | AkkNovel |
 | You Make Money, I’ll Spend It: Stepmother’s Ultimate Pleasure in the Aristocratic Family | AkkNovel |
 | The Ancient Miss Transmigrates into a CEO’s Wife | AkkNovel |
+| Woke Up to Find the Game I Made Came True | AkkNovel |
+| The Fake Heiress’s Inner Thoughts Were Heard by Her Entire Family | AkkNovel |
+| The Villainess Marries the Gentle Second Male Lead | AkkNovel |
+| She Live Streams Modern Life to Ancient People After Failing to Conquer the Emperor | AkkNovel |
+| The Real Daughter Gets Rich Writing Paranormal Stories | AkkNovel |
+| Top Assassin Retires and Becomes a Farmer After Time Traveling to the Past | AkkNovel |
+| Eating Melons Until I Saw News of My Own Death | AkkNovel |
+| Serious Slouch, Zen Harem Battle | AkkNovel |
+| The Novelist Forced to Become Famous | AkkNovel |
+| The Laid-back Life of a Stepmother | AkkNovel |
 
 ## Reading and discovery
 
