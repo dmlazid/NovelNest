@@ -240,9 +240,9 @@ test('standalone trust and editorial pages have canonical metadata and appear in
   for (const file of files) {
     const html = fs.readFileSync('dist/' + file, 'utf8');
     assert.match(html, /<meta name="robots" content="index,follow,max-image-preview:large">/);
-    assert(html.includes('<link rel="canonical" href="https://dmlazid.github.io/NovelNest/' + file + '">'));
+    assert(html.includes('<link rel="canonical" href="https://novelhaven.top/' + file + '">'));
     assert.match(html, /application\/ld\+json/);
-    assert(sitemap.includes('https://dmlazid.github.io/NovelNest/' + file));
+    assert(sitemap.includes('https://novelhaven.top/' + file));
   }
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /rel="canonical" href="https:\/\/dmlazid\.github\.io\/NovelNest\//);
