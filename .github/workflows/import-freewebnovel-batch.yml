@@ -115,6 +115,8 @@ jobs:
               elapsed=$(( $(date +%s) - start_time ))
               if [ "$elapsed" -ge "$runtime_budget" ]; then
                 echo "Safe runtime budget reached after ${elapsed}s."
+                echo "Queueing one Pages deployment for all checkpoints saved in this run..."
+                gh workflow run pages.yml --ref main || echo "A later Pages run can publish the saved checkpoints."
                 queue_continuation
                 exit 0
               fi
@@ -160,8 +162,7 @@ jobs:
                 exit 1
               fi
 
-              echo "Queueing NovelHaven deployment after $key checkpoint..."
-              gh workflow run pages.yml --ref main ||                 echo "$key checkpoint was saved; a later Pages run can publish it."
+              echo "$key checkpoint saved. Deployment will be queued once after this round."
             done
 
             if [ "$pass_progress" -eq 0 ]; then
@@ -172,6 +173,9 @@ jobs:
               fi
               exit 0
             fi
+
+            echo "Round $pass saved new checkpoints. Queueing one Pages deployment..."
+            gh workflow run pages.yml --ref main || echo "A later Pages run can publish the saved checkpoints."
           done
 
       - name: Record updater result
@@ -180,4 +184,4 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer advances each title in 100-chapter checkpoints and rotates through all 44 titles." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer advances each title in 100-chapter checkpoints, rotates through all 44 titles, and queues Pages once per round instead of once per novel." >> "$GITHUB_STEP_SUMMARY"
