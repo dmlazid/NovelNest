@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: akknovel-series-v1
@@ -41,6 +42,7 @@ jobs:
         env:
           AKKNOVEL_REQUEST_DELAY: "0.8"
           AKKNOVEL_REBUILD: "0"
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           git config user.name "github-actions[bot]"
@@ -53,6 +55,10 @@ jobs:
             marquis-inner-voice
             tyrant-father
             zombie-cat
+            directed-inner-voice
+            kick-scumbag
+            spend-stepmother
+            ancient-miss-ceo-wife
           )
 
           for key in "${series[@]}"; do
@@ -82,6 +88,11 @@ jobs:
               echo "Could not push $key after 5 attempts."
               exit 1
             fi
+
+            echo "Queueing NovelHaven deployment after $key..."
+            gh workflow run pages.yml --ref main || {
+              echo "$key was saved; the workflow completion will still request publication."
+            }
           done
 
       - name: Record updater result
