@@ -54,6 +54,27 @@ The catalog contains these 41 novels as of October 7, 2026. Chapter counts chang
 | After the Beautiful Mother Was Taken by Force | AkkNovel |
 | I’m Very Happy After Marrying the CEO Husband According to the Agreement | AkkNovel |
 
+
+### Authorized FreeWebNovel import batch
+
+A new 13-title authorized FreeWebNovel batch is now importing in resumable 100-chapter checkpoints. The importer rotates through every title so very long series do not block the rest of the batch, publishes each saved checkpoint, and continues automatically until all titles are caught up.
+
+- Black Tech Internet Cafe System
+- Shadow Slave
+- Martial God Asura
+- Reincarnation Of The Strongest Sword God
+- Martial Peak
+- Mechanical God Emperor
+- Prodigiously Amazing Weaponsmith
+- Necropolis Immortal
+- Infinite Mana In The Apocalypse
+- Reborn at Boot Camp: General, Don't Mess Around!
+- My Vampire System
+- Mesmerizing Ghost Doctor
+- God of Fishing
+
+These titles should be counted as live only after their catalog/chapter checkpoint is committed and a Pages deployment succeeds.
+
 ## Reading and discovery
 
 - Browse latest novels, latest releases, completed novels, genre pages, or the Novel Finder.
