@@ -70,6 +70,16 @@ jobs:
             zen-harem
             novelist-famous
             laidback-stepmother
+            this-is-strange
+            forensic-psychological
+            apocalypse-stockpiling
+            street-smart-heiress
+            imperial-pearl
+            charm-big-shots
+            great-grandmother
+            matriarch-manual
+            beautiful-mother-force
+            happy-ceo-agreement
           )
 
           for key in "${series[@]}"; do
