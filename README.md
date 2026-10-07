@@ -8,7 +8,7 @@ NovelNest is a web-novel library and chapter reader hosted on GitHub Pages at **
 
 ## Current collection
 
-The catalog contains these 31 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
+The catalog contains these 41 novels as of October 7, 2026. Chapter counts change as imports finish and sources publish updates; check each novel on the live website for its currently available chapters. “Ongoing” does not mean every source chapter has already been imported.
 
 | Novel | Source / edition |
 | --- | --- |
@@ -43,6 +43,16 @@ The catalog contains these 31 novels as of October 7, 2026. Chapter counts chang
 | Serious Slouch, Zen Harem Battle | AkkNovel |
 | The Novelist Forced to Become Famous | AkkNovel |
 | The Laid-back Life of a Stepmother | AkkNovel |
+| This Is Strange | AkkNovel |
+| The Genius Female Forensic Pathologist, The Psychological Anatomist | AkkNovel |
+| Rebirth Stockpiling: The Little Girl Sweeps Through the Apocalypse | AkkNovel |
+| When the Street-Smart Girl Transmigrates into a Novel About the Real and Fake Heiresses | AkkNovel |
+| A Precious Pearl in the Imperial City | AkkNovel |
+| I Use My Beauty to Charm Big Shots | AkkNovel |
+| All Filial Descendants Kneel Down, I Am Your Great-Grandmother | AkkNovel |
+| High-born Matriarch’s Husband-Taming Manual | AkkNovel |
+| After the Beautiful Mother Was Taken by Force | AkkNovel |
+| I’m Very Happy After Marrying the CEO Husband According to the Agreement | AkkNovel |
 
 ## Reading and discovery
 
