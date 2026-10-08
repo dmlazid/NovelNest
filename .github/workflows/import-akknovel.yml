@@ -17,7 +17,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: akknovel-series-v2
+  group: akknovel-series-v1
   cancel-in-progress: false
 
 jobs:
