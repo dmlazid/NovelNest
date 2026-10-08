@@ -1,7 +1,9 @@
 name: Automatically sync published novel chapters to D1
 
-# This is a BACKUP/MIGRATION sync, not a live reader or website deployment.
-# Runs periodically; stops at a conservative 380 MiB D1 storage cutoff.
+# This is BACKGROUND MIGRATION ONLY; it never changes the live reader or AdSense.
+# Before an approved multi-D1 pilot it uses the original database. After the
+# first durable novel_shards route it automatically uses all five existing
+# databases, with independent 380 MiB safety limits and chapter readback.
 on:
   push:
     branches: [main]
@@ -9,6 +11,11 @@ on:
       - ".github/workflows/d1-auto-sync.yml"
       - "scripts/sync-d1-chapters.mjs"
       - "scripts/sync-d1-chapters.test.mjs"
+      - "scripts/d1-auto-dispatch.mjs"
+      - "scripts/d1-auto-dispatch.test.mjs"
+      - "scripts/sync-d1-sharded.mjs"
+      - "scripts/sync-d1-sharded.test.mjs"
+      - "cloudflare/d1/shards.mjs"
       - "scripts/plan-d1-capacity.mjs"
       - "scripts/plan-d1-capacity.test.mjs"
       - "scripts/audit-d1-account.mjs"
@@ -55,7 +62,7 @@ jobs:
         with:
           node-version: "22"
       - name: Verify import safety and source chapter checks
-        run: node --test scripts/export-d1-batch.test.mjs scripts/sync-d1-chapters.test.mjs scripts/plan-d1-capacity.test.mjs scripts/audit-d1-account.test.mjs
+        run: node --test scripts/export-d1-batch.test.mjs scripts/sync-d1-chapters.test.mjs scripts/plan-d1-capacity.test.mjs scripts/audit-d1-account.test.mjs scripts/sync-d1-sharded.test.mjs scripts/d1-auto-dispatch.test.mjs
       - name: Estimate D1 storage and future database needs (read-only)
         env:
           D1_CAPACITY_OUT: ${{ runner.temp }}/novelhaven-d1-capacity.json
@@ -65,14 +72,14 @@ jobs:
           D1_CAPACITY_OUT: ${{ runner.temp }}/novelhaven-d1-capacity.json
           D1_INVENTORY_OUT: ${{ runner.temp }}/novelhaven-d1-inventory.json
         run: node scripts/audit-d1-account.mjs
-      - name: Import a capped number of already-published chapters
+      - name: Import a capped number of already-published chapters (auto-select safe D1 strategy)
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
           SYNC_MODE: ${{ github.event_name == 'schedule' && 'import' || inputs.mode || 'plan' }}
           SYNC_LIMIT: ${{ github.event_name == 'schedule' && '200' || inputs.max_chapters || '200' }}
         run: |
           set -euo pipefail
-          node scripts/sync-d1-chapters.mjs --mode "$SYNC_MODE" --max-chapters "$SYNC_LIMIT"
+          node scripts/d1-auto-dispatch.mjs --mode "$SYNC_MODE" --max-chapters "$SYNC_LIMIT"
       - name: Upload safe statistics only
         if: always()
         uses: actions/upload-artifact@v4
