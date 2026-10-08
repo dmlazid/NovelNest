@@ -393,6 +393,25 @@ if AUTO_SERIES_PATH.exists():
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Could not load {AUTO_SERIES_PATH}: {exc}")
 
+
+def load_approved_auto_series() -> None:
+    """Load only explicitly approved, promoted automatic titles."""
+    registry = Path(__file__).with_name("auto_freewebnovel.json")
+    if not registry.exists():
+        return
+    entries = json.loads(registry.read_text(encoding="utf-8"))
+    if not isinstance(entries, dict):
+        raise ValueError(f"Invalid automatic novel registry: {registry}")
+    for key, cfg in entries.items():
+        if not isinstance(cfg, dict) or not all(cfg.get(field) for field in ("id", "slug", "title", "author", "genre", "tags")):
+            raise ValueError(f"Invalid automatic novel entry: {key}")
+        if key in SERIES and SERIES[key]["slug"] != cfg["slug"]:
+            raise ValueError(f"Automatic novel key collides with an existing title: {key}")
+        SERIES.setdefault(key, cfg)
+
+
+load_approved_auto_series()
+
 session = requests.Session()
 session.headers.update(HEADERS)
 
