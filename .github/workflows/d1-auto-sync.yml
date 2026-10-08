@@ -11,6 +11,8 @@ on:
       - "scripts/sync-d1-chapters.test.mjs"
       - "scripts/plan-d1-capacity.mjs"
       - "scripts/plan-d1-capacity.test.mjs"
+      - "scripts/audit-d1-account.mjs"
+      - "scripts/audit-d1-account.test.mjs"
   schedule:
     - cron: "23 */6 * * *"
   workflow_dispatch:
@@ -53,11 +55,16 @@ jobs:
         with:
           node-version: "22"
       - name: Verify import safety and source chapter checks
-        run: node --test scripts/export-d1-batch.test.mjs scripts/sync-d1-chapters.test.mjs scripts/plan-d1-capacity.test.mjs
+        run: node --test scripts/export-d1-batch.test.mjs scripts/sync-d1-chapters.test.mjs scripts/plan-d1-capacity.test.mjs scripts/audit-d1-account.test.mjs
       - name: Estimate D1 storage and future database needs (read-only)
         env:
           D1_CAPACITY_OUT: ${{ runner.temp }}/novelhaven-d1-capacity.json
         run: node scripts/plan-d1-capacity.mjs
+      - name: Check available Cloudflare D1 database slots (read-only)
+        env:
+          D1_CAPACITY_OUT: ${{ runner.temp }}/novelhaven-d1-capacity.json
+          D1_INVENTORY_OUT: ${{ runner.temp }}/novelhaven-d1-inventory.json
+        run: node scripts/audit-d1-account.mjs
       - name: Import a capped number of already-published chapters
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
@@ -74,5 +81,6 @@ jobs:
           path: |
             ${{ runner.temp }}/novelhaven-d1-auto-sync.json
             ${{ runner.temp }}/novelhaven-d1-capacity.json
+            ${{ runner.temp }}/novelhaven-d1-inventory.json
           if-no-files-found: ignore
           retention-days: 7
