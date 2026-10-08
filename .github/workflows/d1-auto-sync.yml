@@ -11,6 +11,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/d1-auto-sync.yml"
+      - "scripts/export-d1-batch.mjs"
+      - "scripts/export-d1-batch.test.mjs"
       - "scripts/sync-d1-chapters.mjs"
       - "scripts/sync-d1-chapters.test.mjs"
       - "scripts/d1-auto-dispatch.mjs"
@@ -77,7 +79,7 @@ jobs:
       - name: Import a capped number of already-published chapters (auto-select safe D1 strategy)
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
-          SYNC_MODE: ${{ github.event_name == 'schedule' && 'import' || inputs.mode || 'plan' }}
+          SYNC_MODE: ${{ github.event_name != 'workflow_dispatch' && 'import' || inputs.mode || 'plan' }}
           SYNC_LIMIT: ${{ github.event_name == 'schedule' && '350' || inputs.max_chapters || '350' }}
         run: |
           set -euo pipefail

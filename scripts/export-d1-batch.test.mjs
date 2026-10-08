@@ -83,3 +83,21 @@ test('fails if a chapter has broken or missing metadata', () => {
     assert.throws(() => prepareBatch({ root, novelId: 'sample-novel' }), /numbering mismatch/);
   } finally { cleanup(); }
 });
+
+
+test('imports title-numbered legacy chunks without accepting reordered chapters', () => {
+  const {root, cleanup} = fixture();
+  try {
+    const catalogFile = path.join(root, 'licensed-sample.js');
+    fs.writeFileSync(catalogFile, fs.readFileSync(catalogFile, 'utf8').replace('"capacity":100', '"capacity":100,"numberFromTitle":true'));
+    const chunkFile = path.join(root, 'data/sample-01.js');
+    const original = fs.readFileSync(chunkFile, 'utf8');
+    fs.writeFileSync(chunkFile, original.replace(/"number":\d+,/g, ''));
+    assert.equal(prepareBatch({root, novelId:'sample-novel', limit:2}).report.chapter_count, 2);
+    fs.writeFileSync(chunkFile, fs.readFileSync(chunkFile, 'utf8').replace('Chapter 1:', 'Chapter 9:'));
+    assert.throws(() => prepareBatch({root, novelId:'sample-novel'}), /numbering mismatch/);
+    fs.writeFileSync(chunkFile, original.replace(/"number":\d+,/g, ''));
+    fs.writeFileSync(catalogFile, fs.readFileSync(catalogFile, 'utf8').replace(',"numberFromTitle":true', ''));
+    assert.throws(() => prepareBatch({root, novelId:'sample-novel'}), /numbering mismatch/);
+  } finally { cleanup(); }
+});

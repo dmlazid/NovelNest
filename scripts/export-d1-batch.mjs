@@ -82,7 +82,9 @@ export function selectChapters(root, novel, start, limit) {
     const source = chunkCache.get(chunkNo)[(number - 1) % config.capacity];
     const metadata = novel.chapters[number - 1];
     assert(source && metadata, 'Missing chapter #' + number);
-    assert(Number(source.number) === number && Number(metadata.number) === number,
+    const sourceNumber = Number(source.number ?? (config.numberFromTitle
+      ? source.title?.match(/^Chapter\s+(\d+)/i)?.[1] : NaN));
+    assert(sourceNumber === number && Number(metadata.number) === number,
       'Chapter numbering mismatch at #' + number);
     assert(source.title === metadata.title,
       'Chapter title mismatch at #' + number);

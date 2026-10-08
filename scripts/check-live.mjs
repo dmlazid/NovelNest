@@ -26,7 +26,7 @@ async function verify() {
   assert(chapter.includes(publisher), 'Published chapter is missing publisher verification');
   assert.match(chapter, /data-static-chapter=/);
   assert.match(chapter, /data-chapter-number="1"/);
-  assert.match(chapter, /<p>[^<]+<\/p>/);
+  assert.match(chapter, /<p>[^<]+(?:<p>|<\/div>)/);
   assert.match(chapter, /href="\/privacy.html"/);
   assert.doesNotMatch(chapter, /Loading chapter…/);
   assert.equal(privacy, fs.readFileSync('dist/privacy.html', 'utf8'));
