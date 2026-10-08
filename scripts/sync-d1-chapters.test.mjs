@@ -38,6 +38,12 @@ class FakeD1 {
   key(id, number) { return id + ':' + number; }
   async size() { return this.bytes; }
   async query(sql, params = []) {
+    if (sql.startsWith('SELECT COUNT(*) AS total')) {
+      return { results: [{
+        total: this.rows.size,
+        novels: new Set([...this.rows.keys()].map(key => key.split(':')[0])).size,
+      }] };
+    }
     if (sql.startsWith('SELECT novel_id, COUNT(*)')) {
       const values = new Map();
       for (const key of this.rows.keys()) {
@@ -109,11 +115,16 @@ test('plan never writes, import resumes without duplicating existing chapters', 
     const plan = await syncPublishedChapters({client, root:f.root, mode:'plan', maxChapters:5});
     assert.equal(plan.inserted_chapters, 0);
     assert.equal(client.rows.size, 0);
+    assert.equal(plan.total_chapters_in_d1, 0);
+    assert.equal(plan.novels_in_d1, 0);
     const first = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(first.inserted_chapters, 3);
+    assert.equal(first.total_chapters_in_d1, 3);
+    assert.equal(first.novels_in_d1, 2);
     assert.equal(client.rows.size, 3);
     const second = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(second.inserted_chapters, 2);
+    assert.equal(second.total_chapters_in_d1, 5);
     assert.equal(client.rows.size, 5);
     const complete = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(complete.inserted_chapters, 0);
@@ -128,6 +139,7 @@ test('database capacity prevents all remote writes while keeping readers unchang
     client.bytes = SOFT_LIMIT_BYTES - 20_000;
     const report = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(report.stop_reason, 'capacity_guard_reached');
+    assert.equal(report.total_chapters_in_d1, 0);
     assert.equal(client.writeCalls, 0);
   } finally { f.cleanup(); }
 });
