@@ -40,9 +40,10 @@ The batch size is currently **15**.
 - New batches are considered only when the current queue is caught up for the source snapshot.
 - Candidate discovery does not require manual novel links.
 - The workflows queue a continuation automatically when a new approved batch is promoted.
+- Workflow variable expansion was corrected so the dynamic title arrays and GitHub token are evaluated normally.
 
 ## Cleanup
 
-An older automatic AkkNovel run selected titles before the authorization safeguard was fully in place. Those unconfirmed automatic titles were moved back to the candidate queue, and the one title that had begun importing was removed from the live catalog.
+An older automatic AkkNovel run selected titles before the authorization safeguard was fully in place. Those unconfirmed automatic titles were moved back to the candidate queue, and the two titles that had begun importing were removed from the live catalog.
 
 AdSense configuration was not changed in this update.
