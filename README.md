@@ -16,7 +16,7 @@
 | New novel discovery | Candidates may be discovered automatically; **new-title publication is held for quality review** |
 | Cloudflare D1 | **5 databases available** (01–05); original database has **9 verified chapters**, while the four new databases are empty |
 | Automatic D1 imports | Scheduled, limited to **200 chapters per run**, with safety checks and reports |
-| Extra D1 databases | **4 created successfully October 8, 2026** — importing and reader routing across them is the next stage |
+| Extra D1 databases | **4 new databases created**; five-database chapter pilot passed read-only checks, while actual sharded writes still await a small approved pilot |
 | AdSense | Application/settings/publisher files deliberately **untouched** by migration work |
 
 *Counts are snapshots, not live counters. Open the GitHub Actions run summaries for updated database totals.*
@@ -29,9 +29,10 @@
 | Automatically copy published chapters to D1 | [D1 chapter auto-sync](https://github.com/dmlazid/NovelNest/actions/workflows/d1-auto-sync.yml) |
 | Check database storage and available Free-tier slots | [D1 capacity and account audit](https://github.com/dmlazid/NovelNest/actions/runs/37768574387) |
 | Create or verify additional databases (already provisioned) | [Successful D1 setup run](https://github.com/dmlazid/NovelNest/actions/runs/37770439321) |
+| Five-database chapter import pilot (**plan by default**) | [Safe multi-shard chapter pilot](https://github.com/dmlazid/NovelNest/actions/workflows/d1-sharded-pilot.yml) |
 | Initial 5-chapter import and verification | [D1 import pilot](https://github.com/dmlazid/NovelNest/actions/workflows/d1-chapter-pilot.yml) |
 
-The D1 migration does **not** redirect readers, modify the GitHub-hosted chapters, or change the original Cloudflare Worker automatically. Database storage is checked before imports, with a **380 MiB stop threshold** for the current D1 database. A preliminary capacity analysis estimates roughly **five D1 databases** for the existing library; all five are provisioned, but multi-database importing and reading are **not yet connected**. This is a planning estimate, not a completed migration.
+The D1 migration does **not** redirect readers, modify the GitHub-hosted chapters, or change the original Cloudflare Worker automatically. Database storage is checked before imports, with a **380 MiB stop threshold** for the current D1 database. A preliminary capacity analysis estimates roughly **five D1 databases** for the existing library. All five are provisioned, and a tested five-database import pilot is available in GitHub Actions. The scheduled importer is being prepared to switch to the five databases **only after the first successful approved sharded write**; public-reader routing is **not changed**. The full migration is not complete.
 
 Details: [Cloudflare D1 migration](./cloudflare/d1/README.md) · [Safe multi-database rollout plan](./cloudflare/d1/SHARDING_PLAN.md)
 
