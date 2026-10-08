@@ -28,7 +28,7 @@ jobs:
       AKKNOVEL_REQUEST_DELAY: "0.8"
       AKKNOVEL_BATCH_SIZE: "100"
       AKKNOVEL_REBUILD: "0"
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           mapfile -t series < <(python scripts/import_akknovel.py --keys)
-          echo "AkkNovel queue contains \${#series[@]} titles."
+          echo "AkkNovel queue contains ${#series[@]} titles."
 
           start_time="$(date +%s)"
           runtime_budget=9000
@@ -98,10 +98,10 @@ jobs:
             pass_progress=0
             pass_failures=0
 
-            for key in "\${series[@]}"; do
+            for key in "${series[@]}"; do
               elapsed=$(( $(date +%s) - start_time ))
               if [ "$elapsed" -ge "$runtime_budget" ]; then
-                echo "Safe runtime budget reached after \${elapsed}s."
+                echo "Safe runtime budget reached after ${elapsed}s."
                 gh workflow run pages.yml --ref main || echo "A later Pages run can publish saved checkpoints."
                 queue_continuation
                 exit 0
@@ -139,13 +139,13 @@ jobs:
                 exit 0
               fi
 
-              before_count="\${#series[@]}"
+              before_count="${#series[@]}"
               echo "All current AkkNovel titles are caught up."
               echo "Discovering the next 15-title candidate batch..."
               python scripts/discover_auto_novels.py akknovel --limit 15 --promote
 
               mapfile -t next_series < <(python scripts/import_akknovel.py --keys)
-              after_count="\${#next_series[@]}"
+              after_count="${#next_series[@]}"
 
               git add scripts/candidates_akknovel.json scripts/auto_akknovel.json
               if ! git diff --cached --quiet; then
@@ -173,7 +173,7 @@ jobs:
       - name: Record updater result
         if: always()
         env:
-          RESULT: \${{ job.status }}
+          RESULT: ${{ job.status }}
         run: |
           echo "AkkNovel updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
           echo "Titles advance in 100-chapter checkpoints. After the current queue is fully caught up, NovelNest discovers a 15-title candidate batch. Promotion only occurs when source-wide authorization is enabled." >> "$GITHUB_STEP_SUMMARY"
