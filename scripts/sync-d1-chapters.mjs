@@ -167,6 +167,10 @@ export async function syncPublishedChapters({
     stop_reason: 'no_pending_chapters',
     latest_novel: null,
   };
+  if (!candidates.length) {
+    report.database_bytes_after = beforeSize;
+    return report;
+  }
   if (!checkCapacity(beforeSize)) {
     report.stop_reason = 'capacity_guard_reached';
     return report;
