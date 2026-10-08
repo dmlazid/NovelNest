@@ -69,7 +69,7 @@ test('shard projection flags titles exceeding the target rather than claiming fi
   const volumes=[
     {id:'a',projected_d1_bytes:65,published_chapters:1},
     {id:'b',projected_d1_bytes:60,published_chapters:1},
-    {id:'c',projected_d1_bytes:45,published_chapters:1},
+    {id:'c',projected_d1_bytes:35,published_chapters:1},
   ];
   const plan=simulateShardPlan(volumes,{targetBytes:100,maxDatabases:2});
   assert.equal(plan.illustrative_shards_needed,2);
