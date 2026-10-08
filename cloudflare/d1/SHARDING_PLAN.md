@@ -1,6 +1,6 @@
 # NovelHaven D1 free-tier expansion plan
 
-**Status: five databases provisioned; multi-database importer not yet connected.** The October 8 manual GitHub Actions run created databases 02–05 and initialized their chapter tables. The live website, AdSense, Worker routes, and original database bindings remain unchanged.
+**Status: five databases provisioned; sharded import pilot tested in read-only mode, with the first real five-database import awaiting manual approval.** The October 8 manual GitHub Actions run created databases 02–05 and initialized their chapter tables. The live website, AdSense, Worker routes, and original database bindings remain unchanged.
 
 ## Verified baseline — October 8, 2026
 
@@ -24,8 +24,8 @@ Cloudflare Free currently allows **10 D1 databases, at most 500 MB each and 5 GB
 
 1. **Preserve the original system.** Continue using the original D1 database for existing capped imports; keep GitHub chapters, static pages and their URLs untouched.
 2. **Completed: four extra databases created.** The manual setup initialized chapter tables in novelhaven-chapters-02 through -05. Their schema was created; chapter data has **not** been copied into these four databases. Future setup runs are idempotent.
-3. **Create stable import routing.** Existing chapters have already been copied to database 01. Do not blindly hash existing titles to a new shard. Use versioned per-novel/chapter-range assignments or a verified index, preserving the ability to find original rows and allowing new novels to be added later.
-4. **Test cross-database imports.** Keep caps on batch sizes, physical database usage and Cloudflare quotas, and provide retries and clear reports for skipped or oversized chapters. Import a pilot to the new databases before scheduling bulk migration.
+3. **Prepared and tested: stable novel routing.** The five-shard importer keeps existing chapter locations, and its planned durable `novel_shards` index in database 01 records assignments only when an approved import writes chapters. The read-only audit and pilot tests passed. No route table is created by dry runs.
+4. **Next action: approve the first small cross-database import.** Use the [Five-D1 chapter pilot](https://github.com/dmlazid/NovelNest/actions/workflows/d1-sharded-pilot.yml) with `main`, `mode=import`, and `max_chapters=5` only after its dry run and tests pass. It validates storage before every write and reads each imported chapter back. The old GitHub-hosted chapters remain authoritative. After durable routes exist, the scheduled importer automatically uses five shards instead of creating new copies in database 01.
 5. **Test multi-database Worker reads privately.** Only after reliable lookup and fallbacks are proven should a carefully controlled live reader switch be considered. Do not redirect the domain or remove the original GitHub chapter pages.
 6. **Preserve website and AdSense.** No changes to the teal design, URLs, AdSense publisher code, ads.txt, Google verification, or privacy/policy pages. Keep existing source files for safe rollback.
 
