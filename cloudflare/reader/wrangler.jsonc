@@ -1,0 +1,50 @@
+{
+  "name": "novelhaven-reader",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-08",
+  "workers_dev": true,
+  "assets": {
+    "directory": "../../_cloudflare",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/novel/*/chapter-*",
+      "/_internal/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB1",
+      "database_name": "novelhaven-chapters-01",
+      "database_id": "61109519-a023-4ab3-9b2b-8b990752126e"
+    },
+    {
+      "binding": "DB2",
+      "database_name": "novelhaven-chapters-02",
+      "database_id": "8c83e79f-fef8-4ed6-bef4-c705929e31ab"
+    },
+    {
+      "binding": "DB3",
+      "database_name": "novelhaven-chapters-03",
+      "database_id": "cdbbdf93-ef34-4721-98eb-b266676f2862"
+    },
+    {
+      "binding": "DB4",
+      "database_name": "novelhaven-chapters-04",
+      "database_id": "8ef219f7-00af-4b5e-8c65-ec2bb1f22993"
+    },
+    {
+      "binding": "DB5",
+      "database_name": "novelhaven-chapters-05",
+      "database_id": "6edf1c87-b1a8-45ad-a5f9-bc8e9248ce2b"
+    }
+  ],
+  "vars": {
+    "SHARD_BINDINGS": {
+      "61109519-a023-4ab3-9b2b-8b990752126e": "DB1",
+      "8c83e79f-fef8-4ed6-bef4-c705929e31ab": "DB2",
+      "cdbbdf93-ef34-4721-98eb-b266676f2862": "DB3",
+      "8ef219f7-00af-4b5e-8c65-ec2bb1f22993": "DB4",
+      "6edf1c87-b1a8-45ad-a5f9-bc8e9248ce2b": "DB5"
+    }
+  }
+}

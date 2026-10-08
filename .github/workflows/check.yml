@@ -21,8 +21,10 @@ jobs:
           node-version: '22'
       - run: node --test scripts/*.test.mjs
       - run: node scripts/build.mjs
-      - run: node scripts/check-built.mjs
+        env:
+          NOVELNEST_CLOUDFLARE: '1'
+      - run: node scripts/check-cloudflare-build.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: NovelNest-website
-          path: _site/
+          path: _cloudflare/

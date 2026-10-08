@@ -93,7 +93,7 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   // Counts alone never authorize a public cutover. A complete content audit is required.
   return report;
 }
-async function accessAudit(token,accountId){
+export async function accessAudit(token,accountId){
   const checks={};
   for(const [name,url] of [
     ['worker_settings','https://api.cloudflare.com/client/v4/accounts/'+accountId+'/workers/scripts/novelhaven-chapters-api/settings'],

@@ -7,7 +7,7 @@ on:
       - 'scripts/d1-fast-migration.mjs'
       - 'scripts/d1-fast-migration.test.mjs'
   schedule:
-    - cron: '8 * * * *'
+    - cron: '8,28,48 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,6 +15,27 @@ concurrency:
   group: novelhaven-d1-chapter-pilot
   cancel-in-progress: false
 jobs:
+  access-check:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only Worker access and stored chapter totals
+        run: |
+          node --input-type=module <<'JS'
+          import {accessAudit} from './scripts/d1-fast-migration.mjs';
+          import {createClients} from './scripts/sync-d1-sharded.mjs';
+          const token=process.env.CLOUDFLARE_API_TOKEN,accountId=process.env.CLOUDFLARE_ACCOUNT_ID;
+          await accessAudit(token,accountId);
+          let total=0;
+          for(const client of createClients({token,accountId}).values())total+=Number((await client.query('SELECT COUNT(*) AS total FROM chapters')).results[0].total);
+          console.log('Verified current D1 chapters:',total);
+          JS
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -22,7 +43,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       D1_FAST_LIMIT: '4000'
-      D1_REPORT_PATH: ${{ runner.temp }}/d1-fast-report.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +53,8 @@ jobs:
       - name: Verify batching, quota ledger, numbering and shard routing
         run: node --test scripts/d1-fast-migration.test.mjs scripts/export-d1-batch.test.mjs scripts/sync-d1-sharded.test.mjs
       - name: Copy and read back batches within daily free limits
+        env:
+          D1_REPORT_PATH: ${{ runner.temp }}/d1-fast-report.json
         run: node scripts/d1-fast-migration.mjs
       - uses: actions/upload-artifact@v4
         if: always()

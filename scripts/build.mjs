@@ -5,7 +5,8 @@ import vm from 'node:vm';
 import { validateSite } from './check.mjs';
 
 validateSite('dist');
-const output = '_site';
+const cloudflareMode = process.env.NOVELNEST_CLOUDFLARE === '1';
+const output = cloudflareMode ? '_cloudflare' : '_site';
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 const sourceHtml = fs.readFileSync('dist/index.html', 'utf8');
@@ -101,6 +102,10 @@ const compactChapterFooter = '<footer data-static-footer><a href="/privacy.html"
 function chapterPage(title, url, markup, novelRoot) {
   return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelNest</title><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelNest</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
+if (cloudflareMode) {
+  write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
+  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length}]))));
+}
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelNest</title>')
     .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escape(description || title) + '">')
@@ -158,6 +163,15 @@ for (const n of novels) {
   const schema = { '@context': 'https://schema.org', '@type': 'Book', name: n.title, author: { '@type': 'Person', name: n.author }, url: 'https://novelhaven.top' + root };
   write(root.slice(1) + 'index.html', page(n.title, root, render(`detail(${json(n.id)})`), description, undefined, schema));
   links.push(root);
+  if (cloudflareMode) {
+    for (let number=1; number<=n.chapters.length; number++) {
+      const url=root+'chapter-'+number+'/';
+      chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
+      chapterCount++;
+      if (chapterUrls.length===40000) flushChapterMap();
+    }
+    continue;
+  }
   const config = n.lazyChunks;
   for (let part = 1; part <= Math.ceil(n.chapters.length / config.capacity); part++) {
     const chunk = vm.createContext({ window: {} });

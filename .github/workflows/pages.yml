@@ -34,6 +34,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Keep the last working site while verified Cloudflare migration completes.
+    if: ${{ false }}
     # An updater may save valid checkpoints before failing or being cancelled.
     # Always validate current main; only a passing test/build can reach Deploy.
     environment:
