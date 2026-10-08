@@ -52,6 +52,8 @@ concurrency:
 
 jobs:
   sync-chapters:
+    # Superseded by d1-fast-migration.yml with a shared daily quota ledger.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

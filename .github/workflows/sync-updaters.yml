@@ -49,7 +49,4 @@ jobs:
               if(attempt===23) throw new Error('Old updater still stopping; rerun synchronization before restarting it.');
               await new Promise(resolve=>setTimeout(resolve,5000));
             }
-            for(const id of new Set(unique.map(run=>run.workflow_id))) {
-              await github.rest.actions.createWorkflowDispatch({...repo,workflow_id:id,ref:'main'});
-            }
-            await core.summary.addHeading('Updater queues synchronized').addRaw(`${unique.length} obsolete jobs stopped. Saved chapter checkpoints were preserved; their workflows resume from current main.`).write();
+            await core.summary.addHeading('Chapter downloads paused for migration').addRaw(`${unique.length} old updater jobs stopped. Committed chapters remain saved. No replacement downloads were started.`).write();

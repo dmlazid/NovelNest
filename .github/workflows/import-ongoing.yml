@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   import:
+    # Migration freeze: remove this condition only after verified reader cutover.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
