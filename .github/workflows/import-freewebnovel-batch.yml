@@ -6,6 +6,8 @@ on:
   push:
     paths:
       - "scripts/import_freewebnovel_batch.py"
+      - "scripts/discover_auto_novels.py"
+      - "scripts/auto_freewebnovel.json"
       - ".github/workflows/import-freewebnovel-batch.yml"
   workflow_dispatch:
 
@@ -49,54 +51,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          series=(
-            black-tech-internet-cafe
-            shadow-slave
-            martial-god-asura
-            strongest-sword-god
-            martial-peak
-            mechanical-god-emperor
-            prodigiously-amazing-weaponsmith
-            necropolis-immortal
-            infinite-mana
-            reborn-boot-camp
-            my-vampire-system
-            mesmerizing-ghost-doctor
-            god-of-fishing
-            retirement-world
-            godly-empress-doctor
-            chaotic-sword-god
-            re-evolution-online
-            hero-summoning-peace
-            fey-evolution-merchant
-            remarried-empress
-            overgeared
-            dimensional-descent
-            legend-of-swordsman
-            madams-identities
-            authors-pov
-            keyboard-immortal
-            villain-clan
-            undead-legion
-            beginning-after-end
-            sss-suicide-hunter
-            cultivation-chat-group
-            long-awaited-mr-han
-            supreme-harem-god
-            my-werewolf-system
-            tyranny-of-steel
-            godly-stay-home-dad
-            my-rich-wife
-            hidden-marriage-billionaire
-            emperor-marry-doctor
-            alchemy-emperor-head
-            versatile-mage
-            alchemy-divine-dao
-            king-of-technology
-            lady-gu-too-weak
-          )
+          mapfile -t series < <(python scripts/import_freewebnovel_batch.py --keys)
+          echo "FreeWebNovel queue contains ${#series[@]} titles."
 
-          start_time="$(date +%s)"
+         start_time="$(date +%s)"
           runtime_budget=9000
           pass=0
 
@@ -168,9 +126,39 @@ jobs:
             if [ "$pass_progress" -eq 0 ]; then
               if [ "$pass_failures" -gt 0 ]; then
                 echo "$pass_failures title(s) could not be checked this pass. They will retry on the next scheduled run."
-              else
-                echo "All 44 FreeWebNovel batch titles are fully caught up."
+                exit 0
               fi
+
+              echo "All current FreeWebNovel titles are caught up. Selecting the next automatic batch of 15 popular titles..."
+              python scripts/discover_auto_novels.py freewebnovel --limit 15
+
+              git add scripts/auto_freewebnovel.json
+              if git diff --cached --quiet; then
+                echo "No new FreeWebNovel titles were available from the discovery pool."
+                exit 0
+              fi
+
+              git commit -m "Queue next automatic FreeWebNovel batch of 15"
+              pushed=0
+              for attempt in 1 2 3 4 5; do
+                git fetch origin main
+                if ! git rebase origin/main; then
+                  git rebase --abort || true
+                  sleep 3
+                  continue
+                fi
+                if git push origin HEAD:main; then
+                  pushed=1
+                  break
+                fi
+                sleep 3
+              done
+              if [ "$pushed" -ne 1 ]; then
+                echo "Could not push the next automatic FreeWebNovel batch."
+                exit 1
+              fi
+
+              queue_continuation
               exit 0
             fi
 
@@ -184,4 +172,4 @@ jobs:
           RESULT: ${{ job.status }}
         run: |
           echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer advances each title in 100-chapter checkpoints, rotates through all 44 titles, and queues Pages once per round instead of once per novel." >> "$GITHUB_STEP_SUMMARY"
+          echo "The importer advances titles in 100-chapter checkpoints. When the current queue is caught up, it automatically selects the next 15 popular FreeWebNovel titles and continues without manual links." >> "$GITHUB_STEP_SUMMARY"
