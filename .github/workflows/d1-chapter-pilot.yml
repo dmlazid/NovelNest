@@ -1,0 +1,127 @@
+name: Plan or import D1 chapter pilot
+
+on:
+  push:
+    paths:
+      - "scripts/export-d1-batch.mjs"
+      - "scripts/export-d1-batch.test.mjs"
+      - "cloudflare/d1/**"
+      - ".github/workflows/d1-chapter-pilot.yml"
+  workflow_dispatch:
+    inputs:
+      novel_id:
+        description: "Published novel ID to test"
+        type: string
+        default: "farming-cultivating-immortality"
+        required: true
+      start:
+        description: "First chapter number (1-based)"
+        type: number
+        default: 1
+        required: true
+      count:
+        description: "Number of chapters in this small batch (1-25)"
+        type: number
+        default: 5
+        required: true
+      mode:
+        description: "Plan only is SAFE DEFAULT; import writes only with explicitly selected mode and Cloudflare secrets"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - import
+
+permissions:
+  contents: read
+
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+
+jobs:
+  d1-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test import safety, chapter validation, and SQL escaping
+        run: node --test scripts/export-d1-batch.test.mjs
+
+      - name: Generate small SQL pilot without changing any database
+        env:
+          NOVEL_ID: ${{ inputs.novel_id || 'farming-cultivating-immortality' }}
+          START: ${{ inputs.start || '1' }}
+          COUNT: ${{ inputs.count || '5' }}
+        run: |
+          set -euo pipefail
+          node scripts/export-d1-batch.mjs \
+            --novel "$NOVEL_ID" --start "$START" --limit "$COUNT" \
+            --out "$RUNNER_TEMP/novelhaven-chapters.sql" \
+            --report "$RUNNER_TEMP/novelhaven-d1-pilot-report.json"
+
+      - name: Validate generated SQL locally with SQLite
+        env:
+          SQL_FILE: ${{ runner.temp }}/novelhaven-chapters.sql
+          REPORT_FILE: ${{ runner.temp }}/novelhaven-d1-pilot-report.json
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["REPORT_FILE"]).read_text())
+          sql = Path(os.environ["SQL_FILE"]).read_text()
+          db = sqlite3.connect(":memory:")
+          db.executescript("""
+            CREATE TABLE chapters (
+              novel_id TEXT NOT NULL,
+              chapter_number INTEGER NOT NULL,
+              title TEXT NOT NULL,
+              paragraphs_json TEXT NOT NULL,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY(novel_id, chapter_number)
+            );
+          """)
+          db.executescript(sql)
+          db.executescript(sql)  # Repeat verifies idempotency, not duplicate rows.
+          chapters = db.execute(
+            "SELECT chapter_number, paragraphs_json FROM chapters ORDER BY chapter_number"
+          ).fetchall()
+          assert len(chapters) == report["chapter_count"], (len(chapters), report)
+          assert chapters[0][0] == report["first_chapter"]
+          assert chapters[-1][0] == report["last_chapter"]
+          assert all(isinstance(json.loads(value), list) for _, value in chapters)
+          print("Safe pilot SQL passes local SQLite; generated rows:", len(chapters))
+          PY
+
+      - name: Save plan summary (no chapter text or tokens)
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelhaven-d1-pilot-report
+          path: ${{ runner.temp }}/novelhaven-d1-pilot-report.json
+          retention-days: 7
+
+      - name: Import remotely only when explicitly requested
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'import'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SQL_FILE: ${{ runner.temp }}/novelhaven-chapters.sql
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Add a scoped D1 Edit token to GitHub Actions secrets"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Add Cloudflare account ID to GitHub Actions secrets"; exit 1; }
+          npx --yes wrangler@4 d1 execute novelhaven-chapters-01 \
+            --config cloudflare/d1/wrangler.toml \
+            --remote --yes --file "$SQL_FILE"
+          echo "D1 import command completed; confirm chapter counts in the Cloudflare console."
