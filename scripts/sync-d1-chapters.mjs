@@ -72,10 +72,12 @@ function maskError(error) {
 }
 
 export class D1Client {
-  constructor({ token, accountId, databaseId = DATABASE_ID, fetchFn = fetch }) {
+  constructor({ token, accountId, databaseId = DATABASE_ID, allowedDatabaseIds = [DATABASE_ID], fetchFn = fetch }) {
     assert(typeof token === 'string' && token.trim(), 'Missing CLOUDFLARE_API_TOKEN');
     assert(/^[a-f0-9]{32}$/i.test(accountId ?? ''), 'Invalid CLOUDFLARE_ACCOUNT_ID');
-    assert(databaseId === DATABASE_ID, 'Unrecognized D1 database');
+    assert(Array.isArray(allowedDatabaseIds) && allowedDatabaseIds.includes(DATABASE_ID) &&
+      allowedDatabaseIds.includes(databaseId), 'Unrecognized D1 database');
+    this.databaseId = databaseId;
     this.url = 'https://api.cloudflare.com/client/v4/accounts/' +
       accountId + '/d1/database/' + databaseId;
     this.token = token;
@@ -118,7 +120,7 @@ export class D1Client {
 
   async size() {
     const db = await this.request();
-    assert(db && typeof db === 'object' && db.uuid === DATABASE_ID,
+    assert(db && typeof db === 'object' && db.uuid === this.databaseId,
       'Cloudflare database ID mismatch: refusing writes');
     const bytes = Number(db.file_size);
     assert(Number.isSafeInteger(bytes) && bytes >= 0,
