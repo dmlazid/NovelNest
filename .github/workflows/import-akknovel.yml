@@ -8,6 +8,7 @@ on:
       - "scripts/import_akknovel.py"
       - "scripts/discover_auto_novels.py"
       - "scripts/auto_akknovel.json"
+      - "scripts/auto_import_policy.json"
       - ".github/workflows/import-akknovel.yml"
   workflow_dispatch:
 
@@ -16,18 +17,27 @@ permissions:
   actions: write
 
 concurrency:
-  group: akknovel-series-v1
+  group: akknovel-series-v2
   cancel-in-progress: false
 
 jobs:
   import:
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    env:
+      AKKNOVEL_REQUEST_DELAY: "0.8"
+      AKKNOVEL_BATCH_SIZE: "100"
+      AKKNOVEL_REBUILD: "0"
+      GH_TOKEN: \${{ github.token }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -37,96 +47,133 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4 Pillow
 
-      - name: Test cover selection and image validation
+      - name: Test AkkNovel cover selection
         run: python -m unittest discover -s scripts -p "test_akknovel_covers.py"
 
-      - name: Import all authorized AkkNovel series
-        env:
-          AKKNOVEL_REQUEST_DELAY: "0.8"
-          AKKNOVEL_BATCH_SIZE: "100"
-          AKKNOVEL_REBUILD: "0"
-          GH_TOKEN: ${{ github.token }}
+      - name: Import AkkNovel queue and prepare the next 15-title batch
         run: |
-          set -e
+          set -u
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           mapfile -t series < <(python scripts/import_akknovel.py --keys)
-          echo "AkkNovel queue contains ${#series[@]} titles."
+          echo "AkkNovel queue contains \${#series[@]} titles."
 
-          for key in "${series[@]}"; do
-            echo "=== AkkNovel import: $key ==="
+          start_time="$(date +%s)"
+          runtime_budget=9000
+          pass=0
 
-            for checkpoint in $(seq 1 60); do
-              python scripts/import_akknovel.py "$key"
-
-              git add -A -- dist/data/akk-*.js dist/assets/akk-*.jpg dist/licensed-akk-*.js dist/index.html
-              if git diff --cached --quiet; then
-                echo "$key is fully caught up."
+          push_with_rebase() {
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if ! git rebase origin/main; then
+                git rebase --abort || true
+                echo "Rebase raced with another updater; retrying ($attempt/5)..."
+                sleep 3
+                continue
+              fi
+              if git push origin HEAD:main; then
+                pushed=1
                 break
               fi
+              echo "Push raced with another updater; retrying ($attempt/5)..."
+              sleep 3
+            done
+            if [ "$pushed" -ne 1 ]; then
+              echo "Could not push after 5 attempts."
+              return 1
+            fi
+          }
 
-              git commit -m "Auto-update AkkNovel $key (checkpoint $checkpoint)"
+          queue_continuation() {
+            echo "Queueing an immediate continuation run for AkkNovel..."
+            gh workflow run import-akknovel.yml --ref main || \
+              echo "Could not queue continuation; the six-hour schedule will retry."
+          }
 
-              pushed=0
-              for attempt in 1 2 3 4 5; do
-                git fetch origin main
-                git rebase origin/main
-                if git push origin HEAD:main; then
-                  pushed=1
-                  break
-                fi
-                echo "Push raced with another updater; retrying ($attempt/5)..."
-                sleep 3
-              done
-              if [ "$pushed" -ne 1 ]; then
-                echo "Could not push $key checkpoint after 5 attempts."
-                exit 1
+          while true; do
+            pass=$((pass + 1))
+            echo "=== AkkNovel round-robin pass $pass ==="
+            pass_progress=0
+            pass_failures=0
+
+            for key in "\${series[@]}"; do
+              elapsed=$(( $(date +%s) - start_time ))
+              if [ "$elapsed" -ge "$runtime_budget" ]; then
+                echo "Safe runtime budget reached after \${elapsed}s."
+                gh workflow run pages.yml --ref main || echo "A later Pages run can publish saved checkpoints."
+                queue_continuation
+                exit 0
               fi
 
-              echo "Queueing NovelHaven deployment after $key checkpoint $checkpoint..."
-              gh workflow run pages.yml --ref main || {
-                echo "$key checkpoint was saved; workflow completion will still request publication."
-              }
+              echo "=== AkkNovel import: $key ==="
+              if ! python scripts/import_akknovel.py "$key"; then
+                echo "WARNING: $key failed this pass; continuing with the remaining titles."
+                pass_failures=$((pass_failures + 1))
+                continue
+              fi
+
+              node scripts/check.mjs
+
+              git add -A -- \
+                "dist/data/akk-$key-chapters-"*.js \
+                "dist/assets/akk-$key-cover.jpg" \
+                "dist/licensed-akk-$key.js" \
+                dist/index.html 2>/dev/null || true
+
+              if git diff --cached --quiet; then
+                echo "$key is caught up for this source snapshot."
+                continue
+              fi
+
+              pass_progress=1
+              git commit -m "Auto-update AkkNovel $key (pass $pass)"
+              push_with_rebase || exit 1
+              echo "$key checkpoint saved."
             done
-          done
 
-          echo "All current AkkNovel titles completed this pass. Selecting the next automatic batch of 15 popular titles..."
-          python scripts/discover_auto_novels.py akknovel --limit 15
+            if [ "$pass_progress" -eq 0 ]; then
+              if [ "$pass_failures" -gt 0 ]; then
+                echo "$pass_failures title(s) could not be checked. No new batch will be selected until all current titles can be checked."
+                exit 0
+              fi
 
-          git add scripts/auto_akknovel.json
-          if git diff --cached --quiet; then
-            echo "No new AkkNovel titles were available from the discovery pool."
-            exit 0
-          fi
+              before_count="\${#series[@]}"
+              echo "All current AkkNovel titles are caught up."
+              echo "Discovering the next 15-title candidate batch..."
+              python scripts/discover_auto_novels.py akknovel --limit 15 --promote
 
-          git commit -m "Queue next automatic AkkNovel batch of 15"
-          pushed=0
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if ! git rebase origin/main; then
-              git rebase --abort || true
-              sleep 3
-              continue
+              mapfile -t next_series < <(python scripts/import_akknovel.py --keys)
+              after_count="\${#next_series[@]}"
+
+              git add scripts/candidates_akknovel.json scripts/auto_akknovel.json
+              if ! git diff --cached --quiet; then
+                if [ "$after_count" -gt "$before_count" ]; then
+                  git commit -m "Queue next automatic AkkNovel batch of 15"
+                else
+                  git commit -m "Refresh pending AkkNovel candidate batch"
+                fi
+                push_with_rebase || exit 1
+              fi
+
+              if [ "$after_count" -gt "$before_count" ]; then
+                echo "A new authorized 15-title AkkNovel batch was promoted."
+                queue_continuation
+              else
+                echo "No new titles were promoted. Candidate selection is saved and the authorization gate remains in effect."
+              fi
+              exit 0
             fi
-            if git push origin HEAD:main; then
-              pushed=1
-              break
-            fi
-            sleep 3
-          done
-          if [ "$pushed" -ne 1 ]; then
-            echo "Could not push the next automatic AkkNovel batch."
-            exit 1
-          fi
 
-          echo "Queueing an immediate continuation run for the new AkkNovel batch..."
-          gh workflow run import-akknovel.yml --ref main || echo "The normal six-hour schedule will continue the new batch."
+            echo "Round $pass saved new checkpoints. Queueing one Pages deployment..."
+            gh workflow run pages.yml --ref main || echo "A later Pages run can publish saved checkpoints."
+          done
 
       - name: Record updater result
         if: always()
         env:
-          RESULT: ${{ job.status }}
+          RESULT: \${{ job.status }}
         run: |
           echo "AkkNovel updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "Each series is saved independently. When the current queue is caught up, the workflow automatically selects the next 15 popular AkkNovel titles and continues without manual links." >> "$GITHUB_STEP_SUMMARY"
+          echo "Titles advance in 100-chapter checkpoints. After the current queue is fully caught up, NovelNest discovers a 15-title candidate batch. Promotion only occurs when source-wide authorization is enabled." >> "$GITHUB_STEP_SUMMARY"
