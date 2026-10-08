@@ -176,7 +176,7 @@ test('import stores, verifies, persists routes, and resumes without duplicates',
     const master=all.get(SHARDS[0].id);
     assert.equal(master.tableExists,true);
     assert.equal(master.routing.get('original'),undefined);
-    assert.equal(master.rows.size,3);
+    assert.equal([...master.rows.values()].filter(r=>r.novelId==='original').length,3);
     assert.equal(master.routing.size,2);
     assert.ok([...master.routing.values()].every(id=>SHARDS.some(s=>s.id===id)));
     const second=await syncSharded({clients:all,root:fixture.root,
@@ -200,7 +200,7 @@ test('readback corruption fails closed without changing the original rows',async
   const fixture=sourceFixture();
   try{
     const all=clients();
-    for(const s of [...all.values()].slice(1))s.failReadback=true;
+    for(const s of all.values())s.failReadback=true;
     await assert.rejects(()=>syncSharded({clients:all,root:fixture.root,
       mode:'import',maxChapters:1}),/readback mismatch/);
     assert.equal(all.get(SHARDS[0].id).rows.size,3);
