@@ -77,7 +77,7 @@
   function chapterLink(n, c, index, progress) {
     const state = window.NovelNestReading?.status(n.id, index + 1) || 'unread';
     const label = {unread: 'Unread', 'in-progress': 'In progress', finished: 'Finished'}[state];
-    return `<a href="${readerHref(n.id, index + 1)}"><span class="chapter-entry-number">${String(index + 1).padStart(2, '0')}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
+    return `<a href="${readerHref(n.id, index + 1)}"><span class="chapter-entry-number">${window.NovelNestChapterLabels?.number(c, index + 1) || index + 1}</span><span class="chapter-entry-text"><span class="chapter-entry-title">${esc(window.NovelNestChapterLabels?.title(c.title) || c.title)}</span><span class="chapter-entry-meta"><span class="chapter-state" data-state="${state}">${label}</span>${progress?.chapter === index ? '<small>Last opened</small>' : ''}</span></span></a>`;
   }
 
   function renderTocPage(n, tocSection, requestedPage) {
@@ -155,7 +155,7 @@
   }
 
   function chapterOptions(n, current) {
-    return n.chapters.map((c, i) => `<option value="${i + 1}" ${i + 1 === current ? 'selected' : ''}>Ch.${i + 1} ${esc(c.title || '')}</option>`).join('');
+    return n.chapters.map((c, i) => `<option value="${i + 1}" ${i + 1 === current ? 'selected' : ''}>${esc(window.NovelNestChapterLabels?.title(c.title) || c.title || '')}</option>`).join('');
   }
 
   function settingsPanel(p) {
@@ -202,6 +202,7 @@
   }
 
   function fixReader(n) {
+    if (!n) return;
     const pathname=(location.pathname||'').replace(/\/+$/, '');
     const cleanReader=pathname.startsWith('/novel/'+encodeURIComponent(n.id)+'/chapter-') && /\/chapter-\d+$/.test(pathname);
     if (!n || !(location.hash.startsWith(`#/read/${n.id}/`) || pathname === `/read/${encodeURIComponent(n.id)}` || cleanReader)) return;

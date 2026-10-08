@@ -17,6 +17,7 @@ on:
       - "Import licensed Supreme Magus"
       - "Import licensed The Innkeeper"
       - "Import licensed AkkNovel series"
+      - "Import authorized FreeWebNovel batch"
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -46,8 +47,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s scripts -p "test_publication_guard.py"
       - run: node --test scripts/*.test.mjs
       - run: node scripts/build.mjs
+      - run: node scripts/check-built.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,55 @@
+name: Synchronize updater queues
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-*.yml'
+      - '.github/workflows/sync-updaters.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: synchronize-novel-updaters
+  cancel-in-progress: false
+jobs:
+  synchronize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart obsolete updater jobs on the current configuration
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const current = (await github.rest.actions.getWorkflowRun({...repo, run_id: context.runId})).data;
+            const paths = new Set([
+              '.github/workflows/import-akknovel.yml', '.github/workflows/import-freewebnovel-batch.yml',
+              '.github/workflows/import-gallery.yml', '.github/workflows/import-astral.yml',
+              '.github/workflows/import-cultivation.yml', '.github/workflows/import-investing.yml',
+              '.github/workflows/import-ongoing.yml', '.github/workflows/import-supreme-magus.yml',
+              '.github/workflows/import-innkeeper.yml'
+            ]);
+            const obsolete = [];
+            for (const status of ['in_progress','queued','pending']) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {...repo,status,per_page:100});
+              for (const run of runs) {
+                if (paths.has(run.path) && run.head_branch === 'main' && run.head_sha !== context.sha && run.created_at < current.created_at) obsolete.push(run);
+              }
+            }
+            const unique = [...new Map(obsolete.map(run => [run.id,run])).values()];
+            for (const run of unique) {
+              core.info(`Stopping obsolete ${run.name} #${run.run_number}; committed chapter checkpoints remain saved.`);
+              try { await github.rest.actions.cancelWorkflowRun({...repo,run_id:run.id}); }
+              catch (error) { if(error.status !== 409) throw error; }
+            }
+            // Wait until old processes have released their working copies before restarting.
+            for(let attempt=0;attempt<24;attempt++) {
+              const states=await Promise.all(unique.map(run=>github.rest.actions.getWorkflowRun({...repo,run_id:run.id})));
+              if(states.every(r=>r.data.status==='completed')) break;
+              if(attempt===23) throw new Error('Old updater still stopping; rerun synchronization before restarting it.');
+              await new Promise(resolve=>setTimeout(resolve,5000));
+            }
+            for(const id of new Set(unique.map(run=>run.workflow_id))) {
+              await github.rest.actions.createWorkflowDispatch({...repo,workflow_id:id,ref:'main'});
+            }
+            await core.summary.addHeading('Updater queues synchronized').addRaw(`${unique.length} obsolete jobs stopped. Saved chapter checkpoints were preserved; their workflows resume from current main.`).write();

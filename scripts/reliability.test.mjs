@@ -22,10 +22,10 @@ function harness(hash = '#/') {
   const run = text => vm.runInContext(text, context);
   const load = name => run(fs.readFileSync(`dist/${name}`, 'utf8'));
   const licensed = fs.readdirSync('dist').filter(name => /^licensed-(?!ui\.js$).+\.js$/.test(name)).sort();
-  for (const file of ['catalog.js', ...licensed, 'app.js', 'lazy-chapters.js']) load(file);
+  for (const file of ['chapter-labels.js', 'catalog.js', ...licensed, 'app.js', 'lazy-chapters.js']) load(file);
   const flush = () => { let count = 0; while (timers.length) { assert(++count < 100, 'Unexpected render loop'); timers.shift()(); } };
   const go = next => { context.location.hash = next; window.dispatchEvent(new Event('hashchange')); flush(); };
-  const complete = script => { const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === script.src)?.[0] || script.src; load(original); script.onload(); flush(); };
+  const complete = script => { const src = script.src.replace(/^\//, ''); const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === src)?.[0] || src; load(original); script.onload(); flush(); };
   flush();
   return { context, window, scripts, run, flush, go, complete, node, storage, events };
 }
@@ -90,7 +90,7 @@ test('failed chapter loads have a working retry and use the asset manifest', () 
   const versioned = `${config.prefix}${chunk}.fingerprint.js`;
   h.window.NOVELNEST_ASSETS = { [original]: versioned };
   h.go('#/read/got-a-gallery-in-the-wild/170');
-  assert.equal(h.scripts[0].src, versioned);
+  assert.equal(h.scripts[0].src, '/' + versioned);
   h.scripts[0].onerror();
   assert.match(h.node('.prose').innerHTML, /Try again/);
   h.events.get('document:click')({ target: { closest: () => true } });
@@ -243,7 +243,7 @@ test('AdSense preparation pages and original Reading Desk are reachable', () => 
 test('footer exposes crawlable trust and policy navigation', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
   for (const file of ['reading-desk.html','about.html','privacy.html','privacy-choices.html','terms.html','contact.html','copyright.html','editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
-    assert(index.includes('href="' + file + '"'));
+    assert(index.includes('href="/' + file + '"'));
     assert(fs.existsSync('dist/' + file));
   }
 });

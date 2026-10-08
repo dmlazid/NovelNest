@@ -13,7 +13,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: novel-chapter-import
+  # Stable per-source queue: do not version this name.
+  group: novelnest-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -24,6 +25,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-node@v4

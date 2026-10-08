@@ -13,7 +13,7 @@
     if (!novel?.lazyChunks || number < 1 || number > novel.chapters.length) return null;
     const index = number - 1;
     const chunk = Math.floor(index / novel.lazyChunks.capacity) + 1;
-    return { novel, index, number, chunk, key: `${novel.id}:${chunk}` };
+    return { novel, index, number, chunk, key: `${novel.id}:${window.NOVELNEST_STATIC_READERS ? number : chunk}` };
   }
 
   function findLoaded(novel, number) {
@@ -46,9 +46,30 @@
     document.querySelector('.prose')?.setAttribute('aria-busy', 'true');
     if (pending.has(key)) return;
     pending.add(key);
+    if (window.NOVELNEST_STATIC_READERS) {
+      // The published HTML is both the readable page and the source of chapter
+      // text. It avoids shipping a second 500 MB copy of the same chapters.
+      fetch(`/novel/${encodeURIComponent(novel.id)}/chapter-${number}/`)
+        .then(response => {
+          if (!response.ok) throw new Error(`Chapter HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(html => {
+          const page = new DOMParser().parseFromString(html, 'text/html');
+          const prose = page.querySelector('[data-static-chapter]');
+          if (prose?.dataset.staticChapter !== novel.id || Number(prose.dataset.chapterNumber) !== number) throw new Error('Wrong chapter');
+          const paragraphs = [...prose.querySelectorAll('p')].map(p => p.textContent);
+          if (!paragraphs.length || paragraphs.some(p => !p.trim())) throw new Error('Empty chapter');
+          novel.chapters[index] = { ...chapter, paragraphs, number, lazy: false };
+          if (currentTarget()?.key === key) window.NovelNestApp.refresh();
+        })
+        .catch(() => { failed.add(key); showError(key); })
+        .finally(() => pending.delete(key));
+      return;
+    }
     const file = `${novel.lazyChunks.prefix}${String(chunk).padStart(2, '0')}.js`;
     const script = document.createElement('script');
-    script.src = window.NOVELNEST_ASSETS?.[file] || file;
+    script.src = '/' + (window.NOVELNEST_ASSETS?.[file] || file).replace(/^\/+/, '');
     script.dataset.lazyChapterChunk = key;
     script.onload = () => {
       pending.delete(key);

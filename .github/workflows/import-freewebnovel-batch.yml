@@ -17,7 +17,8 @@ permissions:
   actions: write
 
 concurrency:
-  group: freewebnovel-batch-v1
+  # Stable per-source queue: do not version this name.
+  group: novelnest-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -32,6 +33,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -50,7 +52,7 @@ jobs:
         run: python -m unittest discover -s scripts -p "test_publication_guard.py"
       - name: Import FreeWebNovel queue and prepare the next 15-title batch
         run: |
-          set -u
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
