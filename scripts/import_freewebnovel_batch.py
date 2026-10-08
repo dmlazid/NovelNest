@@ -803,6 +803,9 @@ def main() -> None:
     if len(sys.argv) == 2 and sys.argv[1] == "--keys":
         print("\n".join(SERIES))
         return
+    if len(sys.argv) == 2 and sys.argv[1] == "--keys":
+        print("\n".join(SERIES))
+        return
     if len(sys.argv) != 2 or sys.argv[1] not in SERIES:
         raise SystemExit("Usage: python scripts/import_freewebnovel_batch.py <series-key>|--keys")
     import_series(sys.argv[1])
