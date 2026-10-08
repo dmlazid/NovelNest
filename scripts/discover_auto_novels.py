@@ -7,7 +7,7 @@ import re
 import time
 import unicodedata
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,8 +15,10 @@ from bs4 import BeautifulSoup
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 SCRIPTS = ROOT / "scripts"
+POLICY_PATH = SCRIPTS / "auto_import_policy.json"
+
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; NovelNestAuthorizedDiscovery/1.0; +https://novelhaven.top)",
+    "User-Agent": "Mozilla/5.0 (compatible; NovelNestDiscovery/2.0; +https://novelhaven.top)",
     "Accept-Language": "en-US,en;q=0.9",
 }
 SESSION = requests.Session()
@@ -24,7 +26,21 @@ SESSION.headers.update(HEADERS)
 
 
 def clean_text(value: str) -> str:
-    return " ".join(unicodedata.normalize("NFKC", value or "").split()).strip()
+    value = unicodedata.normalize("NFKC", value or "")
+    return " ".join(value.split()).strip()
+
+
+def repair_mojibake(value: str) -> str:
+    value = clean_text(value)
+    if not value or not any(marker in value for marker in ("â", "Ã", "ð", "Â")):
+        return value
+    try:
+        repaired = value.encode("latin-1").decode("utf-8")
+        if repaired:
+            return clean_text(repaired)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    return value
 
 
 def slug_key(value: str) -> str:
@@ -39,10 +55,15 @@ def get(url: str) -> str:
         try:
             response = SESSION.get(url, timeout=30)
             if response.status_code == 429:
-                time.sleep(min(60, 8 + attempt * 8))
+                delay = min(60, 8 + attempt * 8)
+                print(f"Rate limited: {url}; retrying in {delay}s", flush=True)
+                time.sleep(delay)
                 continue
             response.raise_for_status()
-            return response.text
+            try:
+                return response.content.decode("utf-8")
+            except UnicodeDecodeError:
+                return response.text
         except Exception as exc:
             last = exc
             if attempt < 5:
@@ -50,11 +71,31 @@ def get(url: str) -> str:
     raise RuntimeError(f"Failed to fetch {url}: {last}")
 
 
-def load_registry(path: Path) -> dict:
+def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
     return data if isinstance(data, dict) else {}
+
+
+def save_json(path: Path, data: dict) -> None:
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def policy_for(source: str) -> tuple[int, bool]:
+    policy = load_json(POLICY_PATH)
+    batch_size = int(policy.get("batch_size", 15) or 15)
+    source_policy = policy.get("sources", {}).get(source, {})
+    allowed = source_policy.get("sourcewide_authorized") is True
+    return max(1, batch_size), allowed
+
+
+def registry_path(source: str) -> Path:
+    return SCRIPTS / f"auto_{source}.json"
+
+
+def candidate_path(source: str) -> Path:
+    return SCRIPTS / f"candidates_{source}.json"
 
 
 def existing_source_slugs(source: str) -> set[str]:
@@ -63,6 +104,7 @@ def existing_source_slugs(source: str) -> set[str]:
         pattern = re.compile(r'https://freewebnovel\.com/novel/([^"?#/]+)', re.I)
     else:
         pattern = re.compile(r'https://(?:www\.)?akknovel\.com/series/([^"?#/]+)', re.I)
+
     for path in DIST.glob("licensed-*.js"):
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
@@ -76,20 +118,24 @@ def existing_source_slugs(source: str) -> set[str]:
 def page_title(soup: BeautifulSoup, fallback: str) -> str:
     h1 = soup.find("h1")
     if h1:
-        value = clean_text(h1.get_text(" ", strip=True))
+        value = repair_mojibake(h1.get_text(" ", strip=True))
         if value:
             return value
     og = soup.find("meta", attrs={"property": "og:title"})
     if og and og.get("content"):
-        return clean_text(og["content"]).split(" - ")[0].strip()
+        return repair_mojibake(og["content"]).split(" - ")[0].strip()
     return fallback.replace("-", " ").title()
 
 
 def author_from_page(soup: BeautifulSoup) -> str:
-    text = " ".join(clean_text(v) for v in soup.stripped_strings if clean_text(v))
-    match = re.search(r"\bAuthor\s*:\s*(.+?)(?=\s+(?:Genre|Status|View|Last chapter|Bookmark|Read|Description|SUMMARY|Summary|Chapters?)\b|$)", text, flags=re.I)
+    text = " ".join(repair_mojibake(v) for v in soup.stripped_strings if clean_text(v))
+    match = re.search(
+        r"\bAuthor\s*:\s*(.+?)(?=\s+(?:Genre|Status|View|Last chapter|Bookmark|Read|Description|SUMMARY|Summary|Chapters?)\b|$)",
+        text,
+        flags=re.I,
+    )
     if match:
-        author = clean_text(match.group(1))
+        author = repair_mojibake(match.group(1))
         if author and len(author) <= 160:
             return author
     return "Unknown"
@@ -99,17 +145,23 @@ def synopsis_from_page(soup: BeautifulSoup, title: str) -> str:
     for selector in ("meta[name='description']", "meta[property='og:description']"):
         node = soup.select_one(selector)
         if node and node.get("content"):
-            value = clean_text(node["content"])
+            value = repair_mojibake(node["content"])
             if len(value) >= 80:
                 return value[:2500]
-    text = " ".join(clean_text(v) for v in soup.stripped_strings if clean_text(v))
+
+    text = " ".join(repair_mojibake(v) for v in soup.stripped_strings if clean_text(v))
     for marker in ("Description", "SUMMARY", "Summary"):
         pos = text.find(marker)
         if pos >= 0:
             value = clean_text(text[pos + len(marker):])
+            for stop in (" More Series ", " All ", " Chapters Ch.", " Latest chapters "):
+                stop_pos = value.find(stop)
+                if stop_pos > 80:
+                    value = value[:stop_pos]
             if len(value) >= 80:
                 return value[:2500]
-    return f"{title} is an authorized title selected automatically for NovelNest."
+
+    return f"{title} was discovered automatically from the source catalog."
 
 
 def classify(text: str) -> tuple[str, list[str]]:
@@ -125,30 +177,82 @@ def classify(text: str) -> tuple[str, list[str]]:
     ]
     tags = []
     for label, needles in rules:
-        if any(n in lower for n in needles):
+        if any(needle in lower for needle in needles):
             tags.append(label)
     if not tags:
         tags = ["Fantasy"]
     return tags[0], tags[:6]
 
 
+def novel_slugs_from_page(raw: str, source: str, base_url: str) -> list[str]:
+    soup = BeautifulSoup(raw, "html.parser")
+    found: list[str] = []
+    seen: set[str] = set()
+    if source == "freewebnovel":
+        pattern = re.compile(r"https://freewebnovel\.com/novel/([^/?#]+)/*$", re.I)
+    else:
+        pattern = re.compile(r"https://(?:www\.)?akknovel\.com/series/([^/?#]+)/*$", re.I)
+
+    for anchor in soup.find_all("a", href=True):
+        absolute = urljoin(base_url, anchor["href"])
+        match = pattern.match(absolute)
+        if not match:
+            continue
+        slug = match.group(1).strip("/")
+        if slug and slug not in seen:
+            seen.add(slug)
+            found.append(slug)
+    return found
+
+
 def discover_fwn_candidates() -> list[str]:
-    urls = ["https://freewebnovel.com/sort/most-popular"] + [
-        f"https://freewebnovel.com/sort/most-popular/{page}" for page in range(2, 11)
-    ]
-    found = []
-    seen = set()
+    urls = ["https://freewebnovel.com/sort/most-popular"]
+    urls.extend(f"https://freewebnovel.com/sort/most-popular/{page}" for page in range(2, 11))
+    found: list[str] = []
+    seen: set[str] = set()
     for url in urls:
-        soup = BeautifulSoup(get(url), "html.parser")
-        for a in soup.find_all("a", href=True):
-            absolute = urljoin(url, a["href"])
-            match = re.match(r"https://freewebnovel\.com/novel/([^/?#]+)/*$", absolute, flags=re.I)
-            if not match:
-                continue
-            slug = match.group(1)
+        try:
+            slugs = novel_slugs_from_page(get(url), "freewebnovel", url)
+        except Exception as exc:
+            print(f"Could not read FreeWebNovel popularity page {url}: {exc}", flush=True)
+            continue
+        for slug in slugs:
             if slug not in seen:
                 seen.add(slug)
                 found.append(slug)
+    return found
+
+
+def discover_akk_candidates() -> list[str]:
+    urls = []
+    for page in range(1, 11):
+        suffix = "" if page == 1 else f"&page={page}"
+        urls.append(
+            "https://www.akknovel.com/series?order=desc&sort=popularity&status=all" + suffix
+        )
+
+    found: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        try:
+            slugs = novel_slugs_from_page(get(url), "akknovel", url)
+        except Exception as exc:
+            print(f"Could not read AkkNovel popularity page {url}: {exc}", flush=True)
+            continue
+        for slug in slugs:
+            if slug not in seen:
+                seen.add(slug)
+                found.append(slug)
+
+    # Fallback/extension: AkkNovel's home page exposes new, completed, and recently updated series.
+    try:
+        for slug in novel_slugs_from_page(get("https://www.akknovel.com/"), "akknovel", "https://www.akknovel.com/"):
+            if slug not in seen:
+                seen.add(slug)
+                found.append(slug)
+    except Exception as exc:
+        print(f"Could not read AkkNovel home page fallback: {exc}", flush=True)
+
     return found
 
 
@@ -156,14 +260,15 @@ def cfg_fwn(slug: str) -> dict:
     url = f"https://freewebnovel.com/novel/{slug}"
     soup = BeautifulSoup(get(url), "html.parser")
     title = page_title(soup, slug)
+    synopsis = synopsis_from_page(soup, title)
     tags = []
-    for a in soup.find_all("a", href=True):
-        href = a.get("href", "")
+    for anchor in soup.find_all("a", href=True):
+        href = anchor.get("href", "")
         if "/genre/" in href or "/genres/" in href:
-            value = clean_text(a.get_text(" ", strip=True))
+            value = repair_mojibake(anchor.get_text(" ", strip=True))
             if value and value not in tags:
                 tags.append(value)
-    genre, guessed = classify(" ".join([title, synopsis_from_page(soup, title), *tags]))
+    genre, guessed = classify(" ".join([title, synopsis, *tags]))
     if not tags:
         tags = guessed
     return {
@@ -174,27 +279,6 @@ def cfg_fwn(slug: str) -> dict:
         "genre": tags[0] if tags else genre,
         "tags": tags[:8] or guessed,
     }
-
-
-def discover_akk_candidates() -> list[str]:
-    urls = []
-    for page in range(1, 11):
-        suffix = "" if page == 1 else f"&page={page}"
-        urls.append("https://www.akknovel.com/series?order=desc&sort=popularity&status=all" + suffix)
-    found = []
-    seen = set()
-    for url in urls:
-        soup = BeautifulSoup(get(url), "html.parser")
-        for a in soup.find_all("a", href=True):
-            absolute = urljoin(url, a["href"])
-            match = re.match(r"https://(?:www\.)?akknovel\.com/series/([^/?#]+)/*$", absolute, flags=re.I)
-            if not match:
-                continue
-            slug = match.group(1)
-            if slug not in seen:
-                seen.add(slug)
-                found.append(slug)
-    return found
 
 
 def cfg_akk(slug: str) -> dict:
@@ -214,25 +298,42 @@ def cfg_akk(slug: str) -> dict:
     }
 
 
-def discover(source: str, limit: int) -> int:
+def prune_candidates(source: str, candidates: dict, auto_registry: dict) -> dict:
+    existing = existing_source_slugs(source)
+    existing.update(cfg.get("slug", "") for cfg in auto_registry.values())
+    return {
+        key: cfg
+        for key, cfg in candidates.items()
+        if cfg.get("slug") and cfg.get("slug") not in existing
+    }
+
+
+def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int]:
+    configured_batch_size, sourcewide_authorized = policy_for(source)
+    limit = configured_batch_size if requested_limit <= 0 else requested_limit
+
+    registry_file = registry_path(source)
+    candidates_file = candidate_path(source)
+    auto_registry = load_json(registry_file)
+    candidates = prune_candidates(source, load_json(candidates_file), auto_registry)
+
     if source == "freewebnovel":
-        path = SCRIPTS / "auto_freewebnovel.json"
-        candidates = discover_fwn_candidates()
+        discovered = discover_fwn_candidates()
         make_cfg = cfg_fwn
     else:
-        path = SCRIPTS / "auto_akknovel.json"
-        candidates = discover_akk_candidates()
+        discovered = discover_akk_candidates()
         make_cfg = cfg_akk
 
-    registry = load_registry(path)
-    existing = existing_source_slugs(source)
-    existing.update(cfg.get("slug", "") for cfg in registry.values())
+    blocked = existing_source_slugs(source)
+    blocked.update(cfg.get("slug", "") for cfg in auto_registry.values())
+    blocked.update(cfg.get("slug", "") for cfg in candidates.values())
 
     added = 0
-    for slug in candidates:
-        if added >= limit:
+    remaining_slots = max(0, limit - len(candidates))
+    for rank, slug in enumerate(discovered, start=1):
+        if added >= remaining_slots:
             break
-        if slug in existing:
+        if slug in blocked:
             continue
         try:
             cfg = make_cfg(slug)
@@ -240,25 +341,72 @@ def discover(source: str, limit: int) -> int:
             print(f"Skipping {slug}: {exc}", flush=True)
             continue
         key = slug_key(slug)
-        while key in registry:
+        while key in candidates or key in auto_registry:
             key += "-auto"
-        registry[key] = cfg
-        existing.add(slug)
+        cfg["discoveryRank"] = rank
+        cfg["discoveredFrom"] = "Most Popular" if source == "freewebnovel" else "Popularity/active catalog"
+        candidates[key] = cfg
+        blocked.add(slug)
         added += 1
-        print(f"Selected {source}: {cfg['title']} ({slug})", flush=True)
-        time.sleep(0.4)
+        print(f"Selected candidate {source}: {cfg['title']} ({slug})", flush=True)
+        time.sleep(0.35)
 
-    path.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Added {added} new {source} title(s) to {path.relative_to(ROOT)}.", flush=True)
-    return added
+    save_json(candidates_file, candidates)
+    print(
+        f"{source}: candidate queue has {len(candidates)}/{limit}; added {added} this run.",
+        flush=True,
+    )
+
+    promoted = 0
+    if not promote:
+        return added, promoted
+
+    if not sourcewide_authorized:
+        print(
+            f"{source}: automatic publication is paused because sourcewide_authorized is false in "
+            f"{POLICY_PATH.relative_to(ROOT)}. Candidates were saved but not imported.",
+            flush=True,
+        )
+        return added, promoted
+
+    if len(candidates) < limit:
+        print(
+            f"{source}: waiting for a full {limit}-title candidate batch before promotion.",
+            flush=True,
+        )
+        return added, promoted
+
+    for key in list(candidates.keys())[:limit]:
+        auto_registry[key] = candidates.pop(key)
+        promoted += 1
+
+    save_json(registry_file, auto_registry)
+    save_json(candidates_file, candidates)
+    print(
+        f"{source}: promoted a full automatic batch of {promoted} titles for import.",
+        flush=True,
+    )
+    return added, promoted
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Discover the next NovelNest automatic batch without requiring manual novel links."
+    )
     parser.add_argument("source", choices=["freewebnovel", "akknovel"])
-    parser.add_argument("--limit", type=int, default=15)
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Candidate batch size. 0 uses scripts/auto_import_policy.json (default 15).",
+    )
+    parser.add_argument(
+        "--promote",
+        action="store_true",
+        help="Promote a full candidate batch only when source-wide authorization is enabled.",
+    )
     args = parser.parse_args()
-    discover(args.source, max(1, args.limit))
+    discover(args.source, args.limit, args.promote)
 
 
 if __name__ == "__main__":
