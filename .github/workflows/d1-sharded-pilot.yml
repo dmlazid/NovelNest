@@ -1,0 +1,71 @@
+name: Test or import five-D1 chapter pilot
+
+# Never auto-write when files are pushed. A user explicitly chooses import.
+# Lives alongside the existing one-database background copy until verified.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/d1-sharded-pilot.yml"
+      - "scripts/sync-d1-sharded.mjs"
+      - "scripts/sync-d1-sharded.test.mjs"
+      - "cloudflare/d1/shards.mjs"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Read-only plan (default), or a small verified chapter import"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - import
+      max_chapters:
+        description: "Total chapters to consider (1-25 recommended for first import)"
+        type: number
+        default: 5
+        required: true
+
+permissions:
+  contents: read
+
+# Prevent writing at the same time as the old single database importer.
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+
+jobs:
+  sharded-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check out the existing published novels
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify five-D1 import and source safety
+        run: |
+          set -euo pipefail
+          node --test scripts/sync-d1-sharded.test.mjs scripts/sync-d1-chapters.test.mjs scripts/audit-d1-routing.test.mjs
+      - name: Run read-only plan or explicitly approved pilot
+        env:
+          RUN_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'plan' }}
+          CHAPTER_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.max_chapters || '5' }}
+          D1_SHARDED_WRITE_APPROVED: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'import' && 'IMPORT_VERIFIED_SHARDED_PILOT' || '' }}
+          D1_SHARDED_REPORT: ${{ runner.temp }}/novelhaven-d1-five-shard-pilot.json
+        run: |
+          set -euo pipefail
+          node scripts/sync-d1-sharded.mjs --mode "$RUN_MODE" --max-chapters "$CHAPTER_LIMIT"
+      - name: Save metadata-only report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelhaven-five-d1-pilot-report
+          path: ${{ runner.temp }}/novelhaven-d1-five-shard-pilot.json
+          if-no-files-found: ignore
+          retention-days: 7
