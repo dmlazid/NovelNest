@@ -656,6 +656,26 @@ def import_series(key: str):
         print(f"{cfg['title']}: complete at {len(existing)} chapters.", flush=True)
 
 
+
+def load_approved_auto_series():
+    """Include promoted automatic titles without changing the manual queue."""
+    registry = Path(__file__).with_name("auto_akknovel.json")
+    if not registry.exists():
+        return
+    entries = json.loads(registry.read_text(encoding="utf-8"))
+    if not isinstance(entries, dict):
+        raise ValueError(f"Invalid automatic novel registry: {registry}")
+    for key, cfg in entries.items():
+        if not isinstance(cfg, dict) or not all(cfg.get(field) for field in ("id", "slug", "title", "author", "genre", "tags", "synopsis")):
+            raise ValueError(f"Invalid automatic novel entry: {key}")
+        if key in SERIES and SERIES[key]["slug"] != cfg["slug"]:
+            raise ValueError(f"Automatic novel key collides with existing title: {key}")
+        SERIES.setdefault(key, cfg)
+
+
+load_approved_auto_series()
+
+
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--keys":
         print("\n".join(SERIES))
