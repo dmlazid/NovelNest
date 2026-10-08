@@ -2,12 +2,12 @@
   "batch_size": 15,
   "sources": {
     "freewebnovel": {
-      "sourcewide_authorized": false,
-      "note": "Enable only when permission covers automatically discovered titles across the source."
+      "sourcewide_authorized": true,
+      "note": "Site owner confirmed all automatically discovered FreeWebNovel titles are permitted for publication; no per-title approval required."
     },
     "akknovel": {
-      "sourcewide_authorized": false,
-      "note": "Enable only when permission covers automatically discovered titles across the source."
+      "sourcewide_authorized": true,
+      "note": "Site owner confirmed all automatically discovered AkkNovel titles are permitted for publication; no per-title approval required."
     }
   }
 }
