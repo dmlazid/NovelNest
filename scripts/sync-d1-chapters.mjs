@@ -136,6 +136,31 @@ export class D1Client {
   }
 }
 
+/**
+ * Read actual stored totals, not estimates from attempted insert statements.
+ * Count query is read-only and has no impact on website or AdSense settings.
+ */
+export async function finishReport(client, report, log = () => {}) {
+  const rows = (await client.query(
+    'SELECT COUNT(*) AS total, COUNT(DISTINCT novel_id) AS novels FROM chapters'
+  )).results;
+  assert(Array.isArray(rows) && rows.length === 1,
+    'D1 totals response missing; verify remote chapter count');
+  const total = Number(rows[0].total);
+  const novels = Number(rows[0].novels);
+  assert(Number.isSafeInteger(total) && total >= 0 &&
+    Number.isSafeInteger(novels) && novels >= 0 && novels <= total,
+    'D1 totals are invalid; verify remote chapter count');
+  report.total_chapters_in_d1 = total;
+  report.novels_in_d1 = novels;
+  report.database_bytes_after = await client.size();
+  report.safe_capacity_used_percent = Number(
+    (100 * report.database_bytes_after / SOFT_LIMIT_BYTES).toFixed(2)
+  );
+  log('Migration report: ' + JSON.stringify(report));
+  return report;
+}
+
 export async function syncPublishedChapters({
   client,
   root = 'dist',
@@ -168,12 +193,11 @@ export async function syncPublishedChapters({
     latest_novel: null,
   };
   if (!candidates.length) {
-    report.database_bytes_after = beforeSize;
-    return report;
+    return finishReport(client, report, log);
   }
   if (!checkCapacity(beforeSize)) {
     report.stop_reason = 'capacity_guard_reached';
-    return report;
+    return finishReport(client, report, log);
   }
   for (const novel of candidates) {
     if (report.considered_chapters >= maxChapters) break;
@@ -207,8 +231,7 @@ export async function syncPublishedChapters({
       const currentSize = await client.size();
       if (!checkCapacity(currentSize, bytes)) {
         report.stop_reason = 'capacity_guard_reached';
-        report.database_bytes_after = currentSize;
-        return report;
+        return finishReport(client, report, log);
       }
       const result = await client.query(SQL_WRITE, [
         novel.id, chapter.number, chapter.title, paragraphs,
@@ -222,9 +245,7 @@ export async function syncPublishedChapters({
   }
   report.stop_reason = report.considered_chapters >= maxChapters ?
     'per_run_limit_reached' : 'remaining_chapters_or_skips';
-  report.database_bytes_after = await client.size();
-  log('Migration report: ' + JSON.stringify(report));
-  return report;
+  return finishReport(client, report, log);
 }
 
 function argumentsFrom(argv) {
@@ -255,6 +276,9 @@ export async function main(argv = process.argv.slice(2)) {
       '- Novels still pending: ' + report.novels_with_pending_chapters + '\n' +
       '- Chapters considered this run: ' + report.considered_chapters + '\n' +
       '- Chapters inserted: ' + report.inserted_chapters + '\n' +
+      '- **Total chapters in Cloudflare D1: ' + report.total_chapters_in_d1 + '**\n' +
+      '- **Novels with chapters stored in D1: ' + report.novels_in_d1 + '**\n' +
+      '- Storage used against safe cutoff: ' + report.safe_capacity_used_percent + '%\n' +
       '- Reason for stopping: ' + report.stop_reason + '\n' +
       '- Database size after: ' + (report.database_bytes_after ?? report.database_bytes_before) + ' bytes\n' +
       '- Database soft cutoff: ' + SOFT_LIMIT_BYTES + ' bytes\n' +
