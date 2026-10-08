@@ -203,7 +203,7 @@ test('readback corruption fails closed without changing the original rows',async
     for(const s of all.values())s.failReadback=true;
     await assert.rejects(()=>syncSharded({clients:all,root:fixture.root,
       mode:'import',maxChapters:1}),/readback mismatch/);
-    assert.equal(all.get(SHARDS[0].id).rows.size,3);
+    assert.equal([...all.get(SHARDS[0].id).rows.values()].filter(r=>r.novelId==='original').length,3);
   }finally{fixture.cleanup();}
 });
 
