@@ -85,7 +85,17 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // Chapters retain real, crawlable text, metadata, navigation and policy links.
 // Share the interactive header once in the runtime instead of repeating it in
 // every file. A compact static reading layout remains usable if JS is disabled.
-const compactChapterFooter = afterMain.replace(/>\s+</g, '><').replace(/<\/a><a\b/g, '</a> <a').trim();
+// Retain every disclosure/policy link and brand. Omit only the decorative
+// repeated tagline on chapter pages; it remains on normal site pages.
+const compactChapterFooter = afterMain
+  .replace('<p>A little escape. One chapter at a time.</p>', '')
+  .replace(/>\s+</g, '><')
+  .replace(/<\/a><a\b/g, '</a> <a')
+  .replace('class="footer-brand-block"', 'class=footer-brand-block')
+  .replace('class="footer-links"', 'class=footer-links')
+  .replace('class="footer-copy"', 'class=footer-copy')
+  .replace('id="year"', 'id=year')
+  .trim();
 function chapterPage(title, url, markup) {
   return '<!doctype html><html lang=en><head><base href="/"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=theme-color content=#164f4a><title>' + escape(title) + ' — NovelNest</title><meta name=description content="Read ' + escape(title) + ' on NovelNest."><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=icon type=image/svg+xml href="' + faviconPath + '"><link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class=site-header data-static-header><nav class="topbar wrap"><a class="brand small" href="/">Novel<span>Nest</span>.</a><a href="/browse/">Browse novels</a></nav></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
@@ -154,8 +164,8 @@ for (const n of novels) {
       const raw = chunk.window[config.global][offset];
       const number = (part - 1) * config.capacity + offset + 1;
       const c = n.chapters[number - 1], url = root + 'chapter-' + number + '/';
-      const nav = '<nav class="chapter-nav" aria-label="Chapter navigation">' + (number > 1 ? '<a class="button outline" href="' + root + 'chapter-' + (number - 1) + '/">Previous chapter</a>' : '') + '<a class="button outline" href="' + root + '">Chapters</a>' + (number < n.chapters.length ? '<a class="button" href="' + root + 'chapter-' + (number + 1) + '/">Next chapter</a>' : '') + '</nav>';
-      const markup = '<article class="reader-wrap"><div class="reader-heading"><a href="' + root + '">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class="prose" data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + escape(p) + '</p>').join('') + '</div>' + nav + '</article>';
+      const nav = '<nav class=chapter-nav aria-label="Chapters">' + (number > 1 ? '<a class="button outline" href="' + root + 'chapter-' + (number - 1) + '/">Previous chapter</a>' : '') + '<a class="button outline" href="' + root + '">Chapters</a>' + (number < n.chapters.length ? '<a class="button" href="' + root + 'chapter-' + (number + 1) + '/">Next chapter</a>' : '') + '</nav>';
+      const markup = '<article class=reader-wrap><div class=reader-heading><a href="' + root + '">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class=prose data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + escape(p) + '</p>').join('') + '</div>' + nav + '</article>';
       write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup));
       chapterUrls.push('<url><loc>https://novelhaven.top' + escape(url) + '</loc></url>');
       chapterCount++;
