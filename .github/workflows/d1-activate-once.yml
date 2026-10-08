@@ -1,0 +1,104 @@
+name: Activate five-D1 chapter sync once
+
+# This file's creation starts one guarded five-chapter import, without
+# requiring the owner to press Run workflow. Subsequent reruns skip if the
+# durable routing table already contains an assignment.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/d1-activate-once.yml"
+
+permissions:
+  contents: read
+
+# Never overlap either the original scheduled importer or manual pilot.
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check import safety automatically
+        run: node --test scripts/sync-d1-sharded.test.mjs scripts/d1-auto-dispatch.test.mjs
+      - name: One-time five-chapter activation with readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import {createClients,syncSharded} from './scripts/sync-d1-sharded.mjs';
+          import {SHARDS} from './cloudflare/d1/shards.mjs';
+
+          const clients=createClients({
+            token:process.env.CLOUDFLARE_API_TOKEN,
+            accountId:process.env.CLOUDFLARE_ACCOUNT_ID,
+          });
+          const main=clients.get(SHARDS[0].id);
+          const tables=(await main.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='novel_shards'"
+          )).results;
+          assert(tables.length<=1,'Unexpected routing-table state');
+          const routeCount=tables.length
+            ? Number((await main.query('SELECT COUNT(*) AS total FROM novel_shards')).results[0].total)
+            : 0;
+          assert(Number.isSafeInteger(routeCount)&&routeCount>=0,
+            'Could not safely verify routing-table progress');
+          if(routeCount>0){
+            console.log('Five-shard sync already activated. Nothing to repeat.');
+            if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              '### Five-D1 sync already activated\nDurable routes exist. No pilot was repeated.\n');
+            process.exit(0);
+          }
+          // Guard against stray/mixed-shard rows without a durable map.
+          for(const shard of SHARDS.slice(1)){
+            const client=clients.get(shard.id);
+            const total=Number((await client.query(
+              'SELECT COUNT(*) AS total FROM chapters')).results[0].total);
+            assert(total===0,'Unexpected unindexed chapters on '+shard.name+
+              '; please review before enabling migration');
+            const bytes=await client.size();
+            assert(Number.isSafeInteger(bytes)&&bytes>=0&&bytes<380*1024*1024,
+              'D1 capacity verification failed for '+shard.name);
+          }
+          const result=await syncSharded({
+            clients,mode:'import',maxChapters:5,
+          });
+          assert(result.chapters_verified===5&&result.chapters_inserted===5,
+            'Five-chapter pilot did not fully verify; no further automatic action');
+          const count=Number((await main.query(
+            'SELECT COUNT(*) AS total FROM novel_shards'
+          )).results[0].total);
+          assert(Number.isSafeInteger(count)&&count>=1,
+            'Pilot did not create a durable novel-to-database assignment');
+          const newShardChapters=result.database_totals.slice(1)
+            .reduce((sum,shard)=>sum+shard.chapters,0);
+          assert(newShardChapters>=5,
+            'Pilot chapters not found on the additional D1 shards');
+          const message=[
+            '### NovelHaven five-D1 migration activated',
+            '',
+            '- Verified new chapters imported: **'+result.chapters_verified+'**',
+            '- Existing novel-to-shard routes saved: **'+count+'**',
+            '- Total chapters across all five databases: **'+result.total_chapters+'**',
+            '- No live reader, chapter URLs, Worker, or AdSense settings changed.',
+            '- Future scheduled imports automatically use the five-shard route.',
+            '',
+          ].join('\n');
+          if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,message);
+          console.log('Activation confirmed: '+JSON.stringify({
+            inserted:result.chapters_inserted,verified:result.chapters_verified,
+            route_count:count,total_chapters:result.total_chapters,
+          }));
+          NODE
