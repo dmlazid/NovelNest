@@ -17,6 +17,10 @@ NovelNest is a web-novel library and chapter reader hosted on GitHub Pages at **
 | [`updates/`](./updates/) | **Dated update folders and batch history** |
 | [`docs/`](./docs/) | Longer project documentation |
 
+## Adding a novel
+
+Upload the EPUB and, if available, its permitted original source link in the ChatGPT conversation. The new novel is checked before publication; **its published chapters are automatically picked up by the scheduled D1 sync**. See the [new-novel checklist](./docs/adding-novels.md) for the process, chapter updates, cover handling, and AdSense safeguards.
+
 ## Current status
 
 NovelHaven is actively importing and updating authorized novel batches. Large novels are imported in resumable checkpoints, so the repository may update many times while catch-up is running.
