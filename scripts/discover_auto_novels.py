@@ -376,6 +376,7 @@ def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int
         )
         return added, promoted
 
+    promoted_keys = []
     for key in list(candidates.keys())[:limit]:
         pending = candidates[key]
         slug = pending.get("slug", "")
@@ -388,6 +389,7 @@ def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int
         refreshed["discoveredFrom"] = pending.get("discoveredFrom")
         auto_registry[key] = refreshed
         candidates.pop(key)
+        promoted_keys.append(key)
         promoted += 1
 
     if promoted < limit:
@@ -396,11 +398,9 @@ def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int
             "waiting for a complete batch before starting automatic publication.",
             flush=True,
         )
-        # Roll the partial promotion back so batches always start together.
-        for key in list(auto_registry.keys()):
-            cfg = auto_registry[key]
-            if key not in candidates and cfg.get("discoveredFrom"):
-                candidates[key] = auto_registry.pop(key)
+        # Roll back only this attempted batch so older automatic registries stay intact.
+        for key in promoted_keys:
+            candidates[key] = auto_registry.pop(key)
         promoted = 0
 
     save_json(registry_file, auto_registry)
