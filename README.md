@@ -23,7 +23,7 @@ NovelHaven is actively importing and updating authorized novel batches. Large no
 
 For the detailed catalog/batch list and the latest archived changes, open:
 
-**[updates/2026-10-07/](./updates/2026-10-07/)**
+**[updates/2026-10-08/](./updates/2026-10-08/)**
 
 For the longer technical/project guide, open:
 
