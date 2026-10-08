@@ -1,0 +1,13 @@
+{
+  "batch_size": 15,
+  "sources": {
+    "freewebnovel": {
+      "sourcewide_authorized": false,
+      "note": "Enable only when permission covers automatically discovered titles across the source."
+    },
+    "akknovel": {
+      "sourcewide_authorized": false,
+      "note": "Enable only when permission covers automatically discovered titles across the source."
+    }
+  }
+}
