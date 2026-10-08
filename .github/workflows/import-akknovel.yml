@@ -54,7 +54,7 @@ jobs:
           mapfile -t series < <(python scripts/import_akknovel.py --keys)
           echo "AkkNovel queue contains ${#series[@]} titles."
 
-         for key in "${series[@]}"; do
+          for key in "${series[@]}"; do
             echo "=== AkkNovel import: $key ==="
 
             for checkpoint in $(seq 1 60); do
