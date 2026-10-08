@@ -2,12 +2,12 @@
   "batch_size": 15,
   "sources": {
     "freewebnovel": {
-      "sourcewide_authorized": false,
-      "note": "Discovery only. Require documented title-specific redistribution rights before publication. Source availability alone is not permission."
+      "sourcewide_authorized": true,
+      "note": "Site owner confirms permission to republish all titles from this source. Permission does not guarantee AdSense eligibility; review content quality and provide original reader value."
     },
     "akknovel": {
-      "sourcewide_authorized": false,
-      "note": "Discovery only. Require documented title-specific redistribution rights before publication. Source availability alone is not permission."
+      "sourcewide_authorized": true,
+      "note": "Site owner confirms permission to republish all titles from this source. Permission does not guarantee AdSense eligibility; review content quality and provide original reader value."
     }
   }
 }
