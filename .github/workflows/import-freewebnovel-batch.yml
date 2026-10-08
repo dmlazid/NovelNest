@@ -17,7 +17,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: freewebnovel-batch-v2
+  group: freewebnovel-batch-v1
   cancel-in-progress: false
 
 jobs:
