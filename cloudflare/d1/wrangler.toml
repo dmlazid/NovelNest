@@ -1,0 +1,8 @@
+# D1 import tooling only. Do not deploy this as a replacement for the live Worker.
+name = "novelhaven-d1-import-only"
+compatibility_date = "2026-10-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "novelhaven-chapters-01"
+database_id = "61109519-a023-4ab3-9b2b-8b990752126e"
