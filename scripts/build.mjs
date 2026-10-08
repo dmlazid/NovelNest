@@ -34,9 +34,15 @@ for (const name of fs.readdirSync('dist')) {
 }
 const compactCatalog = novels.map(({ chapters, ...n }) => ({ ...n, titles: chapters.map(c => c.title) }));
 const catalogCode = 'window.NOVELS=' + json(compactCatalog) + '.map(({titles,...n})=>({...n,chapters:titles.map((title,i)=>({number:i+1,title,paragraphs:["Loading chapter…"],lazy:true}))}));';
+const sourceHeader = sourceHtml.match(/<header\b[\s\S]*?<\/header>/)?.[0];
+if (!sourceHeader) throw new Error('Missing shared site header');
 const hydrateStatic = `
 window.NOVELNEST_STATIC_READERS=true;
 (() => {
+  // Restore the shared controls before application scripts bind their events.
+  // The lightweight HTML header still provides navigation without JavaScript.
+  const header=document.querySelector('[data-static-header]');
+  if(header)header.outerHTML=${json(sourceHeader)};
   const prose=document.querySelector('[data-static-chapter]');
   if(!prose)return;
   const novel=window.NOVELS.find(n=>n.id===prose.dataset.staticChapter);
@@ -70,6 +76,18 @@ const body = shell.slice(shell.indexOf('<body>'));
 const mainMarker = '<main id="main" class="wrap" tabindex="-1"></main>';
 if (!body.includes(mainMarker)) throw new Error('Missing main template');
 const [beforeMain, afterMain] = body.split(mainMarker);
+const favicon = sourceHtml.match(/<link rel="icon"[^>]+href="data:image\/svg\+xml,([^"]+)"/);
+if (!favicon) throw new Error('Missing site favicon');
+const faviconPath = asset('favicon.svg', decodeURIComponent(favicon[1]));
+const publisher = sourceHtml.match(/<script async src="https:\/\/pagead2[^>]+><\/script>/)?.[0];
+const verification = sourceHtml.match(/<meta name="google-site-verification"[^>]*>/)?.[0];
+if (!publisher || !verification) throw new Error('Missing publisher verification');
+// Chapters retain real, crawlable text, metadata, navigation and policy links.
+// Share the interactive header once in the runtime instead of repeating it in
+// every file. A compact static reading layout remains usable if JS is disabled.
+function chapterPage(title, url, markup) {
+  return '<!doctype html><html lang="en"><head><base href="/"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#164f4a"><title>' + escape(title) + ' — NovelNest</title><meta name="description" content="Read ' + escape(title) + ' on NovelNest."><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel="icon" type="image/svg+xml" href="' + faviconPath + '"><link rel="stylesheet" href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class="skip" href="#main">Skip to content</a><header class="site-header" data-static-header><nav class="topbar wrap"><a class="brand small" href="/">Novel<span>Nest</span>.</a><a href="/browse/">Browse novels</a></nav></header><main id="main" class="wrap" tabindex="-1">' + markup + '</main>' + afterMain;
+}
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelNest</title>')
     .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escape(description || title) + '">')
@@ -136,8 +154,8 @@ for (const n of novels) {
       const number = (part - 1) * config.capacity + offset + 1;
       const c = n.chapters[number - 1], url = root + 'chapter-' + number + '/';
       const nav = '<nav class="chapter-nav" aria-label="Chapter navigation">' + (number > 1 ? '<a class="button outline" href="' + root + 'chapter-' + (number - 1) + '/">Previous chapter</a>' : '') + '<a class="button outline" href="' + root + '">Chapters</a>' + (number < n.chapters.length ? '<a class="button" href="' + root + 'chapter-' + (number + 1) + '/">Next chapter</a>' : '') + '</nav>';
-      const markup = '<div class="reader-wrap"><nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="/">Home</a><a href="' + root + '">' + escape(n.title) + '</a></nav>' + nav + '<article><div class="reader-heading"><span class="eyebrow">Reading position ' + number + ' of ' + n.chapters.length + '</span><h1>' + escape(c.title) + '</h1><span class="meta">' + escape(n.title) + ' · Licensed edition</span></div><div class="prose" data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + escape(p) + '</p>').join('') + '</div></article>' + nav + '</div>';
-      write(url.slice(1) + 'index.html', page(n.title + ' — ' + c.title, url, markup, 'Read ' + c.title + ' of ' + n.title + ' on NovelNest.'));
+      const markup = '<article class="reader-wrap"><div class="reader-heading"><a href="' + root + '">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class="prose" data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + escape(p) + '</p>').join('') + '</div>' + nav + '</article>';
+      write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup));
       chapterUrls.push('<url><loc>https://novelhaven.top' + escape(url) + '</loc></url>');
       chapterCount++;
       if (chapterUrls.length === 40000) flushChapterMap();
@@ -159,6 +177,8 @@ write('.nojekyll', '');
 let bytes = 0;
 function measure(dir) { for (const f of fs.readdirSync(dir, { withFileTypes: true })) { const full = path.join(dir, f.name); if (f.isDirectory()) measure(full); else bytes += fs.statSync(full).size; } }
 measure(output);
-if (bytes > 1000 * 1024 * 1024) throw new Error('Built site exceeds the GitHub Pages size budget');
+const sizeBudget = 1000 * 1024 * 1024;
+if (bytes > sizeBudget) throw new Error(`Built site is ${bytes} bytes, exceeding the ${sizeBudget}-byte GitHub Pages size budget. Move to hosting with more capacity before publishing more content.`);
+if (bytes > sizeBudget * 0.9) console.warn('::warning::Published site is above 90% of its size budget. Plan additional hosting capacity as chapter imports grow.');
 write('build-info.json', json({ novels: novels.length, chapters: chapterCount, catalogBytes: Buffer.byteLength(catalogCode), runtimeBytes: Buffer.byteLength(runtimeCode), siteBytes: bytes, generatedAt: new Date().toISOString() }));
 console.log(`Built ${novels.length} novels, ${chapterCount} real chapter pages; catalog ${Buffer.byteLength(catalogCode)} bytes; site ${bytes} bytes.`);
