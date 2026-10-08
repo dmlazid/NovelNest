@@ -4,6 +4,8 @@ name: Automatically sync published novel chapters to D1
 # Before an approved multi-D1 pilot it uses the original database. After the
 # first durable novel_shards route it automatically uses all five existing
 # databases, with independent 380 MiB safety limits and chapter readback.
+# Hourly batches of 350 balance migration speed with Free D1 query quotas,
+# Cloudflare API rate limits, and resumable checkpoint safety.
 on:
   push:
     branches: [main]
@@ -21,7 +23,7 @@ on:
       - "scripts/audit-d1-account.mjs"
       - "scripts/audit-d1-account.test.mjs"
   schedule:
-    - cron: "23 */6 * * *"
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -36,7 +38,7 @@ on:
         description: "Maximum chapters per run (1-500)"
         required: true
         type: number
-        default: 200
+        default: 350
 
 permissions:
   contents: read
@@ -76,7 +78,7 @@ jobs:
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
           SYNC_MODE: ${{ github.event_name == 'schedule' && 'import' || inputs.mode || 'plan' }}
-          SYNC_LIMIT: ${{ github.event_name == 'schedule' && '200' || inputs.max_chapters || '200' }}
+          SYNC_LIMIT: ${{ github.event_name == 'schedule' && '350' || inputs.max_chapters || '350' }}
         run: |
           set -euo pipefail
           node scripts/d1-auto-dispatch.mjs --mode "$SYNC_MODE" --max-chapters "$SYNC_LIMIT"
