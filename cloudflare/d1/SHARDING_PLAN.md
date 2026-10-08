@@ -14,6 +14,12 @@
 
 Cloudflare Free currently allows **10 D1 databases, at most 500 MB each and 5 GB across the account**. The existing importer stops at **380 MiB** per database. Official reference: https://developers.cloudflare.com/d1/platform/limits/.
 
+## One-click GitHub preparation (default: no changes)
+
+[Prepare extra NovelHaven D1 databases](https://github.com/dmlazid/NovelNest/actions/workflows/d1-shard-setup.yml) is installed. On a code push it runs a **read-only plan**. To create the four empty extra D1 databases, the owner must explicitly open the GitHub workflow, choose **Run workflow**, branch **main**, and set **mode = provision**. A fresh D1 account inventory and Free-slot check run first, and repeated runs do not create duplicate databases. It initializes the standard chapters table in each newly created database and saves their UUIDs as a short-lived GitHub Actions artifact.
+
+**This has NOT yet been run in provision mode.** Creating empty databases does not move existing chapters or change the public reader. The multi-database importer and safe Worker routing must be tested in a separate follow-up before any public chapter fetching changes.
+
 ## Safe rollout stages
 
 1. **Preserve the original system.** Continue using the original D1 database for existing capped imports; keep GitHub chapters, static pages and their URLs untouched.
