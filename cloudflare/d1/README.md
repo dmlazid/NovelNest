@@ -1,6 +1,26 @@
 # NovelHaven D1 migration — safe first stage
 
-**Status:** The user created the D1 database `novelhaven-chapters-01`, its `chapters` table, and the independently deployed Worker `novelhaven-chapters-api` with the `DB` binding. The Worker returned `{"error":"Chapter not found"}` for an empty database. As of the user's 2026-10-08 console screenshot, `SELECT COUNT(*) FROM chapters;` returned **0**.
+## Automatic importing across ALL already published novels (enabled)
+
+[Automatic D1 chapter sync workflow](https://github.com/dmlazid/NovelNest/actions/workflows/d1-auto-sync.yml) runs on GitHub Actions every **6 hours**. The schedule runs with `mode=import` (but updates the **existing D1 copy only**); GitHub `push` events for the sync code use `mode=plan` (read-only), and a manual workflow run defaults to `plan`.
+
+No per-novel or per-chapter action is necessary. The workflow reads the **actual published catalogs** in `dist/index.html`, not the pending discovered-novel registry, then queries D1 to identify which chapter numbers have not yet been imported. Each run:
+
+1. Checks the exact expected D1 database ID and current D1 size using the Cloudflare API and the two existing encrypted repository secrets.
+2. Finds missing chapter numbers across all already-published titles. Sorts by completion ratio, spreading progress across multiple novels rather than getting stuck on one large book.
+3. Validates chapter number, title and paragraph content against the corresponding checked-in chunk files.
+4. Copies at most **200 chapters per scheduled run**, at most 25 per novel in that run. The D1 primary key and `ON CONFLICT ... DO NOTHING` prevent duplicate rows.
+5. Checks actual D1 storage size before **each** write; stops automatically at a conservative **380 MiB** soft cap (398,458,880 bytes), below the Free database maximum of 500 MB.
+6. Publishes chapter counts, database bytes and stop reason as a GitHub Actions job summary. No tokens or full chapter bodies appear in artifacts.
+
+The two existing GitHub secrets are `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. The token is scoped to D1 Write and expires after 90 days, so the token will need renewal before **January 7, 2027**.
+
+**Important:** A single Free D1 database cannot hold an unlimited number of novels. Once the 380 MiB cutoff is reached, the job pauses and requires a reviewed multi-database partition strategy (or another storage plan). Nothing is deleted from GitHub. Neither the existing static NovelHaven reader nor the Cloudflare Worker code is automatically changed by this background migration. Corrections to already imported chapters are not overwritten by this initial missing-only sync; a separate checked reconciliation would be needed for backfill corrections.
+
+The first live Cloudflare-connected dry run **passed** on October 8, 2026: it discovered 90 published novels, 89 with pending chapters, and planned 200 chapters, without writing to D1. See [test run](https://github.com/dmlazid/NovelNest/actions/runs/37757689001).
+
+
+**Status:** The user created D1 database `novelhaven-chapters-01`, the `chapters` table and the `novelhaven-chapters-api` Worker with the `DB` binding. The initial 5-chapter pilot import passed with both D1 console and chapter API verification on October 8, 2026. The scheduled cross-novel importer is enabled; the static website remains unchanged.
 
 This directory and the `Plan or import D1 chapter pilot` GitHub Actions workflow prepare a **small, non-destructive pilot**. GitHub remains the source of truth for both novel text and the existing static, crawlable chapter pages. **No live-site reader, publisher ID, verification tag, ads.txt, domain, or automatic-novel publication setting is changed.**
 
