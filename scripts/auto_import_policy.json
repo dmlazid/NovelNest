@@ -3,11 +3,16 @@
   "sources": {
     "freewebnovel": {
       "sourcewide_authorized": true,
-      "note": "Site owner confirms permission to republish all titles from this source. Permission does not guarantee AdSense eligibility; review content quality and provide original reader value."
+      "note": "Site owner confirms republication permission. Automatically discovered NEW titles are held for manual quality/publisher-policy review; already-published titles can update chapters."
     },
     "akknovel": {
       "sourcewide_authorized": true,
-      "note": "Site owner confirms permission to republish all titles from this source. Permission does not guarantee AdSense eligibility; review content quality and provide original reader value."
+      "note": "Site owner confirms republication permission. Automatically discovered NEW titles are held for manual quality/publisher-policy review; already-published titles can update chapters."
     }
+  },
+  "automatic_new_title_publication_enabled": false,
+  "reviewed_new_title_keys": {
+    "akknovel": [],
+    "freewebnovel": []
   }
 }
