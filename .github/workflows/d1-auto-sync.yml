@@ -3,6 +3,12 @@ name: Automatically sync published novel chapters to D1
 # This is a BACKUP/MIGRATION sync, not a live reader or website deployment.
 # Runs periodically; stops at a conservative 380 MiB D1 storage cutoff.
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/d1-auto-sync.yml"
+      - "scripts/sync-d1-chapters.mjs"
+      - "scripts/sync-d1-chapters.test.mjs"
   schedule:
     - cron: "23 */6 * * *"
   workflow_dispatch:
