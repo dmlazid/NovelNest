@@ -4,6 +4,7 @@ To keep the main repository page short and easy to browse, update notes are stor
 
 ## Update folders
 
+- [2026-10-08](./2026-10-08/) — automatic 15-title discovery for FreeWebNovel and AkkNovel, batching safeguards, and workflow cleanup.
 - [2026-10-07](./2026-10-07/) — catalog expansion, FreeWebNovel import batches, clean chapter URLs, sitemap work, and deployment fixes.
 
 ## Folder rule
