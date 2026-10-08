@@ -6,6 +6,8 @@ on:
   push:
     paths:
       - "scripts/import_akknovel.py"
+      - "scripts/discover_auto_novels.py"
+      - "scripts/auto_akknovel.json"
       - ".github/workflows/import-akknovel.yml"
   workflow_dispatch:
 
@@ -49,40 +51,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          series=(
-            farming-immortality
-            mistaken-system
-            long-aotian
-            marquis-inner-voice
-            tyrant-father
-            zombie-cat
-            directed-inner-voice
-            kick-scumbag
-            spend-stepmother
-            ancient-miss-ceo-wife
-            game-came-true
-            fake-heiress-thoughts
-            villainess-gentle-second
-            modern-life-livestream
-            paranormal-writer
-            assassin-farmer
-            future-gossip-death
-            zen-harem
-            novelist-famous
-            laidback-stepmother
-            this-is-strange
-            forensic-psychological
-            apocalypse-stockpiling
-            street-smart-heiress
-            imperial-pearl
-            charm-big-shots
-            great-grandmother
-            matriarch-manual
-            beautiful-mother-force
-            happy-ceo-agreement
-          )
+          mapfile -t series < <(python scripts/import_akknovel.py --keys)
+          echo "AkkNovel queue contains ${#series[@]} titles."
 
-          for key in "${series[@]}"; do
+         for key in "${series[@]}"; do
             echo "=== AkkNovel import: $key ==="
 
             for checkpoint in $(seq 1 60); do
@@ -119,10 +91,42 @@ jobs:
             done
           done
 
+          echo "All current AkkNovel titles completed this pass. Selecting the next automatic batch of 15 popular titles..."
+          python scripts/discover_auto_novels.py akknovel --limit 15
+
+          git add scripts/auto_akknovel.json
+          if git diff --cached --quiet; then
+            echo "No new AkkNovel titles were available from the discovery pool."
+            exit 0
+          fi
+
+          git commit -m "Queue next automatic AkkNovel batch of 15"
+          pushed=0
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep 3
+              continue
+            fi
+            if git push origin HEAD:main; then
+              pushed=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$pushed" -ne 1 ]; then
+            echo "Could not push the next automatic AkkNovel batch."
+            exit 1
+          fi
+
+          echo "Queueing an immediate continuation run for the new AkkNovel batch..."
+          gh workflow run import-akknovel.yml --ref main || echo "The normal six-hour schedule will continue the new batch."
+
       - name: Record updater result
         if: always()
         env:
           RESULT: ${{ job.status }}
         run: |
           echo "AkkNovel updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "Each series is saved independently so completed imports survive later failures." >> "$GITHUB_STEP_SUMMARY"
+          echo "Each series is saved independently. When the current queue is caught up, the workflow automatically selects the next 15 popular AkkNovel titles and continues without manual links." >> "$GITHUB_STEP_SUMMARY"
