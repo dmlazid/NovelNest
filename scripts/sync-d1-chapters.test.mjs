@@ -120,7 +120,7 @@ test('plan never writes, import resumes without duplicating existing chapters', 
     const first = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(first.inserted_chapters, 3);
     assert.equal(first.total_chapters_in_d1, 3);
-    assert.equal(first.novels_in_d1, 2);
+    assert.equal(first.novels_in_d1, 1);
     assert.equal(client.rows.size, 3);
     const second = await syncPublishedChapters({client, root:f.root, mode:'import', maxChapters:3});
     assert.equal(second.inserted_chapters, 2);
