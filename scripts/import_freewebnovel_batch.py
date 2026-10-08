@@ -384,6 +384,15 @@ SERIES = {
     },
 }
 
+AUTO_SERIES_PATH = Path("scripts/auto_freewebnovel.json")
+if AUTO_SERIES_PATH.exists():
+    try:
+        auto_series = json.loads(AUTO_SERIES_PATH.read_text(encoding="utf-8"))
+        if isinstance(auto_series, dict):
+            SERIES.update(auto_series)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not load {AUTO_SERIES_PATH}: {exc}")
+
 session = requests.Session()
 session.headers.update(HEADERS)
 
@@ -772,8 +781,11 @@ def import_series(key: str) -> None:
 
 
 def main() -> None:
+    if len(sys.argv) == 2 and sys.argv[1] == "--keys":
+        print("\n".join(SERIES))
+        return
     if len(sys.argv) != 2 or sys.argv[1] not in SERIES:
-        raise SystemExit("Usage: python scripts/import_freewebnovel_batch.py <" + "|".join(SERIES) + ">")
+        raise SystemExit("Usage: python scripts/import_freewebnovel_batch.py <series-key>|--keys")
     import_series(sys.argv[1])
 
 
