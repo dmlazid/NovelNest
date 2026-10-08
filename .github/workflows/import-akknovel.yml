@@ -50,6 +50,8 @@ jobs:
       - name: Test AkkNovel cover selection
         run: python -m unittest discover -s scripts -p "test_akknovel_covers.py"
 
+      - name: Verify automatic publication safeguards
+        run: python -m unittest discover -s scripts -p "test_publication_guard.py"
       - name: Import AkkNovel queue and prepare the next 15-title batch
         run: |
           set -u
