@@ -1,0 +1,64 @@
+name: Automatically sync published novel chapters to D1
+
+# This is a BACKUP/MIGRATION sync, not a live reader or website deployment.
+# Runs periodically; stops at a conservative 380 MiB D1 storage cutoff.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Preview only, or safely copy published chapters into D1"
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - import
+      max_chapters:
+        description: "Maximum chapters per run (1-500)"
+        required: true
+        type: number
+        default: 200
+
+permissions:
+  contents: read
+
+# Share the lock with the earlier pilot so the two never write to D1 together.
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+
+jobs:
+  sync-chapters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_REPORT_PATH: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
+
+    steps:
+      - name: Check out published chapter sources
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify import safety and source chapter checks
+        run: node --test scripts/export-d1-batch.test.mjs scripts/sync-d1-chapters.test.mjs
+      - name: Import a capped number of already-published chapters
+        env:
+          SYNC_MODE: ${{ github.event_name == 'schedule' && 'import' || inputs.mode || 'plan' }}
+          SYNC_LIMIT: ${{ github.event_name == 'schedule' && '200' || inputs.max_chapters || '200' }}
+        run: |
+          set -euo pipefail
+          node scripts/sync-d1-chapters.mjs --mode "$SYNC_MODE" --max-chapters "$SYNC_LIMIT"
+      - name: Upload safe statistics only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelhaven-d1-auto-sync-summary
+          path: ${{ runner.temp }}/novelhaven-d1-auto-sync.json
+          if-no-files-found: ignore
+          retention-days: 7
