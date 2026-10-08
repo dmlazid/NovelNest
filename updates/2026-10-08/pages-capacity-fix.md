@@ -24,6 +24,11 @@ header restoration, direct-page hydration, reader assets, canonical URLs,
 policy links and unchanged AdSense, ads.txt and Google verification. Existing
 policy and privacy files are unchanged. New-title publication remains gated.
 
+After deployment, the workflow now checks the public homepage, a direct
+chapter, privacy page, ads.txt, sitemap and runtime from the GitHub runner.
+It verifies the deployed build timestamp and publisher files and allows a
+short retry window for CDN propagation before reporting a failure.
+
 These technical checks do not establish Google approval or complete content
 policy compliance. Rights, content eligibility and the AdSense account's
 review and consent settings remain the publisher's responsibility.

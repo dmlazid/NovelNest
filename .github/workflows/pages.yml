@@ -61,4 +61,6 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify published pages and publisher files
+        run: node scripts/check-live.mjs
 
