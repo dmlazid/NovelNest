@@ -1,0 +1,60 @@
+name: Prepare extra NovelHaven D1 databases (Free-tier safe)
+
+# Push events NEVER create databases. Only manual "provision" can.
+# No Worker deployment, website routing or AdSense changes.
+on:
+  push:
+    paths:
+      - "scripts/provision-d1-shards.mjs"
+      - "scripts/provision-d1-shards.test.mjs"
+      - ".github/workflows/d1-shard-setup.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "PLAN ONLY by default; choose PROVISION to create four empty D1 databases"
+        type: choice
+        required: true
+        default: plan
+        options:
+          - plan
+          - provision
+
+permissions:
+  contents: read
+
+concurrency:
+  group: novelhaven-d1-shard-setup
+  cancel-in-progress: false
+
+jobs:
+  d1-shard-setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check out the existing published repository
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test D1 shard planner and no accidental database changes
+        run: node --test scripts/provision-d1-shards.test.mjs scripts/audit-d1-account.test.mjs
+      - name: Check slots and only provision if explicitly requested
+        env:
+          SETUP_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'plan' }}
+          D1_EXPLICIT_PROVISION: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'provision' && 'PROVISION_FOUR_EMPTY_D1_DATABASES' || '' }}
+          D1_PROVISION_OUT: ${{ runner.temp }}/novelhaven-extra-d1-shards.json
+        run: |
+          set -euo pipefail
+          node scripts/provision-d1-shards.mjs --mode "$SETUP_MODE"
+      - name: Save database IDs in a short-lived review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelhaven-extra-d1-shards
+          path: ${{ runner.temp }}/novelhaven-extra-d1-shards.json
+          if-no-files-found: ignore
+          retention-days: 7
