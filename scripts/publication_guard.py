@@ -24,7 +24,7 @@ def is_published_auto_title(source: str, key: str, root: Path = ROOT) -> bool:
     if not catalog.is_file() or not index.is_file():
         return False
     html = index.read_text(encoding="utf-8")
-    return bool(re.search(r'<script\\b[^>]*\\bsrc=["\\\']' + re.escape(name) + r'(?:\\?[^"\\\']*)?["\\\']', html, re.I))
+    return f'src="{name}"' in html or f"src='{name}'" in html
 
 
 def may_import_auto_title(source: str, key: str, root: Path = ROOT) -> bool:
