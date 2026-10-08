@@ -86,7 +86,8 @@ def policy_for(source: str) -> tuple[int, bool]:
     policy = load_json(POLICY_PATH)
     batch_size = int(policy.get("batch_size", 15) or 15)
     source_policy = policy.get("sources", {}).get(source, {})
-    allowed = source_policy.get("sourcewide_authorized") is True
+    allowed = (source_policy.get("sourcewide_authorized") is True and
+               policy.get("automatic_new_title_publication_enabled") is True)
     return max(1, batch_size), allowed
 
 
@@ -363,8 +364,8 @@ def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int
 
     if not sourcewide_authorized:
         print(
-            f"{source}: automatic publication is paused because sourcewide_authorized is false in "
-            f"{POLICY_PATH.relative_to(ROOT)}. Candidates were saved but not imported.",
+            f"{source}: automatic publication of newly discovered titles is paused for "
+            "publisher-policy review. Discovery remains active and candidates stay pending.",
             flush=True,
         )
         return added, promoted
@@ -374,6 +375,12 @@ def discover(source: str, requested_limit: int, promote: bool) -> tuple[int, int
             f"{source}: waiting for a full {limit}-title candidate batch before promotion.",
             flush=True,
         )
+        return added, promoted
+
+    policy = load_json(POLICY_PATH)
+    reviewed = policy.get("reviewed_new_title_keys", {}).get(source, [])
+    if not isinstance(reviewed, list) or any(key not in reviewed for key in list(candidates)[:limit]):
+        print(f"{source}: full batch has not completed manual publisher-policy review; leaving titles pending.", flush=True)
         return added, promoted
 
     promoted_keys = []
@@ -426,7 +433,7 @@ def main() -> None:
     parser.add_argument(
         "--promote",
         action="store_true",
-        help="Promote a full candidate batch only when source-wide authorization is enabled.",
+        help="Promote only after explicit batch review and new-title publication has been enabled.",
     )
     args = parser.parse_args()
     discover(args.source, args.limit, args.promote)
