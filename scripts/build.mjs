@@ -87,7 +87,11 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // every file. A compact static reading layout remains usable if JS is disabled.
 // Retain every disclosure/policy link and brand. Omit only the decorative
 // repeated tagline on chapter pages; it remains on normal site pages.
+// Public policy/footer links remain identical on every page, but the
+// duplicate footer logo/tagline are omitted on chapter pages (the header
+// already links back home). Ordinary pages retain the full teal branding.
 const compactChapterFooter = afterMain
+  .replace(/<div class="footer-brand-block">[\s\S]*?<\/div>/, '')
   .replace('<p>A little escape. One chapter at a time.</p>', '')
   .replace(/>\s+</g, '><')
   .replace(/<\/a><a\b/g, '</a> <a')
@@ -97,7 +101,7 @@ const compactChapterFooter = afterMain
   .replace('id="year"', 'id=year')
   .trim();
 function chapterPage(title, url, markup) {
-  return '<!doctype html><html lang=en><head><base href="/"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=theme-color content=#164f4a><title>' + escape(title) + ' — NovelNest</title><meta name=description content="Read ' + escape(title) + ' on NovelNest."><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=icon type=image/svg+xml href="' + faviconPath + '"><link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class=site-header data-static-header><nav class="topbar wrap"><a class="brand small" href="/">Novel<span>Nest</span>.</a><a href="/browse/">Browse novels</a></nav></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
+  return '<!doctype html><html lang=en><head><base href="/"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=theme-color content=#164f4a><title>' + escape(title) + ' — NovelNest</title><meta name=description content="Read ' + escape(title) + ' on NovelNest."><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=icon type=image/svg+xml href="' + faviconPath + '"><link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class=site-header data-static-header><nav class="topbar wrap"><a href="/">NovelNest</a><a href="/browse/">Browse novels</a></nav></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelNest</title>')
