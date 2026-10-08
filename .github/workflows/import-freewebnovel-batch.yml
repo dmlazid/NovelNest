@@ -8,6 +8,7 @@ on:
       - "scripts/import_freewebnovel_batch.py"
       - "scripts/discover_auto_novels.py"
       - "scripts/auto_freewebnovel.json"
+      - "scripts/auto_import_policy.json"
       - ".github/workflows/import-freewebnovel-batch.yml"
   workflow_dispatch:
 
@@ -16,7 +17,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: freewebnovel-batch-v1
+  group: freewebnovel-batch-v2
   cancel-in-progress: false
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
     env:
       FWN_BATCH_SIZE: "100"
       FWN_REQUEST_DELAY: "0.8"
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: \${{ github.token }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -45,22 +46,46 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4 Pillow
 
-      - name: Import all authorized FreeWebNovel titles
+      - name: Import FreeWebNovel queue and prepare the next 15-title batch
         run: |
           set -u
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           mapfile -t series < <(python scripts/import_freewebnovel_batch.py --keys)
-          echo "FreeWebNovel queue contains ${#series[@]} titles."
+          echo "FreeWebNovel queue contains \${#series[@]} titles."
 
           start_time="$(date +%s)"
           runtime_budget=9000
           pass=0
 
+          push_with_rebase() {
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if ! git rebase origin/main; then
+                git rebase --abort || true
+                echo "Rebase raced with another updater; retrying ($attempt/5)..."
+                sleep 3
+                continue
+              fi
+              if git push origin HEAD:main; then
+                pushed=1
+                break
+              fi
+              echo "Push raced with another updater; retrying ($attempt/5)..."
+              sleep 3
+            done
+            if [ "$pushed" -ne 1 ]; then
+              echo "Could not push after 5 attempts."
+              return 1
+            fi
+          }
+
           queue_continuation() {
-            echo "Queueing an immediate continuation run for the FreeWebNovel batch..."
-            gh workflow run import-freewebnovel-batch.yml --ref main ||               echo "Could not queue continuation; the normal six-hour schedule will continue the import."
+            echo "Queueing an immediate continuation run for FreeWebNovel..."
+            gh workflow run import-freewebnovel-batch.yml --ref main || \
+              echo "Could not queue continuation; the six-hour schedule will retry."
           }
 
           while true; do
@@ -69,12 +94,11 @@ jobs:
             pass_progress=0
             pass_failures=0
 
-            for key in "${series[@]}"; do
+            for key in "\${series[@]}"; do
               elapsed=$(( $(date +%s) - start_time ))
               if [ "$elapsed" -ge "$runtime_budget" ]; then
-                echo "Safe runtime budget reached after ${elapsed}s."
-                echo "Queueing one Pages deployment for all checkpoints saved in this run..."
-                gh workflow run pages.yml --ref main || echo "A later Pages run can publish the saved checkpoints."
+                echo "Safe runtime budget reached after \${elapsed}s."
+                gh workflow run pages.yml --ref main || echo "A later Pages run can publish saved checkpoints."
                 queue_continuation
                 exit 0
               fi
@@ -88,7 +112,11 @@ jobs:
 
               node scripts/check.mjs
 
-              git add -A --                 "dist/data/fwn-$key-chapters-"*.js                 "dist/assets/fwn-$key.jpg"                 "dist/licensed-fwn-$key.js"                 dist/index.html 2>/dev/null || true
+              git add -A -- \
+                "dist/data/fwn-$key-chapters-"*.js \
+                "dist/assets/fwn-$key.jpg" \
+                "dist/licensed-fwn-$key.js" \
+                dist/index.html 2>/dev/null || true
 
               if git diff --cached --quiet; then
                 echo "$key is caught up for this source snapshot."
@@ -97,79 +125,51 @@ jobs:
 
               pass_progress=1
               git commit -m "Auto-update FreeWebNovel $key (pass $pass)"
-
-              pushed=0
-              for attempt in 1 2 3 4 5; do
-                git fetch origin main
-                if ! git rebase origin/main; then
-                  git rebase --abort || true
-                  echo "Rebase raced with another updater; retrying ($attempt/5)..."
-                  sleep 3
-                  continue
-                fi
-                if git push origin HEAD:main; then
-                  pushed=1
-                  break
-                fi
-                echo "Push raced with another updater; retrying ($attempt/5)..."
-                sleep 3
-              done
-
-              if [ "$pushed" -ne 1 ]; then
-                echo "Could not push $key checkpoint after 5 attempts."
-                exit 1
-              fi
-
-              echo "$key checkpoint saved. Deployment will be queued once after this round."
+              push_with_rebase || exit 1
+              echo "$key checkpoint saved."
             done
 
             if [ "$pass_progress" -eq 0 ]; then
               if [ "$pass_failures" -gt 0 ]; then
-                echo "$pass_failures title(s) could not be checked this pass. They will retry on the next scheduled run."
+                echo "$pass_failures title(s) could not be checked. No new batch will be selected until all current titles can be checked."
                 exit 0
               fi
 
-              echo "All current FreeWebNovel titles are caught up. Selecting the next automatic batch of 15 popular titles..."
-              python scripts/discover_auto_novels.py freewebnovel --limit 15
+              before_count="\${#series[@]}"
+              echo "All current FreeWebNovel titles are caught up."
+              echo "Discovering the next popular 15-title candidate batch..."
+              python scripts/discover_auto_novels.py freewebnovel --limit 15 --promote
 
-              git add scripts/auto_freewebnovel.json
-              if git diff --cached --quiet; then
-                echo "No new FreeWebNovel titles were available from the discovery pool."
-                exit 0
+              mapfile -t next_series < <(python scripts/import_freewebnovel_batch.py --keys)
+              after_count="\${#next_series[@]}"
+
+              git add scripts/candidates_freewebnovel.json scripts/auto_freewebnovel.json
+              if ! git diff --cached --quiet; then
+                if [ "$after_count" -gt "$before_count" ]; then
+                  git commit -m "Queue next automatic FreeWebNovel batch of 15"
+                else
+                  git commit -m "Refresh pending FreeWebNovel candidate batch"
+                fi
+                push_with_rebase || exit 1
               fi
 
-              git commit -m "Queue next automatic FreeWebNovel batch of 15"
-              pushed=0
-              for attempt in 1 2 3 4 5; do
-                git fetch origin main
-                if ! git rebase origin/main; then
-                  git rebase --abort || true
-                  sleep 3
-                  continue
-                fi
-                if git push origin HEAD:main; then
-                  pushed=1
-                  break
-                fi
-                sleep 3
-              done
-              if [ "$pushed" -ne 1 ]; then
-                echo "Could not push the next automatic FreeWebNovel batch."
-                exit 1
+              if [ "$after_count" -gt "$before_count" ]; then
+                echo "A new authorized 15-title FreeWebNovel batch was promoted."
+                queue_continuation
+              else
+                echo "No new titles were promoted. Candidate selection is saved and the authorization gate remains in effect."
               fi
-
-              queue_continuation
               exit 0
             fi
 
             echo "Round $pass saved new checkpoints. Queueing one Pages deployment..."
-            gh workflow run pages.yml --ref main || echo "A later Pages run can publish the saved checkpoints."
+            gh workflow run pages.yml --ref main || echo "A later Pages run can publish saved checkpoints."
           done
 
       - name: Record updater result
         if: always()
         env:
-          RESULT: ${{ job.status }}
+          RESULT: \${{ job.status }}
         run: |
           echo "FreeWebNovel batch updater result: $RESULT" >> "$GITHUB_STEP_SUMMARY"
-          echo "The importer advances titles in 100-chapter checkpoints. When the current queue is caught up, it automatically selects the next 15 popular FreeWebNovel titles and continues without manual links." >> "$GITHUB_STEP_SUMMARY"
+          echo "Titles advance in 100-chapter checkpoints. After the current queue is fully caught up, NovelNest discovers a 15-title popular candidate batch. Promotion only occurs when source-wide authorization is enabled." >> "$GITHUB_STEP_SUMMARY"
