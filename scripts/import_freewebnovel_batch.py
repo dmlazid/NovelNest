@@ -17,6 +17,8 @@ import requests
 from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
+from publication_guard import may_import_auto_title
+
 BASE = "https://freewebnovel.com/novel"
 CHUNK_CAPACITY = 100
 BATCH_SIZE = max(1, int(os.environ.get("FWN_BATCH_SIZE", "100")))
@@ -389,7 +391,7 @@ if AUTO_SERIES_PATH.exists():
     try:
         auto_series = json.loads(AUTO_SERIES_PATH.read_text(encoding="utf-8"))
         if isinstance(auto_series, dict):
-            SERIES.update(auto_series)
+            SERIES.update({key: cfg for key, cfg in auto_series.items() if may_import_auto_title("freewebnovel", key)})
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Could not load {AUTO_SERIES_PATH}: {exc}")
 
@@ -403,6 +405,8 @@ def load_approved_auto_series() -> None:
     if not isinstance(entries, dict):
         raise ValueError(f"Invalid automatic novel registry: {registry}")
     for key, cfg in entries.items():
+        if not may_import_auto_title("freewebnovel", key):
+            continue  # Keep unpublished automatic titles queued for manual site-quality review.
         if not isinstance(cfg, dict) or not all(cfg.get(field) for field in ("id", "slug", "title", "author", "genre", "tags")):
             raise ValueError(f"Invalid automatic novel entry: {key}")
         if key in SERIES and SERIES[key]["slug"] != cfg["slug"]:
