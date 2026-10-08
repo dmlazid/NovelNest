@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  SHARDS, createClients, planAssignments, indexExistingRows,
+  createClients, planAssignments, indexExistingRows,
   syncSharded, parseFlags,
 } from './sync-d1-sharded.mjs';
+import { SHARDS } from '../cloudflare/d1/shards.mjs';
 
 function sourceFixture() {
   const home=fs.mkdtempSync(path.join(os.tmpdir(),'novelhaven-five-d1-'));
