@@ -1,0 +1,42 @@
+name: Fast verified Cloudflare chapter migration
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/d1-fast-migration.yml'
+      - 'scripts/d1-fast-migration.mjs'
+      - 'scripts/d1-fast-migration.test.mjs'
+  schedule:
+    - cron: '8 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_FAST_LIMIT: '4000'
+      D1_REPORT_PATH: ${{ runner.temp }}/d1-fast-report.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify batching, quota ledger, numbering and shard routing
+        run: node --test scripts/d1-fast-migration.test.mjs scripts/export-d1-batch.test.mjs scripts/sync-d1-sharded.test.mjs
+      - name: Copy and read back batches within daily free limits
+        run: node scripts/d1-fast-migration.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: d1-fast-migration-report
+          path: ${{ runner.temp }}/d1-fast-report.json
+          if-no-files-found: ignore
