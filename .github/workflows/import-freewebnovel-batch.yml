@@ -54,7 +54,7 @@ jobs:
           mapfile -t series < <(python scripts/import_freewebnovel_batch.py --keys)
           echo "FreeWebNovel queue contains ${#series[@]} titles."
 
-         start_time="$(date +%s)"
+          start_time="$(date +%s)"
           runtime_budget=9000
           pass=0
 
