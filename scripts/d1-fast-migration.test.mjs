@@ -46,3 +46,52 @@ test('persistent reservations stop at daily budget and resume on UTC date change
  assert.equal(await reserveWrites(master,1,'2026-10-08'),false);
  assert.equal(await reserveWrites(master,100,'2026-10-09'),true);
 });
+
+test('quota-exhausted runs report stored and remaining chapters without importing',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-quota-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
+ fs.mkdirSync(path.join(root,'data'));
+ const chapters=[chapter,{...chapter,number:2,title:'Chapter 2'}];
+ fs.writeFileSync(path.join(root,'catalog.js'),'window.NOVELS='+JSON.stringify([{id:'book',title:'Book',chapters,lazyChunks:{prefix:'data/book-chapters-',global:'CHAPTERS',capacity:25}}])+';');
+ fs.writeFileSync(path.join(root,'data/book-chapters-01.js'),'window.CHAPTERS='+JSON.stringify(chapters)+';');
+ let mutations=0,reads=0;
+ const clients=new Map(SHARDS.map((shard,i)=>[shard.id,{
+  size:async()=>{throw Error('Physical size probe is unnecessary when quota is exhausted');},
+  query:async sql=>{
+   if(sql.startsWith('CREATE TABLE'))return {results:[]};
+   if(sql.startsWith('SELECT reserved'))return {results:[{reserved:DAILY_BUDGET}]};
+   if(sql.startsWith('SELECT novel_id,COUNT')){reads++;return {results:i===0?[{novel_id:'book',stored:1,minimum:1,maximum:1}]:[]};}
+   mutations++;throw Error('Quota-exhausted run attempted an unnecessary operation: '+sql);
+  }
+ }]));
+ const report=await migrate({clients,root});
+ assert.equal(report.source_chapters,2);
+ assert.equal(report.total_stored,1);
+ assert.equal(report.remaining_chapters,1);
+ assert.equal(report.stop_reason,'daily_budget_reached');
+ assert.equal(report.cutover_ready,false);
+ assert.equal(reads,SHARDS.length);
+ assert.equal(mutations,0);
+});
+
+test('quota-exhausted but fully copied database requests a read-only content audit',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-ready-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
+ fs.mkdirSync(path.join(root,'data'));
+ fs.writeFileSync(path.join(root,'catalog.js'),'window.NOVELS='+JSON.stringify([{id:'book',title:'Book',chapters:[chapter],lazyChunks:{prefix:'data/book-chapters-',global:'CHAPTERS',capacity:25}}])+';');
+ fs.writeFileSync(path.join(root,'data/book-chapters-01.js'),'window.CHAPTERS='+JSON.stringify([chapter])+';');
+ const clients=new Map(SHARDS.map((shard,i)=>[shard.id,{
+  size:async()=>{throw Error('Unexpected size probe');},
+  query:async sql=>{
+   if(sql.startsWith('CREATE TABLE'))return {results:[]};
+   if(sql.startsWith('SELECT reserved'))return {results:[{reserved:DAILY_BUDGET}]};
+   if(sql.startsWith('SELECT novel_id,COUNT'))return {results:i===0?[{novel_id:'book',stored:1,minimum:1,maximum:1}]:[]};
+   throw Error('Read-only path attempted an unexpected database operation: '+sql);
+  }
+ }]));
+ const report=await migrate({clients,root});
+ assert.equal(report.total_stored,1);
+ assert.equal(report.remaining_chapters,0);
+ assert.equal(report.stop_reason,'copy_complete_full_audit_required');
+ assert.equal(report.cutover_ready,false,'Only a full verified content audit can ever authorize cutover');
+});
