@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import re
 import time
@@ -18,6 +19,7 @@ BASE = "https://freewebnovel.com/novel/investing-in-my-three-crippled-wives-get-
 TITLE = "Investing In My Three Crippled Wives Get 10,000x Times Return"
 AUTHOR = "The_First_Legion"
 INITIAL_TARGET = 250
+BATCH_SIZE = max(1, min(1000, int(os.environ.get('INVESTING_BATCH_SIZE', '100'))))
 FIXED_CHUNK_FILES = 10
 MIN_CHUNK_CAPACITY = 50
 MAX_WORKERS = 5
@@ -215,8 +217,9 @@ def main() -> None:
     detected = detect_latest(raw)
     existing = load_existing()
     count = len(existing)
-    target = max(INITIAL_TARGET, detected or 0) if count == 0 else max(count, detected or count)
-    print(f"Investing source reports {detected or 'unknown'} chapters; target {target}", flush=True)
+    latest = max(INITIAL_TARGET, detected or 0) if count == 0 else max(count, detected or count)
+    target = min(latest, count + BATCH_SIZE)
+    print(f"Investing source reports {detected or 'unknown'} chapters; checkpoint target {target}/{latest}", flush=True)
     chapters = list(existing)
     if len(chapters) < target:
         chapters.extend(fetch_range(len(chapters) + 1, target))

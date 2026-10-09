@@ -16,7 +16,7 @@ jobs:
   synchronize:
     runs-on: ubuntu-latest
     steps:
-      - name: Restart obsolete updater jobs on the current configuration
+      - name: Only stop updater jobs when their own workflow changed
         uses: actions/github-script@v7
         with:
           script: |
@@ -29,11 +29,18 @@ jobs:
               '.github/workflows/import-ongoing.yml', '.github/workflows/import-supreme-magus.yml',
               '.github/workflows/import-innkeeper.yml'
             ]);
+            // Do not cancel unrelated live importers when a different novel
+            // updater is changed: their already-validated checkpoints must continue.
+            const changedWorkflows = new Set();
+            if (context.eventName === 'push' && context.payload.before && !/^0+$/.test(context.payload.before)) {
+              const diff = await github.rest.repos.compareCommits({...repo,base:context.payload.before,head:context.sha});
+              for (const file of diff.data.files || []) if (paths.has(file.filename)) changedWorkflows.add(file.filename);
+            }
             const obsolete = [];
             for (const status of ['in_progress','queued','pending']) {
               const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {...repo,status,per_page:100});
               for (const run of runs) {
-                if (paths.has(run.path) && run.head_branch === 'main' && run.head_sha !== context.sha && run.created_at < current.created_at) obsolete.push(run);
+                if (changedWorkflows.has(run.path) && run.head_branch === 'main' && run.head_sha !== context.sha && run.created_at < current.created_at) obsolete.push(run);
               }
             }
             const unique = [...new Map(obsolete.map(run => [run.id,run])).values()];
@@ -49,4 +56,4 @@ jobs:
               if(attempt===23) throw new Error('Old updater still stopping; rerun synchronization before restarting it.');
               await new Promise(resolve=>setTimeout(resolve,5000));
             }
-            await core.summary.addHeading('Chapter downloads paused for migration').addRaw(`${unique.length} old updater jobs stopped. Committed chapters remain saved. No replacement downloads were started.`).write();
+            await core.summary.addHeading('Updater coordination').addRaw(`${unique.length} obsolete jobs for changed workflows stopped. All unrelated chapter downloads continue normally.`).write();

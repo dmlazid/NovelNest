@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import re
 import time
@@ -18,6 +19,7 @@ AUTHOR = "Ripper_8410 / 두부두부"
 FIXED_CHUNK_FILES = 10
 MIN_CHUNK_CAPACITY = 50
 REQUEST_DELAY = 1.1
+BATCH_SIZE = max(1, min(1000, int(os.environ.get('GALLERY_BATCH_SIZE', '100'))))
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 CATALOG_PATH = DIST / "licensed-gallery.js"
@@ -200,13 +202,14 @@ def main() -> None:
     if latest < existing:
         raise RuntimeError(f"Source reports only {latest} chapters, below the existing {existing}; refusing to remove chapters.")
 
-    new_count = latest - existing
+    target = min(latest, existing + BATCH_SIZE)
+    new_count = target - existing
     if new_count:
         print(f"Importing {new_count} new chapter(s)...", flush=True)
-        for number in range(existing + 1, latest + 1):
+        for number in range(existing + 1, target + 1):
             chapters.append(parse_chapter(number))
             print(f"Fetched chapter {number}/{latest}", flush=True)
-            if number < latest:
+            if number < target:
                 time.sleep(REQUEST_DELAY)
         updated = datetime.now(timezone.utc).date().isoformat()
     else:
@@ -215,7 +218,7 @@ def main() -> None:
 
     write_js_chunks(chapters)
     write_licensed_catalog(chapters, updated)
-    print(f"Import complete: {len(chapters)} chapters available on NovelNest.", flush=True)
+    print(f"Checkpoint complete: {len(chapters)}/{latest} source chapters available on NovelNest.", flush=True)
 
 
 if __name__ == "__main__":

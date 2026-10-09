@@ -7,10 +7,12 @@ on:
     paths:
       - "scripts/import_investing.py"
       - ".github/workflows/import-investing.yml"
+      - "scripts/run_novel_catchup.sh"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   # Stable per-source queue: do not version this name.
@@ -19,8 +21,7 @@ concurrency:
 
 jobs:
   import:
-    # Migration freeze: remove this condition only after verified reader cutover.
-    if: ${{ false }}
+    # Chapter imports remain independent of the pending read-only D1 cutover.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -42,35 +43,20 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Import Investing novel chapters
-        run: python scripts/import_investing.py
-
-      - name: Validate imported chapter data
-        run: node scripts/check.mjs
-
-      - name: Commit Investing novel updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/index.html
-          git add dist/data/investing-chapters-*.js
-          git add dist/assets/investing-in-my-three-crippled-wives-get-10000x-times-return.jpg
-          git add dist/licensed-investing.js
-          if git diff --cached --quiet; then
-            echo "No Investing chapter changes to commit."
-            exit 0
-          fi
-          git commit -m "Auto-update Investing novel chapters"
-          for attempt in 1 2 3; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            echo "Push raced with another update; retrying ($attempt/3)..."
-            sleep 2
-          done
-          exit 1
+      - name: Catch Investing In My Three Crippled Wives up in validated chapter checkpoints
+        env:
+          INVESTING_BATCH_SIZE: "100"
+          IMPORT_NAME: "Investing In My Three Crippled Wives"
+          IMPORT_COMMAND: "python scripts/import_investing.py"
+          IMPORT_GIT_PATHS: "dist/data/investing-chapters-*.js dist/assets/investing-in-my-three-crippled-wives-get-10000x-times-return.jpg dist/licensed-investing.js dist/index.html"
+          IMPORT_MAX_CHECKPOINTS: "24"
+          IMPORT_MAX_SECONDS: "4800"
+          IMPORT_COMMIT_PREFIX: "Auto-update Investing In My Three Crippled Wives chapters"
+          IMPORT_WORKFLOW: "import-investing.yml"
+          IMPORT_RESCHEDULE: "true"
+          IMPORT_DEPLOY_EACH_CHECKPOINT: "false"
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
         if: always()

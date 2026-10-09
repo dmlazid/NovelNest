@@ -7,10 +7,12 @@ on:
     paths:
       - "scripts/import_astral.py"
       - ".github/workflows/import-astral.yml"
+      - "scripts/run_novel_catchup.sh"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   # Stable per-source queue: do not version this name.
@@ -19,8 +21,7 @@ concurrency:
 
 jobs:
   import:
-    # Migration freeze: remove this condition only after verified reader cutover.
-    if: ${{ false }}
+    # Chapter imports remain independent of the pending read-only D1 cutover.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -45,34 +46,20 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Check for and import Astral Pet Store chapters
-        run: python scripts/import_astral.py
-
-      - name: Validate imported chapter data
-        run: node scripts/check.mjs
-
-      - name: Commit Astral chapter updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/data/astral-chapters-*.js
-          git add dist/assets/astral-pet-store.jpg
-          git add dist/licensed-astral.js
-          if git diff --cached --quiet; then
-            echo "No new Astral chapter changes to commit."
-            exit 0
-          fi
-          git commit -m "Auto-update Astral Pet Store chapters"
-          for attempt in 1 2 3; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            echo "Push raced with another update; retrying ($attempt/3)..."
-            sleep 2
-          done
-          exit 1
+      - name: Catch Astral Pet Store up in validated chapter checkpoints
+        env:
+          ASTRAL_BATCH_SIZE: "100"
+          IMPORT_NAME: "Astral Pet Store"
+          IMPORT_COMMAND: "python scripts/import_astral.py"
+          IMPORT_GIT_PATHS: "dist/data/astral-chapters-*.js dist/assets/astral-pet-store.jpg dist/licensed-astral.js"
+          IMPORT_MAX_CHECKPOINTS: "24"
+          IMPORT_MAX_SECONDS: "4800"
+          IMPORT_COMMIT_PREFIX: "Auto-update Astral Pet Store chapters"
+          IMPORT_WORKFLOW: "import-astral.yml"
+          IMPORT_RESCHEDULE: "true"
+          IMPORT_DEPLOY_EACH_CHECKPOINT: "false"
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
         if: always()

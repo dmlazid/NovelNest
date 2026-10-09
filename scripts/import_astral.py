@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import math
 import re
 import time
@@ -20,6 +21,7 @@ AUTHOR = "Ancient Xi / Gu Xi / 古羲"
 FIXED_CHUNK_FILES = 20
 MIN_CHUNK_CAPACITY = 100
 MAX_WORKERS = 4
+BATCH_SIZE = max(1, min(1000, int(os.environ.get('ASTRAL_BATCH_SIZE', '100'))))
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
@@ -250,8 +252,9 @@ def main() -> None:
     if latest < existing:
         raise RuntimeError(f"Source reports only {latest} chapters, below the existing {existing}; refusing to remove chapters.")
 
-    if latest > existing:
-        new_chapters = fetch_chapters(existing + 1, latest)
+    target = min(latest, existing + BATCH_SIZE)
+    if target > existing:
+        new_chapters = fetch_chapters(existing + 1, target)
         chapters = existing_chapters + new_chapters
         updated = datetime.now(timezone.utc).date().isoformat()
     else:
@@ -259,17 +262,17 @@ def main() -> None:
         updated = current_updated_date()
         print("No new Astral chapters found.", flush=True)
 
-    if len(chapters) != latest:
-        raise RuntimeError(f"Astral chapter count mismatch: expected {latest}, built {len(chapters)}")
+    if len(chapters) != target:
+        raise RuntimeError(f"Astral checkpoint count mismatch: expected {target}, built {len(chapters)}")
 
     numbers = [int(ch.get("number", i + 1)) for i, ch in enumerate(chapters)]
-    if numbers != list(range(1, latest + 1)):
+    if numbers != list(range(1, target + 1)):
         raise RuntimeError("Astral chapters are missing, duplicated, or out of order")
 
     write_js_chunks(chapters)
     ensure_cover(raw)
     write_licensed_catalog(chapters, updated)
-    print(f"Import complete: Astral Pet Store has a clean 1-{latest} sequence with no duplicates.", flush=True)
+    print(f"Checkpoint complete: Astral Pet Store has a clean 1-{target}/{latest} sequence with no duplicates.", flush=True)
 
 
 if __name__ == "__main__":

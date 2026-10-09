@@ -7,10 +7,12 @@ on:
     paths:
       - "scripts/import_gallery.py"
       - ".github/workflows/import-gallery.yml"
+      - "scripts/run_novel_catchup.sh"
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   # Stable per-source queue: do not version this name.
@@ -19,8 +21,7 @@ concurrency:
 
 jobs:
   import:
-    # Migration freeze: remove this condition only after verified reader cutover.
-    if: ${{ false }}
+    # Chapter imports remain independent of the pending read-only D1 cutover.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -45,26 +46,20 @@ jobs:
       - name: Install importer dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Check for and import new authorized chapters
-        run: python scripts/import_gallery.py
-
-      - name: Validate imported chapter data
-        run: node scripts/check.mjs
-
-      - name: Commit chapter updates
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/data/gallery-chapters-*.js
-          git add dist/licensed-gallery.js
-          if git diff --cached --quiet; then
-            echo "No new chapter changes to commit."
-            exit 0
-          fi
-          git commit -m "Auto-update licensed novel chapters"
-          git fetch origin main
-          git rebase origin/main
-          git push origin HEAD:main
+      - name: Catch Got a Gallery in the Wild up in validated chapter checkpoints
+        env:
+          GALLERY_BATCH_SIZE: "100"
+          IMPORT_NAME: "Got a Gallery in the Wild"
+          IMPORT_COMMAND: "python scripts/import_gallery.py"
+          IMPORT_GIT_PATHS: "dist/data/gallery-chapters-*.js dist/licensed-gallery.js"
+          IMPORT_MAX_CHECKPOINTS: "24"
+          IMPORT_MAX_SECONDS: "4800"
+          IMPORT_COMMIT_PREFIX: "Auto-update Got a Gallery in the Wild chapters"
+          IMPORT_WORKFLOW: "import-gallery.yml"
+          IMPORT_RESCHEDULE: "true"
+          IMPORT_DEPLOY_EACH_CHECKPOINT: "false"
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/run_novel_catchup.sh
 
       - name: Record updater result
         if: always()

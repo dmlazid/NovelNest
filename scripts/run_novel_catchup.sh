@@ -71,7 +71,12 @@ for checkpoint in $(seq 1 "$max_checkpoints"); do
   pushed=0
   for attempt in 1 2 3; do
     git fetch origin main
-    git rebase origin/main
+    if ! git rebase origin/main; then
+      git rebase --abort || true
+      echo "${IMPORT_NAME}: rebase raced with another import; retrying (${attempt}/3)..."
+      sleep 3
+      continue
+    fi
     if git push origin HEAD:main; then
       pushed=1
       break

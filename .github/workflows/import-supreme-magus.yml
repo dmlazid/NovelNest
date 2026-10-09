@@ -14,6 +14,7 @@ on:
 permissions:
   contents: write
   actions: write
+  actions: write
 
 concurrency:
   # Stable per-source queue: do not version this name.
@@ -22,8 +23,7 @@ concurrency:
 
 jobs:
   import:
-    # Migration freeze: remove this condition only after verified reader cutover.
-    if: ${{ false }}
+    # Resume authorized chapter checkpoints; public D1 cutover stays gated.
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -54,7 +54,9 @@ jobs:
           IMPORT_MAX_CHECKPOINTS: "60"
           IMPORT_MAX_SECONDS: "9600"
           IMPORT_COMMIT_PREFIX: "Auto-update Supreme Magus chapters"
-          IMPORT_RESCHEDULE: "false"
+          IMPORT_WORKFLOW: "import-supreme-magus.yml"
+          IMPORT_RESCHEDULE: "true"
+          IMPORT_DEPLOY_EACH_CHECKPOINT: "false"
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/run_novel_catchup.sh
 
