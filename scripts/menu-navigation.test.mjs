@@ -71,3 +71,18 @@ test('all mobile menu URLs remain same-origin paths, not //hostnames', () => {
   }
   assert.doesNotMatch(accounts, /menuRoute=/);
 });
+
+
+test('mobile menu uses same-document navigation and never forces a page reload', () => {
+  const accounts = fs.readFileSync(new URL('../dist/accounts.js', import.meta.url), 'utf8');
+  const start = accounts.indexOf("if (id === 'navigation-drawer') {");
+  const end = accounts.indexOf("element.addEventListener('click', event => { if (event.target === element)", start);
+  assert(start >= 0 && end > start, 'Expected mobile navigation handler');
+  const handler = accounts.slice(start, end);
+  assert.match(handler, /window\.NovelNestApp\?\.navigate/);
+  assert.match(handler, /element\.close\(\)/);
+  assert.doesNotMatch(handler, /window\.location\.assign\(destination\);/,
+    'Mobile menu must not perform unconditional document navigation');
+  assert.match(accounts, /window\.NovelNestApp\?\.navigate\(destination\)/,
+    'Menu search must use the same in-page router');
+});
