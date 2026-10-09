@@ -1046,3 +1046,22 @@
   font:800 15px/1.2 'DM Sans',sans-serif;
 }
 .privacy-status-card p{margin:0}
+
+
+/* Keep the header steady while the app switches views without a white flash. */
+@media (prefers-reduced-motion: no-preference) {
+  #main { view-transition-name: novelhaven-content; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: 0s; }
+  ::view-transition-old(novelhaven-content) {
+    animation: 105ms ease-in both novelhaven-page-out;
+  }
+  ::view-transition-new(novelhaven-content) {
+    animation: 165ms ease-out both novelhaven-page-in;
+  }
+  @keyframes novelhaven-page-out { to { opacity: 0; } }
+  @keyframes novelhaven-page-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+}
