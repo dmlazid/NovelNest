@@ -1,6 +1,6 @@
 // Read-only production-host diagnosis. Never prints secrets or modifies deployments.
 const home='https://novelhaven.top/';
-const urls=[home,'https://novelhaven.top/akk-novels/','https://novelhaven.top/app.js','https://novelhaven.top/app.js?test=akk-spotlight-20261010','https://novelhaven.top/styles.css','https://novelnest.pages.dev/','https://novelnest.pages.dev/app.js','https://dmlazid.github.io/NovelNest/'];
+const urls=[home,'https://novelhaven.top/akk-novels/','https://novelhaven.top/app.js','https://novelhaven.top/app.js?v=20261008-clean-routes-2','https://novelhaven.top/app.js?v=20261010-akk-spotlight-1','https://novelhaven.top/app.js?test=akk-spotlight-20261010','https://novelhaven.top/styles.css','https://novelnest.pages.dev/','https://novelnest.pages.dev/app.js','https://dmlazid.github.io/NovelNest/'];
 const limitedFetch=async (url,headers={})=>{
   try {
     const response=await fetch(url,{headers,redirect:'follow',signal:AbortSignal.timeout(18000)});
