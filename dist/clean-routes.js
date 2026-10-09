@@ -45,9 +45,10 @@
     if (push && history.pushState) history.pushState(null, '', clean);
     else history.replaceState(history.state, '', clean);
 
-    history.replaceState(history.state, '', '/#' + clean);
+    // The app router natively reads clean paths. Never temporarily swap
+    // into hash routing: route-rendered listeners may otherwise rewrite
+    // history mid-render and cause a mobile navigation loop.
     window.NovelNestApp.refresh();
-    history.replaceState(history.state, '', clean);
     rewriteLinks();
     return true;
   }
@@ -76,12 +77,9 @@
 
   window.addEventListener('popstate', () => {
     queueMicrotask(() => {
-      if (!location.hash && isGenericRoute(location.pathname)) {
-        renderGenericRoute(location.pathname + location.search);
-      } else {
-        cleanLegacyAddress();
-        rewriteLinks();
-      }
+      // app.js already routes on popstate. Avoid a second full render.
+      cleanLegacyAddress();
+      rewriteLinks();
     });
   });
 
