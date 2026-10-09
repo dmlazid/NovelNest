@@ -8,6 +8,7 @@ on:
       - 'scripts/d1-fast-migration.test.mjs'
       - 'scripts/audit-d1-content.mjs'
       - 'scripts/audit-d1-content.test.mjs'
+      - 'scripts/check-cloudflare-preview.mjs'
   schedule:
     - cron: '8,28,48 * * * *'
   workflow_dispatch:
@@ -61,6 +62,28 @@ jobs:
       - name: Report previously completed copy
         if: steps.audit-cache.outputs.cache-hit == 'true'
         run: echo 'Copy already passed a full content audit for this source. Deployment still requires a fresh audit and Cloudflare access.' >> "$GITHUB_STEP_SUMMARY"
+      # Only a fresh, complete paragraph-by-paragraph D1 audit can create
+      # an isolated workers.dev preview. NEVER change custom domain routes.
+      - name: Validate isolated reader and untouched publisher assets
+        if: steps.audit.outputs.complete == 'true'
+        run: |
+          node --test scripts/cloudflare-reader.test.mjs
+          NOVELNEST_CLOUDFLARE=1 node scripts/build.mjs
+          node scripts/check-cloudflare-build.mjs
+          node --check scripts/check-cloudflare-preview.mjs
+      - name: Deploy isolated workers.dev reader after complete audit
+        id: isolated-preview
+        if: steps.audit.outputs.complete == 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config cloudflare/reader/wrangler.jsonc
+      - name: Verify staged D1 chapters and public trust pages
+        if: steps.isolated-preview.outcome == 'success'
+        env:
+          CLOUDFLARE_PREVIEW_URL: ${{ steps.isolated-preview.outputs.deployment-url }}
+        run: node scripts/check-cloudflare-preview.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
