@@ -253,7 +253,7 @@
       <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelHaven','Stories &amp; reading information','info')}</div>
     </div>`;
     // Route menu selections directly and dismiss the modal in the same gesture.
-    panel.addEventListener('click', event => {
+    panel.onclick = event => {
       const link = event.target.closest('a[href]');
       if (!link || !panel.contains(link)) return;
       const href = link.getAttribute('href') || '';
@@ -264,7 +264,7 @@
       const hash = href.slice(1);
       if (location.hash === hash) window.dispatchEvent(new Event('hashchange'));
       else location.hash = hash;
-    }, { capture: true, once: false });
+    };
     renderStatus();
     openDrawer(panel);
   }
