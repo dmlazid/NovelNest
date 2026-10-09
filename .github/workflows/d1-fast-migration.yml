@@ -72,7 +72,7 @@ jobs:
           node scripts/check-cloudflare-build.mjs
           node --check scripts/check-cloudflare-preview.mjs
       - name: Deploy isolated workers.dev reader after complete audit
-        id: isolated-preview
+        id: isolated_preview
         if: steps.audit.outputs.complete == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
@@ -80,9 +80,9 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --config cloudflare/reader/wrangler.jsonc
       - name: Verify staged D1 chapters and public trust pages
-        if: steps.isolated-preview.outcome == 'success'
+        if: steps.isolated_preview.outcome == 'success'
         env:
-          CLOUDFLARE_PREVIEW_URL: ${{ steps.isolated-preview.outputs.deployment-url }}
+          CLOUDFLARE_PREVIEW_URL: ${{ steps.isolated_preview.outputs.deployment-url }}
         run: node scripts/check-cloudflare-preview.mjs
       - uses: actions/upload-artifact@v4
         if: always()
