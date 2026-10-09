@@ -31,7 +31,7 @@ function synopsisHtml(n){
     <button type="button" class="synopsis-toggle" data-synopsis-toggle aria-controls="${esc(id)}" aria-expanded="false">See more</button>
   </div>`;
 }
-const image=n=>n.externalUrl?`<div class="cover external-cover" aria-hidden="true"><span>EXTERNAL<br>READ</span><strong>G</strong><span>NovelNest<br>Reading list</span></div>`:`<img class="cover" src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy" width="200" height="300">`;
+const image=n=>n.externalUrl?`<div class="cover external-cover" aria-hidden="true"><span>EXTERNAL<br>READ</span><strong>G</strong><span>NovelHaven<br>Reading list</span></div>`:`<img class="cover" src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy" width="200" height="300">`;
 const genres=[...new Set(novels.flatMap(n=>n.tags))].sort();
 function searchForm(value=''){return `<form class="search-form" role="search"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search novels by title or author" placeholder="Search titles, authors, genres…" value="${esc(value)}"><button aria-label="Search" type="submit">Search</button></form>`}
 function chips(selected='All'){return `<div class="chips" aria-label="Filter by genre">${['All',...genres].map(g=>`<a class="chip ${selected===g?'selected':''}" ${selected===g?'aria-current="true"':''} href="./#/browse${g==='All'?'':'?genre='+encodeURIComponent(g)}">${g}</a>`).join('')}</div>`}
@@ -117,19 +117,19 @@ function home(){
       ${completed.length?`<div class="home-cover-grid">${completed.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No completed novels yet.</p>'}
     </section>
     <section class="home-feed-section editorial-home-section" aria-labelledby="reading-desk-title">
-      <div class="home-feed-head"><h2 id="reading-desk-title"><span aria-hidden="true">✦</span> NovelNest Reading Desk</h2><a href="./#/reading-desk">See all</a></div>
-      <p class="editorial-home-intro">Original guides and recommendations written for NovelNest readers — made to help you choose what to read next, understand popular web-novel genres, and decide between ongoing and completed stories.</p>
+      <div class="home-feed-head"><h2 id="reading-desk-title"><span aria-hidden="true">✦</span> NovelHaven Reading Desk</h2><a href="./#/reading-desk">See all</a></div>
+      <p class="editorial-home-intro">Original guides and recommendations written for NovelHaven readers — made to help you choose what to read next, understand popular web-novel genres, and decide between ongoing and completed stories.</p>
       <div class="editorial-card-grid">
         ${editorialCard('choosing-a-long-web-novel','How to choose a long web novel without burning out','A practical guide to chapter counts, pacing, reading goals, and when to take a break.')}
         ${editorialCard('ongoing-vs-completed','Ongoing or completed: which reading style fits you?','The trade-offs between following new releases and binge-reading a story that already has an ending.')}
-        ${editorialCard('genre-guide','A simple guide to NovelNest genres','What System, Cultivation, Fantasy, Romance, Reincarnation and related tags usually signal to a reader.')}
+        ${editorialCard('genre-guide','A simple guide to NovelHaven genres','What System, Cultivation, Fantasy, Romance, Reincarnation and related tags usually signal to a reader.')}
       </div>
     </section>
   </div>`;
 }
 function editorialCard(slug,title,summary){
   return `<a class="editorial-card" href="./#/editorial/${encodeURIComponent(slug)}">
-    <span class="editorial-kicker">Original NovelNest guide</span>
+    <span class="editorial-kicker">Original NovelHaven guide</span>
     <strong>${esc(title)}</strong>
     <p>${esc(summary)}</p>
     <span class="editorial-read-link">Read guide →</span>
@@ -147,9 +147,9 @@ const EDITORIALS={
       <p>Give a new story enough time to establish its main character, conflict, and tone, but do not force yourself through hundreds of chapters just because the novel is long. After the opening arc, ask whether you are still curious about the next problem the characters will face. Curiosity is a better signal than completion pressure.</p>
       <h2>Break very long stories into arcs</h2>
       <p>Instead of treating a 2,000-chapter novel as one enormous task, read it as a series of smaller arcs. When an arc ends, switch to another genre for a while. Returning after a break often makes a long story feel fresh again and helps prevent repetitive reading from becoming tiring.</p>
-      <h2>Use NovelNest tools to reduce friction</h2>
+      <h2>Use NovelHaven tools to reduce friction</h2>
       <p>Bookmark stories you genuinely plan to continue, use reading history to return to your last chapter, and browse by genre when you want a change of mood. A smaller personal library is usually more useful than saving every interesting title you see.</p>
-      <p class="editorial-note"><strong>NovelNest tip:</strong> If you are unsure where to start, compare <a href="./#/completed">completed novels</a> with the <a href="./#/latest-releases">latest ongoing releases</a> before choosing.</p>
+      <p class="editorial-note"><strong>NovelHaven tip:</strong> If you are unsure where to start, compare <a href="./#/completed">completed novels</a> with the <a href="./#/latest-releases">latest ongoing releases</a> before choosing.</p>
     `
   },
   'ongoing-vs-completed':{
@@ -167,7 +167,7 @@ const EDITORIALS={
     `
   },
   'genre-guide':{
-    title:'A simple guide to common NovelNest genres',
+    title:'A simple guide to common NovelHaven genres',
     dek:'Genre tags are shortcuts. They tell you what kind of experience a story is likely to emphasize, but many novels mix several tags together.',
     body:`
       <p><strong>Fantasy</strong> is the broadest label in the catalog. It usually points to worlds with magic, supernatural rules, unusual creatures, or powers that do not exist in ordinary life. Fantasy often overlaps with Action, Adventure, Romance, and Reincarnation.</p>
@@ -183,7 +183,7 @@ const EDITORIALS={
 function readingDesk(){
   return `<div class="policy-page editorial-index">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Reading Desk</span></nav>
-    <header class="policy-hero"><span class="eyebrow">Original NovelNest content</span><h1>NovelNest Reading Desk</h1><p>Practical reading guides, genre explainers, and recommendations created for NovelNest readers.</p></header>
+    <header class="policy-hero"><span class="eyebrow">Original NovelHaven content</span><h1>NovelHaven Reading Desk</h1><p>Practical reading guides, genre explainers, and recommendations created for NovelHaven readers.</p></header>
     <div class="editorial-card-grid editorial-index-grid">
       ${Object.entries(EDITORIALS).map(([slug,item])=>editorialCard(slug,item.title,item.dek)).join('')}
     </div>
@@ -194,7 +194,7 @@ function editorial(slug){
   if(!item)return missing();
   return `<article class="policy-page editorial-article">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><a href="./#/reading-desk">Reading Desk</a><span aria-hidden="true">›</span><span aria-current="page">${esc(item.title)}</span></nav>
-    <header class="policy-hero"><span class="eyebrow">Original NovelNest guide</span><h1>${esc(item.title)}</h1><p>${esc(item.dek)}</p></header>
+    <header class="policy-hero"><span class="eyebrow">Original NovelHaven guide</span><h1>${esc(item.title)}</h1><p>${esc(item.dek)}</p></header>
     <div class="policy-copy">${item.body}</div>
   </article>`;
 }
@@ -217,7 +217,7 @@ function directoryRow(n){
 function directoryPage(kind){
   const settings={
     releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Fresh updates',description:'Novels with the newest chapter updates first.'},
-    novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelNest',description:'Browse the latest novels available in the NovelNest catalog.'},
+    novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelHaven',description:'Browse the latest novels available in the NovelHaven catalog.'},
     completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
   };
   const cfg=settings[kind]||settings.novels;
@@ -288,7 +288,7 @@ function finderPage(params=new URLSearchParams()){
   else results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   return `<div class="finder-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Novel Finder</span></nav>
-    <header class="finder-heading"><h1><span aria-hidden="true">▽</span> NOVEL FINDER</h1><p>Choose the filters you want, then apply them to the NovelNest catalog.</p></header>
+    <header class="finder-heading"><h1><span aria-hidden="true">▽</span> NOVEL FINDER</h1><p>Choose the filters you want, then apply them to the NovelHaven catalog.</p></header>
     <form class="finder-form">
       <section class="finder-section">
         <h2>⌕ Search</h2>
@@ -328,79 +328,79 @@ function library(params = new URLSearchParams()) {
 function missing(){return `<div class="empty"><h1>Page not found</h1><p>This story or chapter is not in the catalog.</p><a class="button" href="./#/browse">Browse novels</a></div>`}
 function about(){return `<article class="policy-page">
   <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">About</span></nav>
-  <header class="policy-hero"><span class="eyebrow">A home for long-form reading</span><h1>About NovelNest</h1><p>NovelNest is an independent web-novel library and reading site built to make long stories easier to discover, organize, and read chapter by chapter.</p></header>
+  <header class="policy-hero"><span class="eyebrow">A home for long-form reading</span><h1>About NovelHaven</h1><p>NovelHaven is an independent web-novel library and reading site built to make long stories easier to discover, organize, and read chapter by chapter.</p></header>
   <div class="policy-copy">
-    <h2>What NovelNest offers</h2>
-    <p>Readers can browse novels by genre, follow ongoing releases, find completed stories, save bookmarks, continue from reading history, and adjust the reader for a more comfortable experience. The Reading Desk also publishes original guides and recommendations written specifically for NovelNest.</p>
+    <h2>What NovelHaven offers</h2>
+    <p>Readers can browse novels by genre, follow ongoing releases, find completed stories, save bookmarks, continue from reading history, and adjust the reader for a more comfortable experience. The Reading Desk also publishes original guides and recommendations written specifically for NovelHaven.</p>
     <h2>Publishing and rights</h2>
-    <p>NovelNest only intends to publish full chapter text when the site owner has confirmed permission or another valid right to publish that material. Copyright in individual novels, cover art, characters, and other third-party works remains with the applicable authors, artists, publishers, or rights holders unless explicitly stated otherwise.</p>
-    <p>If you are a rights holder and believe something on NovelNest should not be available, please use the <a href="./#/copyright">Copyright &amp; Takedown</a> page so the material can be reviewed promptly.</p>
+    <p>NovelHaven only intends to publish full chapter text when the site owner has confirmed permission or another valid right to publish that material. Copyright in individual novels, cover art, characters, and other third-party works remains with the applicable authors, artists, publishers, or rights holders unless explicitly stated otherwise.</p>
+    <p>If you are a rights holder and believe something on NovelHaven should not be available, please use the <a href="./#/copyright">Copyright &amp; Takedown</a> page so the material can be reviewed promptly.</p>
     <h2>Accounts and reading data</h2>
     <p>Guest reading data such as bookmarks, preferences, and recent reading progress can be stored in the browser. Signed-in readers may use Google sign-in through Firebase Authentication, with supported library and reading information synchronized through Firebase services.</p>
     <h2>Independent editorial content</h2>
-    <p>NovelNest’s editorial guides are original site content. They are written to help readers compare reading styles, understand genre labels, and make better choices about what to read next. Editorial pages are separate from the text of licensed novels.</p>
+    <p>NovelHaven’s editorial guides are original site content. They are written to help readers compare reading styles, understand genre labels, and make better choices about what to read next. Editorial pages are separate from the text of licensed novels.</p>
   </div>
 </article>`}
 function privacy(){return `<article class="policy-page">
   <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Privacy Policy</span></nav>
-  <header class="policy-hero"><span class="eyebrow">Your data and choices</span><h1>Privacy Policy</h1><p>This policy explains what NovelNest stores, which third-party services the site uses, and what may change if advertising is enabled.</p></header>
+  <header class="policy-hero"><span class="eyebrow">Your data and choices</span><h1>Privacy Policy</h1><p>This policy explains what NovelHaven stores, which third-party services the site uses, and what may change if advertising is enabled.</p></header>
   <div class="policy-copy">
     <h2>Information stored on your device</h2>
-    <p>NovelNest may use browser storage to remember bookmarks, reading history, reader appearance preferences, notification state, and the last chapter you opened. Guest data generally stays on the device unless you sign in and use a supported synchronization feature.</p>
+    <p>NovelHaven may use browser storage to remember bookmarks, reading history, reader appearance preferences, notification state, and the last chapter you opened. Guest data generally stays on the device unless you sign in and use a supported synchronization feature.</p>
     <h2>Account information</h2>
-    <p>If you choose Google sign-in, authentication is handled through Firebase Authentication. NovelNest may receive basic account identifiers needed to sign you in and associate supported library data with your account. Synchronized reading data may be stored using Firebase/Google services.</p>
+    <p>If you choose Google sign-in, authentication is handled through Firebase Authentication. NovelHaven may receive basic account identifiers needed to sign you in and associate supported library data with your account. Synchronized reading data may be stored using Firebase/Google services.</p>
     <h2>Technical and third-party services</h2>
     <p>The site may connect to third-party services needed for features such as authentication, cloud synchronization, fonts, hosting, and security. Google Fonts may be requested by your browser to display the site’s typography. GitHub Pages currently hosts the public website.</p>
     <h2>Advertising and cookies</h2>
-    <p>NovelNest does not need advertising cookies to provide its basic reading features. If advertising services such as Google AdSense are enabled, Google and its partners may use cookies, device identifiers, or similar technologies to deliver, measure, and personalize ads where permitted. This policy will be updated if the advertising setup changes.</p>
+    <p>NovelHaven does not need advertising cookies to provide its basic reading features. If advertising services such as Google AdSense are enabled, Google and its partners may use cookies, device identifiers, or similar technologies to deliver, measure, and personalize ads where permitted. This policy will be updated if the advertising setup changes.</p>
     <h2>Your choices</h2>
-    <p>You can clear local NovelNest data using your browser controls. If you use a signed-in account, sign-out and account controls are available from the site menu. Browser privacy settings can also restrict cookies or local storage, although doing so may limit bookmarks, history, or sign-in features.</p>
+    <p>You can clear local NovelHaven data using your browser controls. If you use a signed-in account, sign-out and account controls are available from the site menu. Browser privacy settings can also restrict cookies or local storage, although doing so may limit bookmarks, history, or sign-in features.</p>
     <h2>Children</h2>
-    <p>NovelNest is intended for a general audience and is not designed to knowingly collect personal information from children in violation of applicable law. Readers should follow the age requirements of any account or advertising service they use.</p>
+    <p>NovelHaven is intended for a general audience and is not designed to knowingly collect personal information from children in violation of applicable law. Readers should follow the age requirements of any account or advertising service they use.</p>
     <h2>Contact</h2>
     <p>Questions about this policy can be sent through the <a href="./#/contact">Contact</a> page.</p>
   </div>
 </article>`}
 function terms(){return `<article class="policy-page">
   <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Terms of Use</span></nav>
-  <header class="policy-hero"><span class="eyebrow">Rules for using NovelNest</span><h1>Terms of Use</h1><p>By using NovelNest, you agree to use the site responsibly and respect the rights of authors, artists, publishers, and other users.</p></header>
+  <header class="policy-hero"><span class="eyebrow">Rules for using NovelHaven</span><h1>Terms of Use</h1><p>By using NovelHaven, you agree to use the site responsibly and respect the rights of authors, artists, publishers, and other users.</p></header>
   <div class="policy-copy">
     <h2>Reading access</h2>
-    <p>NovelNest provides browsing, bookmarking, account, and reading features for personal use. You may not use the site to scrape, mass-copy, resell, republish, or redistribute chapter text, images, or other protected material without permission from the relevant rights holder.</p>
+    <p>NovelHaven provides browsing, bookmarking, account, and reading features for personal use. You may not use the site to scrape, mass-copy, resell, republish, or redistribute chapter text, images, or other protected material without permission from the relevant rights holder.</p>
     <h2>Accounts</h2>
-    <p>You are responsible for activity performed through your account and for maintaining control of the Google account used to sign in. NovelNest may change, suspend, or discontinue account features when necessary for security, reliability, or service maintenance.</p>
+    <p>You are responsible for activity performed through your account and for maintaining control of the Google account used to sign in. NovelHaven may change, suspend, or discontinue account features when necessary for security, reliability, or service maintenance.</p>
     <h2>Intellectual property</h2>
-    <p>NovelNest branding, original editorial writing, interface text, and original site code or design elements are protected by their applicable rights. Individual novels, covers, and third-party materials remain the property of their respective rights holders unless otherwise stated.</p>
+    <p>NovelHaven branding, original editorial writing, interface text, and original site code or design elements are protected by their applicable rights. Individual novels, covers, and third-party materials remain the property of their respective rights holders unless otherwise stated.</p>
     <h2>External services and links</h2>
-    <p>NovelNest may rely on or link to services operated by other companies. Those services have their own terms and privacy practices. NovelNest is not responsible for content, availability, or changes on third-party sites.</p>
+    <p>NovelHaven may rely on or link to services operated by other companies. Those services have their own terms and privacy practices. NovelHaven is not responsible for content, availability, or changes on third-party sites.</p>
     <h2>Availability and accuracy</h2>
-    <p>Novel information, chapter counts, status labels, and availability can change. NovelNest aims to keep listings accurate but does not guarantee uninterrupted access or that every catalog detail will always be error-free.</p>
+    <p>Novel information, chapter counts, status labels, and availability can change. NovelHaven aims to keep listings accurate but does not guarantee uninterrupted access or that every catalog detail will always be error-free.</p>
     <h2>Changes to these terms</h2>
-    <p>These terms may be revised as NovelNest adds new features, advertising, or account services. Continued use after an update means you accept the revised terms.</p>
+    <p>These terms may be revised as NovelHaven adds new features, advertising, or account services. Continued use after an update means you accept the revised terms.</p>
   </div>
 </article>`}
 function contact(){return `<article class="policy-page">
   <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Contact</span></nav>
-  <header class="policy-hero"><span class="eyebrow">Questions, corrections, and business inquiries</span><h1>Contact NovelNest</h1><p>Use the appropriate channel below so requests can be reviewed clearly.</p></header>
+  <header class="policy-hero"><span class="eyebrow">Questions, corrections, and business inquiries</span><h1>Contact NovelHaven</h1><p>Use the appropriate channel below so requests can be reviewed clearly.</p></header>
   <div class="policy-copy contact-grid">
-    <section><h2>General questions &amp; site issues</h2><p>For broken links, incorrect chapter information, feature problems, or general feedback, open an issue in the NovelNest GitHub repository.</p><p><a class="button" href="https://github.com/dmlazid/NovelNest/issues/new" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a></p></section>
+    <section><h2>General questions &amp; site issues</h2><p>For broken links, incorrect chapter information, feature problems, or general feedback, open an issue in the NovelHaven GitHub repository.</p><p><a class="button" href="https://github.com/dmlazid/NovelNest/issues/new" target="_blank" rel="noopener noreferrer">Open a GitHub issue</a></p></section>
     <section><h2>Copyright or removal request</h2><p>If you are an author, artist, publisher, or other rights holder requesting review or removal of material, use the dedicated copyright instructions.</p><p><a class="button outline" href="./#/copyright">Copyright &amp; Takedown</a></p></section>
-    <section><h2>Repository</h2><p>Technical source and public change history are available in the NovelNest GitHub repository.</p><p><a class="text-link" href="https://github.com/dmlazid/NovelNest" target="_blank" rel="noopener noreferrer">Visit the NovelNest repository</a></p></section>
+    <section><h2>Repository</h2><p>Technical source and public change history are available in the NovelHaven GitHub repository.</p><p><a class="text-link" href="https://github.com/dmlazid/NovelNest" target="_blank" rel="noopener noreferrer">Visit the NovelHaven repository</a></p></section>
   </div>
 </article>`}
 function copyrightPage(){return `<article class="policy-page">
   <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">Copyright &amp; Takedown</span></nav>
-  <header class="policy-hero"><span class="eyebrow">Rights-holder requests</span><h1>Copyright &amp; Takedown Requests</h1><p>NovelNest respects authors, artists, publishers, and other rights holders.</p></header>
+  <header class="policy-hero"><span class="eyebrow">Rights-holder requests</span><h1>Copyright &amp; Takedown Requests</h1><p>NovelHaven respects authors, artists, publishers, and other rights holders.</p></header>
   <div class="policy-copy">
-    <h2>NovelNest publishing policy</h2>
-    <p>NovelNest only intends to host full novel text where the site owner has confirmed permission or another valid right to publish it. Copyright ownership is not transferred to NovelNest merely because a work appears in the catalog.</p>
+    <h2>NovelHaven publishing policy</h2>
+    <p>NovelHaven only intends to host full novel text where the site owner has confirmed permission or another valid right to publish it. Copyright ownership is not transferred to NovelHaven merely because a work appears in the catalog.</p>
     <h2>How to request review or removal</h2>
-    <p>If you believe content on NovelNest infringes your copyright or is being used outside the permission granted, submit a request through the public contact channel below. To help the request be reviewed quickly, include:</p>
-    <ul><li>Your name and relationship to the copyrighted work.</li><li>The work you believe is affected.</li><li>The exact NovelNest URL or novel title involved.</li><li>A description of the rights you own or represent.</li><li>The action you are requesting, such as correction, attribution change, or removal.</li><li>A reliable way to contact you for follow-up.</li></ul>
+    <p>If you believe content on NovelHaven infringes your copyright or is being used outside the permission granted, submit a request through the public contact channel below. To help the request be reviewed quickly, include:</p>
+    <ul><li>Your name and relationship to the copyrighted work.</li><li>The work you believe is affected.</li><li>The exact NovelHaven URL or novel title involved.</li><li>A description of the rights you own or represent.</li><li>The action you are requesting, such as correction, attribution change, or removal.</li><li>A reliable way to contact you for follow-up.</li></ul>
     <p><a class="button" href="https://github.com/dmlazid/NovelNest/issues/new" target="_blank" rel="noopener noreferrer">Submit a rights request</a></p>
     <h2>Good-faith handling</h2>
     <p>Credible rights-holder requests should be reviewed promptly. Material may be temporarily restricted while ownership or authorization is being clarified. False or abusive claims may be rejected.</p>
-    <p class="policy-small">This page provides a practical takedown process for NovelNest and is not a substitute for legal advice or any formal statutory notice procedure that may apply in a particular country.</p>
+    <p class="policy-small">This page provides a practical takedown process for NovelHaven and is not a substitute for legal advice or any formal statutory notice procedure that may apply in a particular country.</p>
   </div>
 </article>`}
 
@@ -429,8 +429,8 @@ function route(){
   applySettings();document.querySelector('#library-count').textContent=saved.length;
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
-  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelNest';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
-  main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelNest`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
+  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
+  main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
 }
 main.addEventListener('submit',e=>{
   if(e.target.matches('.search-form')){
@@ -490,6 +490,6 @@ main.addEventListener('change',e=>{
 window.addEventListener('hashchange',()=>{route();main.focus({preventScroll:true})});
 window.addEventListener('popstate',()=>{route();main.focus({preventScroll:true})});
 document.querySelector('#year').textContent=new Date().getFullYear();route();
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelNest catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelNest",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
+if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelHaven catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelHaven",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
 
 window.NovelNestApp = { navigate, refresh: route, reloadData() { saved=read("novelnest.saved",[]); progress=read("novelnest.progress",{}); document.querySelector("#library-count").textContent=saved.length; document.querySelectorAll("[data-save]").forEach(b=>{b.textContent=saved.includes(b.dataset.save)?"♥ Saved in library":"♡ Save to library";b.setAttribute("aria-pressed",String(saved.includes(b.dataset.save)))}); } };
