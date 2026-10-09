@@ -192,10 +192,10 @@
   function menuHref(href) {
     if (!href.startsWith('./#/')) return href;
     const route = href.slice(3);
-    return '/?menuRoute=' + encodeURIComponent(route) + '#/' + route;
+    return '/' + route;
   }
   function drawerTop(title) {
-    return `<div class="drawer-top"><a href="/?menuRoute=home#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
+    return `<div class="drawer-top"><a href="/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
   }
   function row(href, name, detail, symbol) {
     return `<a class="drawer-row" data-close-drawer href="${menuHref(href)}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
