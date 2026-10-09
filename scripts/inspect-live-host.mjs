@@ -1,17 +1,17 @@
 // Read-only production-host diagnosis. Never prints secrets or modifies deployments.
 const home='https://novelhaven.top/';
-const urls=[home,'https://novelhaven.top/akk-novels/','https://novelnest.pages.dev/','https://dmlazid.github.io/NovelNest/'];
+const urls=[home,'https://novelhaven.top/akk-novels/','https://novelhaven.top/app.js','https://novelhaven.top/app.js?test=akk-spotlight-20261010','https://novelhaven.top/styles.css','https://novelnest.pages.dev/','https://novelnest.pages.dev/app.js','https://dmlazid.github.io/NovelNest/'];
 const limitedFetch=async (url,headers={})=>{
   try {
     const response=await fetch(url,{headers,redirect:'follow',signal:AbortSignal.timeout(18000)});
     const body=await response.text();
     return {url,status:response.status,finalUrl:response.url,server:response.headers.get('server'),
       contentType:response.headers.get('content-type'),via:response.headers.get('via'),
-      cfRayPresent:!!response.headers.get('cf-ray'),githubServedBy:response.headers.get('x-served-by'),
+      cfRayPresent:!!response.headers.get('cf-ray'),githubServedBy:response.headers.get('x-served-by'), cacheStatus:response.headers.get('cf-cache-status'), cacheControl:response.headers.get('cache-control'),etag:response.headers.get('etag'),
       title:body.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]||null,
-      akkSpotlight:body.includes('AkkNovel Spotlight'),
+      akkSpotlight:body.includes('AkkNovel Spotlight'),akkSelectionFunction:body.includes('AKK_SPOTLIGHT_IDS'),
       akkCollectionLink:body.includes('akk-novels'),
-      bytes:body.length};
+      bytes:body.length,opening:response.url.includes('pages.dev')?body.slice(0,260).replace(/\\s+/g,' '):undefined};
   }catch(error){return {url,error:String(error.message||error).slice(0,180)}}
 };
 const api=async path=>{
