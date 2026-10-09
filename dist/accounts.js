@@ -167,19 +167,24 @@
     if (!element) {
       element = document.createElement('dialog'); element.id = id; element.className = 'site-drawer';
       element.setAttribute('aria-label', title); document.body.appendChild(element);
-      // Handle menu navigation at the dialog boundary, before other handlers.
-      // A full navigation guarantees the old dialog cannot remain on screen.
+      // Keep the site mounted when navigating from the mobile menu.
+      // The former location.assign() caused a full document reload and a white flash.
       if (id === 'navigation-drawer') {
         element.addEventListener('click', event => {
           const link = event.target.closest('a[href]');
           if (!link || !element.contains(link)) return;
-          const destination = link.href;
-          if (!destination || new URL(destination).origin !== location.origin) return;
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank') return;
+          const destination = new URL(link.href, location.href);
+          if (destination.origin !== location.origin) return;
           event.preventDefault();
           event.stopImmediatePropagation();
           try { element.close(); } catch {}
           element.remove();
-          window.location.assign(destination);
+          if (window.NovelNestApp?.navigate) {
+            window.NovelNestApp.navigate(destination.pathname + destination.search + destination.hash);
+          } else {
+            window.location.assign(destination.href);
+          }
         }, true);
       }
       element.addEventListener('click', event => { if (event.target === element) { const rect = element.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right) element.close(); } });
@@ -363,7 +368,10 @@
     if (!event.target.matches('[data-menu-search]')) return;
     event.preventDefault();
     const query = new FormData(event.target).get('q').trim();
-    closeDrawers(); location.hash = '#/browse?q=' + encodeURIComponent(query);
+    closeDrawers();
+    const destination = '/browse?q=' + encodeURIComponent(query);
+    if (window.NovelNestApp?.navigate) window.NovelNestApp.navigate(destination);
+    else location.assign(destination);
   });
   window.NovelNestAccounts = { changed, synchronize };
   window.addEventListener('novelnest:view-ready', render);
