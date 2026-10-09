@@ -215,12 +215,12 @@ test('See More directories keep the approved clean novel-list layout', () => {
 test('AdSense preparation pages and original Reading Desk are reachable', () => {
   const h = harness();
   const routes = [
-    ['#/about', /About NovelNest/],
+    ['#/about', /About NovelHaven/],
     ['#/privacy', /Privacy Policy/],
     ['#/terms', /Terms of Use/],
-    ['#/contact', /Contact NovelNest/],
+    ['#/contact', /Contact NovelHaven/],
     ['#/copyright', /Copyright &amp; Takedown Requests/],
-    ['#/reading-desk', /NovelNest Reading Desk/],
+    ['#/reading-desk', /NovelHaven Reading Desk/],
   ];
   for (const [route, pattern] of routes) {
     h.go(route);
@@ -232,12 +232,12 @@ test('AdSense preparation pages and original Reading Desk are reachable', () => 
   let html = h.node('#main').innerHTML;
   assert.match(html, /How to choose a long web novel without burning out/);
   assert.match(html, /Start with the reading rhythm/);
-  assert.match(html, /NovelNest tip/);
+  assert.match(html, /NovelHaven tip/);
 
   h.go('#/');
   html = h.node('#main').innerHTML;
-  assert.match(html, /NovelNest Reading Desk/);
-  assert.match(html, /Original NovelNest guide/);
+  assert.match(html, /NovelHaven Reading Desk/);
+  assert.match(html, /Original NovelHaven guide/);
 });
 
 test('footer exposes crawlable trust and policy navigation', () => {
@@ -277,7 +277,7 @@ test('expanded Reading Desk links all original guides and trust pages', () => {
   for (const file of ['editorial-policy.html','content-licensing.html','advertising-disclosure.html']) {
     assert(fs.existsSync('dist/' + file));
     const html = fs.readFileSync('dist/' + file, 'utf8');
-    assert.match(html, /NovelNest/);
+    assert.match(html, /NovelHaven/);
     assert.match(html, /rel="canonical"/);
   }
 });
