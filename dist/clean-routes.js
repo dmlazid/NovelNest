@@ -56,6 +56,9 @@
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const anchor = event.target.closest?.('a[href]');
     if (!anchor || (anchor.target && anchor.target !== '_self')) return;
+    // Menu dialog owns its navigation. Intercepting it at document capture
+    // prevented the dialog from closing and left the destination behind it.
+    if (anchor.closest('.site-drawer')) return;
     const target = new URL(normalizeHref(anchor.getAttribute('href') || ''), location.href);
     if (target.origin !== location.origin || !isGenericRoute(target.pathname)) return;
 
