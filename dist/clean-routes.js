@@ -42,13 +42,18 @@
     const target = new URL(path, location.origin);
     if (target.origin !== location.origin || !isGenericRoute(target.pathname)) return false;
     const clean = target.pathname + target.search;
+    // Do not render the same page again (including on initial load).
+    if (clean === location.pathname + location.search && !location.hash) {
+      if (push) window.scrollTo(0, 0);
+      return true;
+    }
     if (push && history.pushState) history.pushState(null, '', clean);
     else history.replaceState(history.state, '', clean);
 
     // The app router natively reads clean paths. Never temporarily swap
     // into hash routing: route-rendered listeners may otherwise rewrite
     // history mid-render and cause a mobile navigation loop.
-    window.NovelNestApp.refresh();
+    window.NovelNestApp.refresh({ animate: push });
     rewriteLinks();
     return true;
   }
