@@ -1,0 +1,44 @@
+name: Verify and deploy Cloudflare reader preview
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-d1-chapter-pilot
+  cancel-in-progress: false
+jobs:
+  staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require a fresh full chapter comparison
+        env:
+          D1_AUDIT_REPORT: ${{ runner.temp }}/d1-audit-report.json
+          D1_AUDIT_REQUIRE_COMPLETE: '1'
+        run: node scripts/audit-d1-content.mjs
+      - name: Validate reader and preserved advertising files
+        run: |
+          node --test scripts/cloudflare-reader.test.mjs scripts/audit-d1-content.test.mjs
+          NOVELNEST_CLOUDFLARE=1 node scripts/build.mjs
+          node scripts/check-cloudflare-build.mjs
+      - name: Deploy isolated workers.dev reader
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config cloudflare/reader/wrangler.jsonc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: staging-content-audit
+          path: ${{ runner.temp }}/d1-audit-report.json
+          if-no-files-found: ignore

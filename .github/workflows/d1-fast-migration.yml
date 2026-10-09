@@ -6,6 +6,8 @@ on:
       - '.github/workflows/d1-fast-migration.yml'
       - 'scripts/d1-fast-migration.mjs'
       - 'scripts/d1-fast-migration.test.mjs'
+      - 'scripts/audit-d1-content.mjs'
+      - 'scripts/audit-d1-content.test.mjs'
   schedule:
     - cron: '8,28,48 * * * *'
   workflow_dispatch:
@@ -15,27 +17,6 @@ concurrency:
   group: novelhaven-d1-chapter-pilot
   cancel-in-progress: false
 jobs:
-  access-check:
-    runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Read-only Worker access and stored chapter totals
-        run: |
-          node --input-type=module <<'JS'
-          import {accessAudit} from './scripts/d1-fast-migration.mjs';
-          import {createClients} from './scripts/sync-d1-sharded.mjs';
-          const token=process.env.CLOUDFLARE_API_TOKEN,accountId=process.env.CLOUDFLARE_ACCOUNT_ID;
-          await accessAudit(token,accountId);
-          let total=0;
-          for(const client of createClients({token,accountId}).values())total+=Number((await client.query('SELECT COUNT(*) AS total FROM chapters')).results[0].total);
-          console.log('Verified current D1 chapters:',total);
-          JS
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -51,14 +32,40 @@ jobs:
         with:
           node-version: '22'
       - name: Verify batching, quota ledger, numbering and shard routing
-        run: node --test scripts/d1-fast-migration.test.mjs scripts/export-d1-batch.test.mjs scripts/sync-d1-sharded.test.mjs
+        run: node --test scripts/d1-fast-migration.test.mjs scripts/audit-d1-content.test.mjs scripts/export-d1-batch.test.mjs scripts/sync-d1-sharded.test.mjs
+      - name: Restore completed audit for this exact source
+        id: audit-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/d1-audit-report.json
+          key: d1-full-content-v1-${{ hashFiles('dist/**', 'scripts/audit-d1-content.mjs', 'scripts/export-d1-batch.mjs', 'cloudflare/d1/shards.mjs') }}
       - name: Copy and read back batches within daily free limits
+        id: copy
+        if: steps.audit-cache.outputs.cache-hit != 'true'
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/d1-fast-report.json
         run: node scripts/d1-fast-migration.mjs
+      - name: Compare every chapter once copying is complete
+        id: audit
+        if: steps.copy.outputs.copy_complete == 'true'
+        env:
+          D1_AUDIT_REPORT: ${{ runner.temp }}/d1-audit-report.json
+          D1_AUDIT_REQUIRE_COMPLETE: '1'
+        run: node scripts/audit-d1-content.mjs
+      - name: Remember successful audit and stop repeated scans
+        if: steps.audit.outputs.complete == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/d1-audit-report.json
+          key: ${{ steps.audit-cache.outputs.cache-primary-key }}
+      - name: Report previously completed copy
+        if: steps.audit-cache.outputs.cache-hit == 'true'
+        run: echo 'Copy already passed a full content audit for this source. Deployment still requires a fresh audit and Cloudflare access.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: d1-fast-migration-report
-          path: ${{ runner.temp }}/d1-fast-report.json
+          path: |
+            ${{ runner.temp }}/d1-fast-report.json
+            ${{ runner.temp }}/d1-audit-report.json
           if-no-files-found: ignore

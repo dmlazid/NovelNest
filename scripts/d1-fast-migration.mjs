@@ -41,10 +41,9 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   await master.query(LEDGER_SCHEMA);
   const today=new Date().toISOString().slice(0,10);
   const budget=(await master.query('SELECT reserved FROM migration_write_budget WHERE day=?',[today])).results;
-  const report={verified:0,source_chapters:0,total_stored:0,stop_reason:'run_cap',cutover_ready:false};
-  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){report.stop_reason='daily_budget_reached';return report;}
   const novels=loadNovelCatalog(root);
-  report.source_chapters=novels.reduce((s,n)=>s+n.chapters.length,0);
+  const report={verified:0,source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),total_stored:null,stop_reason:'run_cap',cutover_ready:false};
+  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){report.stop_reason='daily_budget_reached';return report;}
   for(const s of SHARDS){
     const client=clients.get(s.id);sizes.set(s.id,await client.size());
     stats.set(s.id,(await client.query('SELECT novel_id,COUNT(*) AS stored,MIN(chapter_number) AS minimum,MAX(chapter_number) AS maximum FROM chapters GROUP BY novel_id')).results);
@@ -62,6 +61,16 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   outer: for(const novel of novels){
     const shard=forecast.routes.get(novel.id),client=clients.get(shard);
     assert(client,'Unrecognized shard');
+    const previous=existing.get(novel.id)?.stats;
+    // Older pilots may have copied a complete novel before durable routes
+    // existed. Repair only the route to its verified existing shard.
+    if(previous&&!routes.has(novel.id)){
+      if(!await reserveWrites(master,8)){report.stop_reason='daily_budget_reached';break;}
+      await master.query('INSERT INTO novel_shards (novel_id,database_id) VALUES (?,?) ON CONFLICT(novel_id) DO NOTHING',[novel.id,shard]);
+      const checked=(await master.query('SELECT database_id FROM novel_shards WHERE novel_id=?',[novel.id])).results;
+      assert(checked.length===1&&checked[0].database_id===shard,'Shard route mismatch');routes.set(novel.id,shard);
+    }
+    if(previous&&Number(previous.stored)===novel.chapters.length&&Number(previous.minimum)===1&&Number(previous.maximum)===novel.chapters.length)continue;
     const numbers=new Set((await client.query('SELECT chapter_number FROM chapters WHERE novel_id=? ORDER BY chapter_number',[novel.id])).results.map(r=>Number(r.chapter_number)));
     for(let start=1;start<=novel.chapters.length;){
       if(numbers.has(start)){start++;continue;}
@@ -108,6 +117,7 @@ export async function main(){
   const clients=createClients({token,accountId});
   await accessAudit(token,accountId);
   const result=await migrate({clients,maxChapters:Number(process.env.D1_FAST_LIMIT||4000)});
+  if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT,'copy_complete='+(result.stop_reason==='copy_complete_full_audit_required')+'\n');
   console.log('Fast migration result: '+JSON.stringify(result));
   if(process.env.D1_REPORT_PATH)fs.writeFileSync(process.env.D1_REPORT_PATH,JSON.stringify(result,null,2));
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'### Cloudflare migration\n\n```json\n'+JSON.stringify(result,null,2)+'\n```\nLive site cutover remains blocked until a full content audit passes.\n');
