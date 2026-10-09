@@ -221,7 +221,7 @@
   function showMenu() {
     const panel = drawer('navigation-drawer', 'Navigation');
     const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
-    const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
+    const menuLink = (href, label, symbol) => `<a href="${menuHref(href)}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
     const genreLinks = genres.map(genre => `<a href="${menuHref(`./#/genre/${encodeURIComponent(genre)}`)}" data-close-drawer>${escape(genre)}</a>`).join('');
     panel.innerHTML = drawerTop('menu') + `<div class="menu-content">
       <form class="drawer-search" data-menu-search>
