@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --test scripts/*.test.mjs
+      - run: node --check scripts/check-cloudflare-preview.mjs
       - run: node scripts/build.mjs
         env:
           NOVELNEST_CLOUDFLARE: '1'
