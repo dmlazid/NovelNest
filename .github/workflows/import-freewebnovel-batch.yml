@@ -23,8 +23,9 @@ concurrency:
 
 jobs:
   import:
-    # Migration freeze: remove this condition only after verified reader cutover.
-    if: ${{ false }}
+    # Authorized already-published titles may resume incremental chapter updates.
+    # Publication safeguards in scripts/auto_import_policy.json continue to block
+    # automatic release of newly discovered titles pending manual review.
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
