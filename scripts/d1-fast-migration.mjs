@@ -42,11 +42,24 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   const today=new Date().toISOString().slice(0,10);
   const budget=(await master.query('SELECT reserved FROM migration_write_budget WHERE day=?',[today])).results;
   const novels=loadNovelCatalog(root);
-  const report={verified:0,source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),total_stored:null,stop_reason:'run_cap',cutover_ready:false};
-  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){report.stop_reason='daily_budget_reached';return report;}
+  const report={verified:0,source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),total_stored:null,remaining_chapters:null,stop_reason:'run_cap',cutover_ready:false};
+  // Read-only progress remains visible after the daily write budget is spent.
+  // Also reject cross-shard duplicates before reporting misleading totals.
+  for(const s of SHARDS){
+    const client=clients.get(s.id);
+    stats.set(s.id,(await client.query('SELECT novel_id,COUNT(*) AS stored,MIN(chapter_number) AS minimum,MAX(chapter_number) AS maximum FROM chapters GROUP BY novel_id')).results);
+  }
+  indexExistingRows(stats);
+  report.total_stored=[...stats.values()].flat().reduce((sum,row)=>sum+Number(row.stored),0);
+  assert(Number.isSafeInteger(report.total_stored)&&report.total_stored>=0,'Invalid D1 chapter counts');
+  report.remaining_chapters=Math.max(0,report.source_chapters-report.total_stored);
+  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){
+    // A full read-only audit can run even after writes reach their daily limit.
+    report.stop_reason=report.remaining_chapters===0?'copy_complete_full_audit_required':'daily_budget_reached';
+    return report;
+  }
   for(const s of SHARDS){
     const client=clients.get(s.id);sizes.set(s.id,await client.size());
-    stats.set(s.id,(await client.query('SELECT novel_id,COUNT(*) AS stored,MIN(chapter_number) AS minimum,MAX(chapter_number) AS maximum FROM chapters GROUP BY novel_id')).results);
     const list=(await client.query('PRAGMA index_list(chapters)')).results;
     assert(Array.isArray(list)&&list.length<=4,'Unexpected chapter indexes');
     indexes.set(s.id,1+list.length);
@@ -57,7 +70,6 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   const routes=new Map((await master.query('SELECT novel_id,database_id FROM novel_shards')).results.map(r=>[r.novel_id,r.database_id]));
   const {existing,pinned}=indexExistingRows(stats,routes);
   const forecast=planAssignments(estimatePublishedVolumes(root),pinned,sizes);
-  report.total_stored=[...stats.values()].flat().reduce((s,r)=>s+Number(r.stored),0);
   outer: for(const novel of novels){
     const shard=forecast.routes.get(novel.id),client=clients.get(shard);
     assert(client,'Unrecognized shard');
@@ -94,7 +106,8 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
       const rows=(await client.query('SELECT chapter_number,title,paragraphs_json FROM chapters WHERE novel_id=? AND chapter_number>=? AND chapter_number<=? ORDER BY chapter_number',[novel.id,start,end])).results;
       verifyBatch(chapters,rows);
       for(const c of chapters)numbers.add(c.number);
-      report.verified+=chapters.length;report.total_stored+=chapters.length;start=end+1;
+      report.verified+=chapters.length;report.total_stored+=chapters.length;
+      report.remaining_chapters=Math.max(0,report.source_chapters-report.total_stored);start=end+1;
       if(report.verified%250===0)log('Verified migration progress: '+JSON.stringify(report));
     }
   }
