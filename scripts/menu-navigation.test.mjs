@@ -51,8 +51,23 @@ test('regular links are still handled by the clean-route router', () => {
   assert.deepEqual(simulateClick(false), { routed: 1, prevented: true, stopped: true });
 });
 
-test('menu destinations use normal page paths instead of a home-page query', () => {
+test('all mobile menu URLs remain same-origin paths, not //hostnames', () => {
   const accounts = fs.readFileSync(new URL('../dist/accounts.js', import.meta.url), 'utf8');
-  assert.match(accounts, /return '\/' \+ route;/);
+  const begin = accounts.indexOf('  function menuHref(href) {');
+  const end = accounts.indexOf('  function drawerTop(', begin);
+  assert(begin >= 0 && end > begin, 'Expected menu URL mapper');
+  const menuHref = vm.runInNewContext('(' + accounts.slice(begin, end).trim() + ')');
+  const host = 'https://novelhaven.top';
+  for (const route of [
+    '/library', '/library?tab=history', '/finder', '/genre/Action',
+    '/latest-novels', '/latest-releases', '/completed', '/latest',
+    '/latest-novels?sort=chapters', '/about'
+  ]) {
+    const result = menuHref('./#' + route);
+    assert.equal(result, route, 'Unexpected menu URL for ' + route);
+    assert(!result.startsWith('//'), 'Protocol-relative menu URL: ' + result);
+    const resolved = new URL(result, host);
+    assert.equal(resolved.origin, host, 'Menu URL escapes NovelHaven: ' + result);
+  }
   assert.doesNotMatch(accounts, /menuRoute=/);
 });
