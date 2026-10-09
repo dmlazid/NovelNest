@@ -83,6 +83,6 @@ test('mobile menu uses same-document navigation and never forces a page reload',
   assert.match(handler, /element\.close\(\)/);
   assert.doesNotMatch(handler, /window\.location\.assign\(destination\);/,
     'Mobile menu must not perform unconditional document navigation');
-  assert.match(accounts, /window\.NovelNestApp\?\.navigate\(destination\)/,
+  assert.match(accounts, /if \(window\.NovelNestApp\?\.navigate\) window\.NovelNestApp\.navigate\(destination\)/,
     'Menu search must use the same in-page router');
 });
