@@ -167,30 +167,23 @@
     if (!element) {
       element = document.createElement('dialog'); element.id = id; element.className = 'site-drawer';
       element.setAttribute('aria-label', title); document.body.appendChild(element);
-      // Handle links on the dialog itself, independent of document click routing.
-      element.addEventListener('click', event => {
-        const link = event.target.closest('a[data-close-drawer][href]');
-        if (!link || !element.contains(link)) return;
-        const href = link.getAttribute('href') || '';
-        if (!href.startsWith('./#/')) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        element.close();
-        const next = href.slice(1);
-        if (location.hash !== next) location.hash = next;
-        else window.dispatchEvent(new Event('hashchange'));
-      }, true);
       element.addEventListener('click', event => { if (event.target === element) { const rect = element.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right) element.close(); } });
     }
     return element;
   }
   function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => { try { d.close(); } catch {} }); }
   function openDrawer(element) { closeDrawers(); element.showModal(); }
+  // Native full-document navigation avoids leaving the modal above routed pages.
+  function menuHref(href) {
+    if (!href.startsWith('./#/')) return href;
+    const route = href.slice(3);
+    return '/?menuRoute=' + encodeURIComponent(route) + '#/' + route;
+  }
   function drawerTop(title) {
-    return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
+    return `<div class="drawer-top"><a href="/?menuRoute=home#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
   }
   function row(href, name, detail, symbol) {
-    return `<a class="drawer-row" data-close-drawer href="${href}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
+    return `<a class="drawer-row" data-close-drawer href="${menuHref(href)}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
   }
   function googleButton() {
     return `<button class="button google-signin" data-signin ${!ready || busy ? 'disabled' : ''}><span aria-hidden="true">G</span> Continue with Google</button>${!ready ? '<button class="quiet-button" data-account-retry>Retry connection</button>' : ''}`;
@@ -229,7 +222,7 @@
     const panel = drawer('navigation-drawer', 'Navigation');
     const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
     const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
-    const genreLinks = genres.map(genre => `<a href="./#/genre/${encodeURIComponent(genre)}" data-close-drawer>${escape(genre)}</a>`).join('');
+    const genreLinks = genres.map(genre => `<a href="${menuHref(`./#/genre/${encodeURIComponent(genre)}`)}" data-close-drawer>${escape(genre)}</a>`).join('');
     panel.innerHTML = drawerTop('menu') + `<div class="menu-content">
       <form class="drawer-search" data-menu-search>
         <label class="sr-only" for="menu-search">Search novels</label>
