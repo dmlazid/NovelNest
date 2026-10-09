@@ -9,6 +9,8 @@ const limitedFetch=async (url,headers={})=>{
       contentType:response.headers.get('content-type'),via:response.headers.get('via'),
       cfRayPresent:!!response.headers.get('cf-ray'),githubServedBy:response.headers.get('x-served-by'), cacheStatus:response.headers.get('cf-cache-status'), cacheControl:response.headers.get('cache-control'),etag:response.headers.get('etag'),
       title:body.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]||null,
+      appAsset:body.match(/src="(app\.js[^\"]*)"/)?.[1]||null,
+      cssAsset:body.match(/href="(styles\.css[^\"]*)"/)?.[1]||null,
       akkSpotlight:body.includes('AkkNovel Spotlight'),akkSelectionFunction:body.includes('AKK_SPOTLIGHT_IDS'),
       akkCollectionLink:body.includes('akk-novels'),
       bytes:body.length,opening:response.url.includes('pages.dev')?body.slice(0,260).replace(/\\s+/g,' '):undefined};

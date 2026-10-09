@@ -5,6 +5,9 @@ on:
     paths:
       - ".github/workflows/inspect-live-host.yml"
       - "scripts/inspect-live-host.mjs"
+      - "dist/index.html"
+      - "dist/app.js"
+      - "dist/styles.css"
   workflow_dispatch:
 permissions:
   contents: read
