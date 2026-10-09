@@ -37,6 +37,33 @@ test('all existing chapters and their catalog entries validate', () => {
   assert.equal(result.chapters, h.window.NOVELS.reduce((total, novel) => total + novel.chapters.length, 0));
 });
 
+test('homepage promotes actual AkkNovel books, with other libraries still accessible', () => {
+  const h = harness();
+  const html = h.node('#main').innerHTML;
+  assert.match(html, /AkkNovel Spotlight/);
+  assert.match(html, /href="\.\/#\/akk-novels"/);
+  assert.match(html, /More From AkkNovel/);
+  assert.match(html, /Latest Release Novels/);
+  const featured = [...html.matchAll(/class="home-top-feature" href="\/novel\/([^/]+)\/"/g)]
+    .map(match => decodeURIComponent(match[1]));
+  assert.equal(featured.length, 4, 'Four featured books remain visible');
+  assert.equal(new Set(featured).size, 4, 'Features are unique');
+  for (const id of featured) {
+    const book = h.window.NOVELS.find(n => n.id === id);
+    assert.equal(book?.source, 'AkkNovel', 'Featured book must come from AkkNovel');
+    assert(book.chapters.length > 0);
+  }
+  h.go('#/akk-novels');
+  const directory = h.node('#main').innerHTML;
+  assert.match(directory, /AkkNovel Collection/);
+  const ids = [...directory.matchAll(/class="directory-novel-row" href="\/novel\/([^/]+)\/"/g)]
+    .map(match => decodeURIComponent(match[1]));
+  assert(ids.length >= 7, 'AkkNovel browse page must contain its series');
+  for (const id of ids) assert.equal(h.window.NOVELS.find(n => n.id === id)?.source, 'AkkNovel');
+  h.go('#/browse');
+  assert.match(h.node('#main').innerHTML, /Astral Pet Store/, 'Other novels stay browseable');
+});
+
 test('homepage loads no chapter bodies; direct chapter links work across chunk boundaries', () => {
   const h = harness();
   assert.equal(h.scripts.length, 0);
