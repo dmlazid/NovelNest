@@ -252,19 +252,6 @@
       <div class="menu-divider">YOUR READING</div>
       <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelHaven','Stories &amp; reading information','info')}</div>
     </div>`;
-    // Route menu selections directly and dismiss the modal in the same gesture.
-    panel.onclick = event => {
-      const link = event.target.closest('a[href]');
-      if (!link || !panel.contains(link)) return;
-      const href = link.getAttribute('href') || '';
-      if (!link.hasAttribute('data-close-drawer') || !href.startsWith('./#/')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      closeDrawers();
-      const hash = href.slice(1);
-      if (location.hash === hash) window.dispatchEvent(new Event('hashchange'));
-      else location.hash = hash;
-    };
     renderStatus();
     openDrawer(panel);
   }
@@ -299,11 +286,19 @@
       }, fail);
     } catch (error) { busy = false; fail(error); }
   }
-  // Close modal navigation before route updates so the destination is visible immediately.
+  // Handle modal menu links before other click handlers. Prevent the browser
+  // from navigating underneath an open dialog; close first, then change route.
   document.addEventListener('click', event => {
-    const link = event.target.closest('.site-drawer a[data-close-drawer]');
+    const link = event.target.closest('#navigation-drawer a[data-close-drawer]');
     if (!link) return;
+    const href = link.getAttribute('href') || '';
+    if (!href.startsWith('./#/')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const hash = href.slice(1);
     closeDrawers();
+    if (location.hash === hash) window.dispatchEvent(new Event('hashchange'));
+    else location.hash = hash;
   }, true);
   window.addEventListener('hashchange', closeDrawers);
   window.addEventListener('popstate', closeDrawers);
