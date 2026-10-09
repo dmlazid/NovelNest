@@ -167,6 +167,21 @@
     if (!element) {
       element = document.createElement('dialog'); element.id = id; element.className = 'site-drawer';
       element.setAttribute('aria-label', title); document.body.appendChild(element);
+      // Handle menu navigation at the dialog boundary, before other handlers.
+      // A full navigation guarantees the old dialog cannot remain on screen.
+      if (id === 'navigation-drawer') {
+        element.addEventListener('click', event => {
+          const link = event.target.closest('a[href]');
+          if (!link || !element.contains(link)) return;
+          const destination = link.href;
+          if (!destination || new URL(destination).origin !== location.origin) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          try { element.close(); } catch {}
+          element.remove();
+          window.location.assign(destination);
+        }, true);
+      }
       element.addEventListener('click', event => { if (event.target === element) { const rect = element.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right) element.close(); } });
     }
     return element;
