@@ -1,6 +1,6 @@
 // Read-only production-host diagnosis. Never prints secrets or modifies deployments.
 const home='https://novelhaven.top/';
-const urls=[home,'https://novelhaven.top/akk-novels/','https://novelhaven.top/app.js','https://novelhaven.top/app.js?v=20261008-clean-routes-2','https://novelhaven.top/app.js?v=20261010-akk-spotlight-1','https://novelhaven.top/app.js?test=akk-spotlight-20261010','https://novelhaven.top/styles.css','https://novelnest.pages.dev/','https://novelnest.pages.dev/app.js','https://dmlazid.github.io/NovelNest/'];
+const urls=[home,'https://novelhaven.top/app.js','https://novelhaven.top/app.js?v=20261008-clean-routes-2','https://novelhaven.top/app.js?v=20261010-original-featured-2','https://novelhaven.top/app.js?test=original-featured-20261010','https://novelhaven.top/styles.css','https://novelnest.pages.dev/','https://novelnest.pages.dev/app.js','https://dmlazid.github.io/NovelNest/'];
 const limitedFetch=async (url,headers={})=>{
   try {
     const response=await fetch(url,{headers,redirect:'follow',signal:AbortSignal.timeout(18000)});
@@ -11,8 +11,8 @@ const limitedFetch=async (url,headers={})=>{
       title:body.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]||null,
       appAsset:body.match(/src="(app\.js[^\"]*)"/)?.[1]||null,
       cssAsset:body.match(/href="(styles\.css[^\"]*)"/)?.[1]||null,
-      akkSpotlight:body.includes('AkkNovel Spotlight'),akkSelectionFunction:body.includes('AKK_SPOTLIGHT_IDS'),
-      akkCollectionLink:body.includes('akk-novels'),
+      hasFeaturedSelection:body.includes('FEATURED_NOVEL_IDS'),
+      unwantedSourceBranding:/AkkNovel Spotlight|AkkNovel pick|More From AkkNovel|AkkNovel Collection|Explore all AkkNovel stories/.test(body),
       bytes:body.length,opening:response.url.includes('pages.dev')?body.slice(0,260).replace(/\\s+/g,' '):undefined};
   }catch(error){return {url,error:String(error.message||error).slice(0,180)}}
 };
@@ -50,7 +50,7 @@ const result={
 console.log('NovelHaven hosting check:',JSON.stringify(result,null,2));
 if(process.env.GITHUB_STEP_SUMMARY){
  const fs=await import('node:fs');
- const rows=live.map(v=>'- '+v.url+': '+(v.error?'Error: '+v.error:'HTTP '+v.status+' | AkkNovel Spotlight: '+v.akkSpotlight+' | collection link: '+v.akkCollectionLink));
+ const rows=live.map(v=>'- '+v.url+': '+(v.error?'Error: '+v.error:'HTTP '+v.status+' | featured picks source code: '+v.hasFeaturedSelection+' | unwanted source-branding: '+v.unwantedSourceBranding));
  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
   '### Production deployment diagnosis','',...rows,'',
   '- Cloudflare Pages project found: '+!!pages.success,

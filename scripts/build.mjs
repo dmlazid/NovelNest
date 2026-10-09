@@ -133,7 +133,6 @@ addRoute('/', 'Find your next chapter', 'home()');
 for (const [route, title, expression] of [
   ['/browse', 'Browse novels', 'browse(new URLSearchParams())'],
   ['/finder', 'Novel Finder', 'finderPage(new URLSearchParams())'],
-  ['/akk-novels', 'AkkNovel Collection', "directoryPage('akk')"],
   ['/latest-releases', 'Latest Release Novels', "directoryPage('releases')"],
   ['/latest-novels', 'Latest Novels', "directoryPage('novels')"],
   ['/completed', 'Completed Novels', "directoryPage('completed')"],

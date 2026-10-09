@@ -67,11 +67,9 @@ function homeNovelTile(n){
     </span>
   </a>`;
 }
-function isAkkNovel(n){
-  return n?.source==='AkkNovel'||/^https:\/\/(?:www\.)?akknovel\.com\/series\//i.test(String(n?.sourceUrl||''));
-}
-// Curated picks are editorial choices; no unverified popularity rankings.
-const AKK_SPOTLIGHT_IDS=[
+// Hand-picked featured stories. Source identity is internal metadata, never
+// used as an on-site category, recommendation label, or promotional claim.
+const FEATURED_NOVEL_IDS=[
   'after-rebirth-i-was-forced-to-become-the-mafia-princess',
   'ah-the-villains-i-forced-to-turn-evil-can-read-my-mind',
   'my-beloved-concubine-only-wants-to-eat-melons',
@@ -80,20 +78,17 @@ const AKK_SPOTLIGHT_IDS=[
   'eastern-palaces-devout-yet-amorous-consort',
   'freeloading-daily-but-the-system-makes-me-a-big-spender'
 ];
-function akkCollection(){
-  const shelf=novels.filter(n=>isAkkNovel(n)&&n.chapters?.length&&!n.externalUrl)
-    .sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length||a.title.localeCompare(b.title));
-  const byId=new Map(shelf.map(n=>[n.id,n]));
-  const picks=AKK_SPOTLIGHT_IDS.map(id=>byId.get(id)).filter(Boolean);
+function featuredNovels(sorted){
+  const byId=new Map(sorted.filter(n=>n.chapters?.length&&!n.externalUrl).map(n=>[n.id,n]));
+  const picks=FEATURED_NOVEL_IDS.map(id=>byId.get(id)).filter(Boolean);
   const selected=new Set(picks.map(n=>n.id));
-  return [...picks,...shelf.filter(n=>!selected.has(n.id))];
+  return [...picks,...sorted.filter(n=>!selected.has(n.id))];
 }
 function homeTopFeature(n){
   return `<a class="home-top-feature" href="${bookUrl(n)}">
     <span class="home-top-art">
       <img src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy">
       <span class="home-top-overlay"></span>
-      ${isAkkNovel(n)?'<span class="home-top-ribbon">AkkNovel pick</span>':''}
       <span class="home-top-copy">
         <strong>${esc(n.title)}</strong>
         <small>◉ English Novel</small>
@@ -116,31 +111,17 @@ function homeTopRow(n){
 }
 function home(){
   const sorted=[...novels].sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
-  const akk=akkCollection();
-  const showcase=akk.length?akk:sorted;
-  const topFeatures=showcase.slice(0,4);
-  const topRows=showcase.slice(4,7);
-  const moreAkk=akk.slice(7,13);
+  const featured=featuredNovels(sorted);
+  const topFeatures=featured.slice(0,4);
+  const topRows=featured.slice(4,7);
   const releases=sorted.slice(0,10);
   const latestNovels=sorted.slice(0,6);
   const completed=sorted.filter(n=>n.status==='Completed').slice(0,6);
   return `<div class="home-feed">
-    <section class="home-showcase" aria-label="${akk.length?'Featured AkkNovel stories':'Featured novels'}">
-      <div class="home-feature-intro">
-        <div><span class="home-feature-kicker">✦ Selected by NovelHaven</span>
-          <h1>${akk.length?'AkkNovel Spotlight':'Featured novels'}</h1>
-          <p>${akk.length?'Explore romance, fantasy, historical adventures and more from the AkkNovel collection.':'Discover stories to start reading today.'}</p>
-        </div>
-        ${akk.length?'<a class="home-feature-link" href="./#/akk-novels">Explore all AkkNovel stories <span aria-hidden="true">→</span></a>':''}
-      </div>
+    <section class="home-showcase" aria-label="Featured novels">
       <div class="home-top-grid">${topFeatures.map(homeTopFeature).join('')}</div>
       <div class="home-top-list">${topRows.map(homeTopRow).join('')}</div>
     </section>
-    ${moreAkk.length?`<section class="home-feed-section home-akk-collection" aria-labelledby="home-akk-title">
-      <div class="home-feed-head"><h2 id="home-akk-title"><span aria-hidden="true">✦</span> More From AkkNovel</h2><a href="./#/akk-novels">View all</a></div>
-      <p class="home-akk-description">Explore more stories from the AkkNovel shelf, selected from the books available to read here.</p>
-      <div class="home-cover-grid">${moreAkk.map(homeNovelTile).join('')}</div>
-    </section>`:''}
     <section class="home-feed-section home-release-section">
       <div class="home-feed-head"><h1><span aria-hidden="true">↻</span> Latest Release Novels</h1><a href="./#/latest-releases">See more</a></div>
       <div class="home-release-list">${releases.map(homeReleaseRow).join('')}</div>
@@ -255,14 +236,12 @@ function directoryPage(kind){
   const settings={
     releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Fresh updates',description:'Novels with the newest chapter updates first.'},
     novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelHaven',description:'Browse the latest novels available in the NovelHaven catalog.'},
-    completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'},
-    akk:{title:'AkkNovel Collection',icon:'✦',eyebrow:'Featured source collection',description:'Explore the AkkNovel titles available on NovelHaven. Featured selections appear first, followed by the rest of the collection.'}
+    completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
   };
   const cfg=settings[kind]||settings.novels;
   let results=[...novels];
   if(kind==='completed') results=results.filter(n=>n.status==='Completed');
-  if(kind==='akk') results=akkCollection();
-  else if(kind==='novels') results.sort((a,b)=>b.updated.localeCompare(a.updated)||a.title.localeCompare(b.title));
+  if(kind==='novels') results.sort((a,b)=>b.updated.localeCompare(a.updated)||a.title.localeCompare(b.title));
   else results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
@@ -468,7 +447,7 @@ function route(){
   applySettings();document.querySelector('#library-count').textContent=saved.length;
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
-  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'akk-novels':html=directoryPage('akk');title='AkkNovel Collection';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
+  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
   main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
 }
 main.addEventListener('submit',e=>{

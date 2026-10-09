@@ -1046,15 +1046,3 @@
   font:800 15px/1.2 'DM Sans',sans-serif;
 }
 .privacy-status-card p{margin:0}
-
-/* Curated AkkNovel source spotlight; preserves the existing teal design. */
-.home-feature-intro{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding:17px 18px;background:var(--paper);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:9px}
-.home-feature-kicker{color:var(--green);font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
-.home-feature-intro h1{margin:5px 0 6px;color:var(--ink);font:800 24px/1.15 'DM Sans',system-ui,sans-serif}
-.home-feature-intro p{margin:0;max-width:440px;color:var(--muted);font-size:13px;line-height:1.5}
-.home-feature-link{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border-radius:5px;background:#164f4a;color:#fff;font-size:12px;font-weight:800;text-decoration:none}
-.home-feature-link:hover{text-decoration:underline;text-underline-offset:3px}
-.home-feature-link:focus-visible,.home-top-feature:focus-visible,.home-top-row:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
-.home-top-ribbon{position:absolute;top:9px;left:9px;max-width:calc(100% - 18px);padding:5px 8px;border-radius:3px;background:#164f4a;color:#fff;font:800 10px/1.2 'DM Sans',system-ui,sans-serif;letter-spacing:.02em;box-shadow:0 2px 8px #0005}
-.home-akk-description{margin:12px 0 1px;color:var(--muted);font-size:13px;line-height:1.5}
-@media(max-width:760px){.home-feature-intro{padding:13px 14px;gap:12px}.home-feature-intro h1{font-size:21px}.home-feature-link{width:100%;justify-content:center}.home-top-ribbon{top:7px;left:7px;font-size:9px}}

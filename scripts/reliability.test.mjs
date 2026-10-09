@@ -37,31 +37,30 @@ test('all existing chapters and their catalog entries validate', () => {
   assert.equal(result.chapters, h.window.NOVELS.reduce((total, novel) => total + novel.chapters.length, 0));
 });
 
-test('homepage promotes actual AkkNovel books, with other libraries still accessible', () => {
+test('homepage features hand-picked novels without source branding or source categories', () => {
   const h = harness();
   const html = h.node('#main').innerHTML;
-  assert.match(html, /AkkNovel Spotlight/);
-  assert.match(html, /href="\.\/#\/akk-novels"/);
-  assert.match(html, /More From AkkNovel/);
-  assert.match(html, /Latest Release Novels/);
-  const featured = [...html.matchAll(/class="home-top-feature" href="\/novel\/([^/]+)\/"/g)]
+  const banned = /AkkNovel|AkkNovel pick|More From AkkNovel|Explore all AkkNovel|source collection|Featured source collection/i;
+  assert.doesNotMatch(html,banned,'Homepage should promote books without showing a source label');
+  assert.doesNotMatch(html,/home-feature-intro|home-top-ribbon|home-akk-collection|akk-novels/);
+  assert.match(html,/Latest Release Novels/);
+  assert.match(html,/Latest Novels/);
+  assert.match(html,/Completed Novels/);
+  const expected = [
+    'after-rebirth-i-was-forced-to-become-the-mafia-princess',
+    'ah-the-villains-i-forced-to-turn-evil-can-read-my-mind',
+    'my-beloved-concubine-only-wants-to-eat-melons',
+    'an-innocent-girl-seeking-a-husband-was-deceived-and-married-a-childless-officer-crying-with-emotion'
+  ];
+  const featured = [...html.matchAll(/class="home-top-feature" href="\\/novel\\/([^/]+)\\/"/g)]
     .map(match => decodeURIComponent(match[1]));
-  assert.equal(featured.length, 4, 'Four featured books remain visible');
-  assert.equal(new Set(featured).size, 4, 'Features are unique');
-  for (const id of featured) {
-    const book = h.window.NOVELS.find(n => n.id === id);
-    assert.equal(book?.source, 'AkkNovel', 'Featured book must come from AkkNovel');
-    assert(book.chapters.length > 0);
-  }
-  h.go('#/akk-novels');
-  const directory = h.node('#main').innerHTML;
-  assert.match(directory, /AkkNovel Collection/);
-  const ids = [...directory.matchAll(/class="directory-novel-row" href="\/novel\/([^/]+)\/"/g)]
-    .map(match => decodeURIComponent(match[1]));
-  assert(ids.length >= 7, 'AkkNovel browse page must contain its series');
-  for (const id of ids) assert.equal(h.window.NOVELS.find(n => n.id === id)?.source, 'AkkNovel');
+  assert.deepEqual(featured,expected,'Chosen novels should lead the existing homepage');
+  assert.equal(new Set(featured).size,4,'No duplicate featured novels');
   h.go('#/browse');
-  assert.match(h.node('#main').innerHTML, /Astral Pet Store/, 'Other novels stay browseable');
+  assert.match(h.node('#main').innerHTML,/Astral Pet Store/,'Other books remain available');
+  assert.match(h.node('#main').innerHTML,/After Rebirth, I Was Forced/,'Featured books remain in regular browse');
+  h.go('#/akk-novels');
+  assert.match(h.node('#main').innerHTML,/Page not found/,'No separate source collection route');
 });
 
 test('homepage loads no chapter bodies; direct chapter links work across chunk boundaries', () => {
