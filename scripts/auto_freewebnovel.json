@@ -1,2 +1,68 @@
 {
+  "dimensional-keeper-all-my-skills-are-at-level-100": {
+    "id": "dimensional-keeper-all-my-skills-are-at-level-100",
+    "slug": "dimensional-keeper-all-my-skills-are-at-level-100",
+    "title": "Dimensional Keeper: All My Skills Are at Level 100",
+    "author": "ShinGotLost",
+    "genre": "Fantasy",
+    "tags": [
+      "Fantasy",
+      "Action",
+      "Adventure",
+      "System",
+      "Adult",
+      "Harem"
+    ],
+    "synopsis": "Max awakens an extraordinary dimensional class and begins a quest to find his family, mastering the power of space and time along the way.",
+    "requestedByOwner": true
+  },
+  "idle-tycoon-system": {
+    "id": "idle-tycoon-system",
+    "slug": "idle-tycoon-system",
+    "title": "Idle Tycoon System",
+    "author": "Risaliyah",
+    "genre": "Fantasy",
+    "tags": [
+      "Fantasy",
+      "Adventure",
+      "System",
+      "Comedy",
+      "Slice of Life",
+      "Romance"
+    ],
+    "synopsis": "A struggling programmer receives a business system that lets him run shops in fantastical worlds and earn income while away.",
+    "requestedByOwner": true
+  },
+  "you-promised-to-be-an-idle-son-in-law-how-could-you-become-a-land-immortal": {
+    "id": "you-promised-to-be-an-idle-son-in-law-how-could-you-become-a-land-immortal",
+    "slug": "you-promised-to-be-an-idle-son-in-law-how-could-you-become-a-land-immortal",
+    "title": "You Promised to Be an Idle Son-in-Law, How Could You Become a Land Immortal?",
+    "author": "Wei April",
+    "genre": "Eastern",
+    "tags": [
+      "Eastern",
+      "Comedy",
+      "System",
+      "Cultivation",
+      "Fantasy"
+    ],
+    "synopsis": "Chen Yi wants a peaceful life as a married-in son-in-law, but his daily intelligence system and unexpected mastery of many arts lead him toward an extraordinary destiny.",
+    "requestedByOwner": true
+  },
+  "immortality-through-array-formations": {
+    "id": "immortality-through-array-formations",
+    "slug": "immortality-through-array-formations",
+    "title": "Immortality Through Array Formations",
+    "author": "Observing the Emptiness",
+    "genre": "Xianxia",
+    "tags": [
+      "Eastern",
+      "Xianxia",
+      "Action",
+      "Adventure",
+      "Cultivation"
+    ],
+    "synopsis": "A young cultivator named Mo Hua seeks a better life through the art of formations, aided by a mysterious stele within his consciousness.",
+    "requestedByOwner": true
+  }
 }

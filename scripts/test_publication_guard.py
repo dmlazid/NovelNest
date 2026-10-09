@@ -62,6 +62,14 @@ class PublicationGuardTests(unittest.TestCase):
         self.assertTrue(may_import_auto_title("akknovel", "reviewed", self.root))
         self.assertFalse(may_import_auto_title("freewebnovel", "reviewed", self.root))
 
+    def test_owner_selected_reviewed_title_imports_without_bulk_auto_promotion(self):
+        self.assertFalse(self.policy["automatic_new_title_publication_enabled"])
+        self.policy["reviewed_new_title_keys"]["freewebnovel"].append("owner-selected-novel")
+        self.save_policy()
+        self.assertTrue(may_import_auto_title("freewebnovel", "owner-selected-novel", self.root))
+        self.assertFalse(may_import_auto_title("freewebnovel", "another-unreviewed-novel", self.root))
+        self.assertFalse(may_import_auto_title("akknovel", "owner-selected-novel", self.root))
+
     def test_approval_without_source_rights_is_blocked(self):
         self.policy["automatic_new_title_publication_enabled"] = True
         self.policy["reviewed_new_title_keys"]["akknovel"].append("reviewed")

@@ -12,7 +12,20 @@
   },
   "automatic_new_title_publication_enabled": false,
   "reviewed_new_title_keys": {
-    "akknovel": [],
-    "freewebnovel": []
-  }
+    "akknovel": [
+      "after-rebirth-i-was-forced-to-become-the-mafia-princess",
+      "freeloading-daily-but-the-system-makes-me-a-big-spender",
+      "eastern-palaces-devout-yet-amorous-consort",
+      "xianxia-inn-management-rpg",
+      "an-innocent-girl-seeking-a-husband-was-deceived-and-married-a-childless-officer-crying-with-emotion",
+      "ah-the-villains-i-forced-to-turn-evil-can-read-my-mind"
+    ],
+    "freewebnovel": [
+      "dimensional-keeper-all-my-skills-are-at-level-100",
+      "idle-tycoon-system",
+      "you-promised-to-be-an-idle-son-in-law-how-could-you-become-a-land-immortal",
+      "immortality-through-array-formations"
+    ]
+  },
+  "owner_curated_batch_note": "Only explicit owner-selected keys in reviewed_new_title_keys may be imported; automatic candidate discovery and promotion remain disabled."
 }

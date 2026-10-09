@@ -2,7 +2,8 @@
 
 Permission to republish does not by itself satisfy Google Publisher Policies.
 New automatically discovered titles stay pending until explicitly reviewed.
-Previously published titles may continue receiving chapter updates.
+Owner-selected, explicitly reviewed titles can import without enabling automatic
+candidate promotion. Previously published titles can update chapters.
 """
 from __future__ import annotations
 
@@ -37,9 +38,10 @@ def may_import_auto_title(source: str, key: str, root: Path = ROOT) -> bool:
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     reviewed = policy.get("reviewed_new_title_keys", {}).get(source, [])
     sourcewide = policy.get("sources", {}).get(source, {}).get("sourcewide_authorized") is True
+    # An explicit review key authorizes this owner-selected title even when
+    # bulk discovery/promotion is paused. Never allow unreviewed candidates.
     return (
         sourcewide
-        and policy.get("automatic_new_title_publication_enabled") is True
         and isinstance(reviewed, list)
         and key in reviewed
     )
