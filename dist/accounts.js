@@ -174,10 +174,10 @@
   function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => { try { d.close(); } catch {} }); }
   function openDrawer(element) { closeDrawers(); element.showModal(); }
   function drawerTop(title) {
-    return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
+    return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand" onclick="this.closest('dialog').close()"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
   }
   function row(href, name, detail, symbol) {
-    return `<a class="drawer-row" data-close-drawer href="${href}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
+    return `<a class="drawer-row" data-close-drawer href="${href}" onclick="this.closest('dialog').close()"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
   }
   function googleButton() {
     return `<button class="button google-signin" data-signin ${!ready || busy ? 'disabled' : ''}><span aria-hidden="true">G</span> Continue with Google</button>${!ready ? '<button class="quiet-button" data-account-retry>Retry connection</button>' : ''}`;
@@ -215,8 +215,8 @@
   function showMenu() {
     const panel = drawer('navigation-drawer', 'Navigation');
     const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
-    const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
-    const genreLinks = genres.map(genre => `<a href="./#/genre/${encodeURIComponent(genre)}" data-close-drawer>${escape(genre)}</a>`).join('');
+    const menuLink = (href, label, symbol) => `<a href="${href}" data-close-drawer onclick="this.closest('dialog').close()"><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
+    const genreLinks = genres.map(genre => `<a href="./#/genre/${encodeURIComponent(genre)}" data-close-drawer onclick="this.closest('dialog').close()">${escape(genre)}</a>`).join('');
     panel.innerHTML = drawerTop('menu') + `<div class="menu-content">
       <form class="drawer-search" data-menu-search>
         <label class="sr-only" for="menu-search">Search novels</label>
@@ -286,21 +286,6 @@
       }, fail);
     } catch (error) { busy = false; fail(error); }
   }
-  // Route navigation synchronously from the dialog, then dismiss it.
-  document.addEventListener('click', event => {
-    const link = event.target.closest('.site-drawer a[data-close-drawer][href]');
-    if (!link) return;
-    const href = link.getAttribute('href') || '';
-    if (!href.startsWith('./#/')) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const hash = href.substring(1);
-    closeDrawers();
-    location.hash = hash;
-    if (location.hash === hash) window.dispatchEvent(new Event('hashchange'));
-  }, true);
-  window.addEventListener('hashchange', closeDrawers);
-  window.addEventListener('popstate', closeDrawers);
   document.addEventListener('click', event => {
     const target = event.target;
     if (target.closest('[data-profile]')) showProfile();
