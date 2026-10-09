@@ -16,7 +16,7 @@ const internalUrl=path=>`./#${path.startsWith('/')?path:'/'+path}`;
 const bookUrl=n=>`/novel/${encodeURIComponent(n.id)}/`;
 const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${i+1}/`;
 const chapterPathMatch=pathname=>String(pathname||'').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
-function navigate(url,replace=false){const u=new URL(url,location.href);const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',next);route();main.focus({preventScroll:true});return}location.href=next}
+function navigate(url,replace=false){const u=new URL(url,location.href);const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);if(next===current){window.scrollTo(0,0);return}if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',next);route({animate:true});main.focus({preventScroll:true});return}location.href=next}
 const SYNOPSIS_PREVIEW_LENGTH = 340;
 function synopsisHtml(n){
   const full = String(n.synopsis || '').trim();
@@ -422,7 +422,7 @@ function copyrightPage(){return `<article class="policy-page">
   </div>
 </article>`}
 
-function route(){
+function renderRoute(){
   window.dispatchEvent(new Event('novelnest:before-route'));
   let pathname=location.pathname||'/',search=location.search||'';
   let cleanNovelPath=/^\/novel\/[^/]+\/?$/.test(pathname);
@@ -449,6 +449,15 @@ function route(){
   let html,title='Find your next chapter';
   switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
   main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
+}
+// Keep the current page visible until the next page is ready to paint.
+// Reduced-motion and older browsers keep the original immediate navigation.
+function route({animate=false}={}){
+  const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if(animate&&!reduceMotion&&typeof document.startViewTransition==='function'){
+    try{const transition=document.startViewTransition(()=>renderRoute());transition.finished.catch(()=>{});return}catch(_){/* Native transition unavailable; render normally. */}
+  }
+  renderRoute();
 }
 main.addEventListener('submit',e=>{
   if(e.target.matches('.search-form')){
@@ -505,8 +514,8 @@ main.addEventListener('change',e=>{
     navigate('/genre/'+encodeURIComponent(e.target.dataset.genreSort)+(p.toString()?'?'+p.toString():''));
   }
 });
-window.addEventListener('hashchange',()=>{route();main.focus({preventScroll:true})});
-window.addEventListener('popstate',()=>{route();main.focus({preventScroll:true})});
+window.addEventListener('hashchange',()=>{route({animate:true});main.focus({preventScroll:true})});
+window.addEventListener('popstate',()=>{route({animate:true});main.focus({preventScroll:true})});
 document.querySelector('#year').textContent=new Date().getFullYear();route();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelHaven catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelHaven",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
 
