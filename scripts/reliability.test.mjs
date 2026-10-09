@@ -52,7 +52,7 @@ test('homepage features hand-picked novels without source branding or source cat
     'my-beloved-concubine-only-wants-to-eat-melons',
     'an-innocent-girl-seeking-a-husband-was-deceived-and-married-a-childless-officer-crying-with-emotion'
   ];
-  const featured = [...html.matchAll(/class="home-top-feature" href="\\/novel\\/([^/]+)\\/"/g)]
+  const featured = [...html.matchAll(/class="home-top-feature" href="\/novel\/([^/]+)\/"/g)]
     .map(match => decodeURIComponent(match[1]));
   assert.deepEqual(featured,expected,'Chosen novels should lead the existing homepage');
   assert.equal(new Set(featured).size,4,'No duplicate featured novels');
