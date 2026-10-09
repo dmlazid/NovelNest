@@ -174,7 +174,7 @@
   function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => d.close()); }
   function openDrawer(element) { closeDrawers(); element.showModal(); }
   function drawerTop(title) {
-    return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand"><span>N</span> NovelNest</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
+    return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
   }
   function row(href, name, detail, symbol) {
     return `<a class="drawer-row" data-close-drawer href="${href}"><span class="row-icon">${icon(symbol)}</span><span><strong>${name}</strong><small>${detail}</small></span><span class="row-chevron" aria-hidden="true">›</span></a>`;
@@ -224,7 +224,7 @@
         <button type="submit" aria-label="Search">${icon('search')}</button>
       </form>
 
-      <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelNest">
+      <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelHaven">
         <button type="button" role="tab" aria-selected="true" data-catalog-tab="novels">${icon('book')}<span>Novel list</span></button>
         <button type="button" role="tab" aria-selected="false" data-catalog-tab="genres">${icon('grid')}<span>Genres</span></button>
       </div>
@@ -250,7 +250,7 @@
         <button type="button" class="drawer-row drawer-action-row" data-updates><span class="row-icon">${icon('bell')}</span><span><strong>Notifications</strong><small>Chapter updates from saved novels</small></span><span class="menu-update-dot notification-dot" data-notification-dot hidden></span><span class="row-chevron" aria-hidden="true">›</span></button>
       </div>
       <div class="menu-divider">YOUR READING</div>
-      <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelNest','Stories &amp; reading information','info')}</div>
+      <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelHaven','Stories &amp; reading information','info')}</div>
     </div>`;
     renderStatus();
     openDrawer(panel);
@@ -258,7 +258,7 @@
   function showUpdates() {
     const dialog = drawer('updates-dialog', 'Notifications');
     const entries = sync.updates(books, current());
-    dialog.innerHTML = drawerTop('notifications') + `<div class="notifications-heading"><h2>Notifications</h2><button class="quiet-button" data-seen-updates ${entries.length ? '' : 'disabled'}>Mark all read</button></div><div class="notification-tabs"><span>Chapters <b>${entries.length}</b></span></div>${entries.length ? '<ul class="update-list">' + entries.map(n => { const book = books.find(b => b.id === n.id); return `<li><a data-close-drawer href="/novel/${encodeURIComponent(n.id)}/chapter-${n.first}/"><img src="${escape(book.cover)}" alt=""><div><strong>${escape(n.title)}</strong><span><em>New</em> Chapter ${n.first}${n.count > 1 ? '–' + book.chapters.length : ''}</span></div></a></li>`; }).join('') + '</ul>' : `<div class="empty-notifications"><div>${icon('bell')}</div><h3>You’re all caught up</h3><p>New chapters from your bookmarked novels will appear here.</p><a class="button" href="./#/browse" data-close-drawer>Explore novels</a></div>`}<p class="notifications-footnote">Updates refresh when you visit NovelNest.</p>`;
+    dialog.innerHTML = drawerTop('notifications') + `<div class="notifications-heading"><h2>Notifications</h2><button class="quiet-button" data-seen-updates ${entries.length ? '' : 'disabled'}>Mark all read</button></div><div class="notification-tabs"><span>Chapters <b>${entries.length}</b></span></div>${entries.length ? '<ul class="update-list">' + entries.map(n => { const book = books.find(b => b.id === n.id); return `<li><a data-close-drawer href="/novel/${encodeURIComponent(n.id)}/chapter-${n.first}/"><img src="${escape(book.cover)}" alt=""><div><strong>${escape(n.title)}</strong><span><em>New</em> Chapter ${n.first}${n.count > 1 ? '–' + book.chapters.length : ''}</span></div></a></li>`; }).join('') + '</ul>' : `<div class="empty-notifications"><div>${icon('bell')}</div><h3>You’re all caught up</h3><p>New chapters from your bookmarked novels will appear here.</p><a class="button" href="./#/browse" data-close-drawer>Explore novels</a></div>`}<p class="notifications-footnote">Updates refresh when you visit NovelHaven.</p>`;
     openDrawer(dialog);
   }
   async function start() {
@@ -286,6 +286,14 @@
       }, fail);
     } catch (error) { busy = false; fail(error); }
   }
+  // Close modal navigation before route updates so the destination is visible immediately.
+  document.addEventListener('click', event => {
+    const link = event.target.closest('.site-drawer a[data-close-drawer]');
+    if (!link) return;
+    closeDrawers();
+  }, true);
+  window.addEventListener('hashchange', closeDrawers);
+  window.addEventListener('popstate', closeDrawers);
   document.addEventListener('click', event => {
     const target = event.target;
     if (target.closest('[data-profile]')) showProfile();
