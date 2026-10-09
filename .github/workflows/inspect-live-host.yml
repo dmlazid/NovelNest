@@ -14,7 +14,7 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -27,3 +27,32 @@ jobs:
           node-version: '22'
       - name: Query public site and read-only deployment metadata
         run: node scripts/inspect-live-host.mjs
+      - name: Check real homepage rendering in headless Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -z "$BROWSER" ]; then
+            echo "No system headless Chrome found. Only HTTP checks were completed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for page in https://novelhaven.top/ https://novelhaven.top/akk-novels/; do
+            echo "Rendering $page with $BROWSER"
+            set +e
+            timeout 110s "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --disable-background-networking --disable-extensions --virtual-time-budget=35000 --dump-dom "$page" > /tmp/novelhaven-dom.html 2> /tmp/novelhaven-chrome-errors.log
+            code=$?
+            set -e
+            echo "Headless Chrome exit: $code | DOM bytes: $(wc -c < /tmp/novelhaven-dom.html)"
+            if grep -q 'AkkNovel Spotlight' /tmp/novelhaven-dom.html; then
+              echo "CONFIRMED: the live homepage rendered AkkNovel Spotlight."
+              echo "- Headless browser $page: AkkNovel Spotlight rendered." >> "$GITHUB_STEP_SUMMARY"
+            elif grep -q 'AkkNovel Collection' /tmp/novelhaven-dom.html; then
+              echo "CONFIRMED: the AkkNovel collection rendered."
+              echo "- Headless browser $page: AkkNovel Collection rendered." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "NOT RENDERED: AkkNovel sections missing."
+              echo "- Headless browser $page: AkkNovel section missing (Chrome exit $code)." >> "$GITHUB_STEP_SUMMARY"
+              grep -Eo '<main[^>]*>|<h1[^>]*>[^<]{0,180}|<title[^>]*>[^<]{0,180}' /tmp/novelhaven-dom.html | head -n 15 || true
+              grep -Ei 'Uncaught|ERR_|error|failed|blocked|Refused|SyntaxError|ReferenceError|TypeError' /tmp/novelhaven-chrome-errors.log | head -n 25 || true
+            fi
+          done
