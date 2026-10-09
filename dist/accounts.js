@@ -191,8 +191,11 @@
   // Native full-document navigation avoids leaving the modal above routed pages.
   function menuHref(href) {
     if (!href.startsWith('./#/')) return href;
+    // "./#/" already includes the leading slash at index 3.
+    // Adding another slash creates a protocol-relative URL ("//library")
+    // that the browser interprets as a hostname instead of a site route.
     const route = href.slice(3);
-    return '/' + route;
+    return route;
   }
   function drawerTop(title) {
     return `<div class="drawer-top"><a href="/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
