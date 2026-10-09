@@ -171,7 +171,7 @@
     }
     return element;
   }
-  function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => d.close()); }
+  function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => { try { d.close(); } catch {} }); }
   function openDrawer(element) { closeDrawers(); element.showModal(); }
   function drawerTop(title) {
     return `<div class="drawer-top"><a href="./#/" data-close-drawer class="drawer-brand"><span>N</span> NovelHaven</a><button type="button" class="header-icon" data-close-drawer aria-label="Close ${title}">${icon('close')}</button></div>`;
@@ -286,19 +286,18 @@
       }, fail);
     } catch (error) { busy = false; fail(error); }
   }
-  // Handle modal menu links before other click handlers. Prevent the browser
-  // from navigating underneath an open dialog; close first, then change route.
+  // Route navigation synchronously from the dialog, then dismiss it.
   document.addEventListener('click', event => {
-    const link = event.target.closest('#navigation-drawer a[data-close-drawer]');
+    const link = event.target.closest('.site-drawer a[data-close-drawer][href]');
     if (!link) return;
     const href = link.getAttribute('href') || '';
     if (!href.startsWith('./#/')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    const hash = href.slice(1);
+    const hash = href.substring(1);
     closeDrawers();
+    location.hash = hash;
     if (location.hash === hash) window.dispatchEvent(new Event('hashchange'));
-    else location.hash = hash;
   }, true);
   window.addEventListener('hashchange', closeDrawers);
   window.addEventListener('popstate', closeDrawers);
