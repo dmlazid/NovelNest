@@ -1065,3 +1065,14 @@
     to { opacity: 1; transform: none; }
   }
 }
+
+/* Optional affiliate card: shown only for configured HTTPS offers.
+   Reader-initiated clicks only; no overlays, redirects, or deceptive buttons. */
+.affiliate-offer{clear:both;max-width:790px;margin:30px auto 18px;padding:18px 20px;border:1px solid var(--line);border-radius:15px;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.55}
+.affiliate-offer-label{display:block;margin-bottom:8px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.affiliate-offer h2{margin:0 0 7px;font-size:17px;line-height:1.4;color:var(--ink)}
+.affiliate-offer p{margin:0 0 10px;color:var(--muted)}
+.affiliate-offer .affiliate-offer-link{display:inline-block;margin:0 0 10px;color:var(--green);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.affiliate-offer .affiliate-offer-disclosure{font-size:12px;margin:5px 0}
+.affiliate-offer>a:last-child{color:var(--muted);font-size:12px;text-decoration:underline;text-underline-offset:2px}
+@media(max-width:600px){.affiliate-offer{margin:22px 0 12px;padding:15px}}
