@@ -40,7 +40,7 @@ function run(offers) {
   };
   const location = { origin: 'https://novelhaven.top', pathname: '/novel/sample/chapter-1/' };
   const modified = source.replace('const OFFERS = [];', 'const OFFERS = ' + JSON.stringify(offers) + ';');
-  assert.notEqual(modified, source, 'Offer configuration was not replaced');
+  assert(modified.includes('const OFFERS = ' + JSON.stringify(offers) + ';'), 'Offer configuration was not applied');
   vm.runInNewContext(modified, { document, window, location, URL });
   return { cards, handlers };
 }
