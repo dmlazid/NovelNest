@@ -39,7 +39,7 @@ function run(offers) {
     addEventListener(event, fn) { handlers[event] = fn; },
   };
   const location = { origin: 'https://novelhaven.top', pathname: '/novel/sample/chapter-1/' };
-  const modified = source.replace('const OFFERS = [];', 'const OFFERS = ' + JSON.stringify(offers) + ';');
+  const modified = source.replace(/const OFFERS = \[[\s\S]*?\];/, 'const OFFERS = ' + JSON.stringify(offers) + ';');
   assert(modified.includes('const OFFERS = ' + JSON.stringify(offers) + ';'), 'Offer configuration was not applied');
   vm.runInNewContext(modified, { document, window, location, URL });
   return { cards, handlers };
@@ -79,6 +79,17 @@ test('invalid and unsafe affiliate destinations are ignored', () => {
 });
 
 test('affiliate module is bundled without altering AdSense publisher inclusion', () => {
-  assert.match(homepage, /src="affiliate-offers\.js\?v=20261010-safe-affiliate-1"/);
+  assert.match(homepage, /src="affiliate-offers\.js\?v=20261010-five-offers-1"/);
   assert.match(homepage, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-9356195452195758/);
+});
+
+test('only five user-provided affiliate links are configured', () => {
+  const found = [...source.matchAll(/url:\s*'(https:\/\/invl\.me\/[^']+)'/g)].map(match => match[1]);
+  assert.deepEqual(found, [
+    'https://invl.me/clo37p0',
+    'https://invl.me/clo37pl',
+    'https://invl.me/clo37pr',
+    'https://invl.me/clo37q9',
+    'https://invl.me/clo37qk',
+  ]);
 });

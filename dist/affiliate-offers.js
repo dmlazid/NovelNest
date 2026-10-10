@@ -1,15 +1,17 @@
-/* Optional, click-only affiliate promotions for NovelHaven.
- * Leave OFFERS empty until the owner supplies a real approved affiliate URL.
- * Example (replace the values and remove the comment):
- * { title: 'Comfortable reading accessories',
- *   description: 'Browse optional accessories for readers.',
- *   partner: 'Store name', url: 'https://example.com/your-affiliate-link' }
- * No redirects, scroll triggers, popups, automatic opens, or tracking requests.
+/* Optional click-only affiliate promotions for NovelHaven. The short-link destinations
+ * could not be independently verified, so do not make claims about merchants or products.
+ * All offers are user-initiated, visibly disclosed, and remain after reading content.
  */
 (() => {
   'use strict';
 
-  const OFFERS = [];
+  const OFFERS = [
+    { title: 'Optional partner offer', description: 'Explore this external offer if interested. Check the partner website for current details, availability, and prices.', partner: 'the partner site', url: 'https://invl.me/clo37p0' },
+    { title: 'Optional partner offer', description: 'Explore this external offer if interested. Check the partner website for current details, availability, and prices.', partner: 'the partner site', url: 'https://invl.me/clo37pl' },
+    { title: 'Optional partner offer', description: 'Explore this external offer if interested. Check the partner website for current details, availability, and prices.', partner: 'the partner site', url: 'https://invl.me/clo37pr' },
+    { title: 'Optional partner offer', description: 'Explore this external offer if interested. Check the partner website for current details, availability, and prices.', partner: 'the partner site', url: 'https://invl.me/clo37q9' },
+    { title: 'Optional partner offer', description: 'Explore this external offer if interested. Check the partner website for current details, availability, and prices.', partner: 'the partner site', url: 'https://invl.me/clo37qk' }
+  ];
 
   function allowedOffer(item) {
     if (!item || typeof item !== 'object') return false;
