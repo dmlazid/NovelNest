@@ -178,7 +178,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in 1 2 3 4 5; do
-            if ! grep -q 'app.js?v=20261011-fresh-novels-1' /tmp/novelhaven-source-dom.html; then
+            if ! grep -q 'app.js?v=20261011-stable-library-1' /tmp/novelhaven-source-dom.html; then
               echo "New Latest Novels script not yet visible on Cloudflare (attempt $attempt)."
               timeout 80s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
                 --disable-background-networking --disable-extensions --virtual-time-budget=22000 \
@@ -190,7 +190,7 @@ jobs:
           done
           node --input-type=commonjs - <<'NODE'
           const fs=require('node:fs'), html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
-          if(!html.includes('app.js?v=20261011-fresh-novels-1'))
+          if(!html.includes('app.js?v=20261011-stable-library-1'))
             throw new Error('Cloudflare still has old Latest Novels JavaScript version');
           const released=[...html.matchAll(/class="home-release-row" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
           const i=html.indexOf('Latest Novels</h2>');
