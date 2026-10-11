@@ -190,3 +190,27 @@ test('Latest Novels full directory orders real releases ahead of imported older 
   assert(newer>=0 && earlier>=0 && old>=0);
   assert(newer < earlier && earlier < old);
 });
+
+test('background Library progress refresh replaces only the Continue Reading card',()=>{
+  const n=book('story',{chapters:Array.from({length:30},(_,i)=>({number:i+1,title:'Chapter '+(i+1)}))});
+  const view=harness([n]);
+  const snapshot=view(`(()=>{
+    globalThis.location={hash:'#/library',pathname:'/library',search:''};
+    const card={outerHTML:'old'};
+    main.querySelector=selector=>selector==='.continue-box'?card:null;
+    progress.story={chapter:25,at:100};
+    refreshLibraryProgress();
+    return card.outerHTML;
+  })()`);
+  assert.match(snapshot,/Chapter 26/);
+  assert.match(snapshot,/Continue/);
+  const prior=view(`(()=>{
+    globalThis.location={hash:'#/library?tab=history',pathname:'/library',search:''};
+    const card={outerHTML:'unchanged'};
+    main.querySelector=selector=>selector==='.continue-box'?card:null;
+    progress.story={chapter:17,at:200};
+    refreshLibraryProgress();
+    return card.outerHTML;
+  })()`);
+  assert.equal(prior,'unchanged','History tab must not get a Continue Reading card');
+});
