@@ -25,7 +25,7 @@ function harness(hash = '#/') {
   for (const file of ['chapter-labels.js', 'catalog.js', ...licensed, 'app.js', 'lazy-chapters.js']) load(file);
   const flush = () => { let count = 0; while (timers.length) { assert(++count < 100, 'Unexpected render loop'); timers.shift()(); } };
   const go = next => { context.location.hash = next; window.dispatchEvent(new Event('hashchange')); flush(); };
-  const complete = script => { const src = script.src.replace(/^\//, ''); const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === src)?.[0] || src; load(original); script.onload(); flush(); };
+  const complete = script => { const src = script.src.replace(/^\//, '').split('?')[0]; const original = Object.entries(window.NOVELNEST_ASSETS || {}).find(([, value]) => value === src)?.[0] || src; load(original); script.onload(); flush(); };
   flush();
   return { context, window, scripts, run, flush, go, complete, node, storage, events };
 }
@@ -102,7 +102,7 @@ test('slow loads do not rerender a different page, and same-chunk navigation sha
   assert.equal(astral.chapters[101].lazy, false);
 });
 
-test('failed chapter loads have a working retry and use the asset manifest', () => {
+test('failed chapter downloads automatically retry with new cache revision and then allow manual retry', () => {
   const h = harness();
   const gallery = h.window.NOVELS.find(n => n.id === 'got-a-gallery-in-the-wild');
   assert(gallery);
@@ -112,13 +112,25 @@ test('failed chapter loads have a working retry and use the asset manifest', () 
   const versioned = `${config.prefix}${chunk}.fingerprint.js`;
   h.window.NOVELNEST_ASSETS = { [original]: versioned };
   h.go('#/read/got-a-gallery-in-the-wild/170');
-  assert.equal(h.scripts[0].src, '/' + versioned);
+  assert(h.scripts[0].src.startsWith('/' + versioned + '?v='));
   h.scripts[0].onerror();
-  assert.match(h.node('.prose').innerHTML, /Try again/);
-  h.events.get('document:click')({ target: { closest: () => true } });
-  assert.equal(h.scripts.length, 2);
+  h.flush();
+  assert.equal(h.scripts.length, 2, 'Network errors should retry automatically');
+  assert.match(h.scripts[1].src, /[?&]retry=1-/);
   h.complete(h.scripts[1]);
-  assert.equal(gallery.chapters[169].lazy, false);
+  assert.equal(gallery.chapters[169].lazy, false, 'Automatic retry hydrates the real chapter text');
+
+  const failed = harness();
+  failed.go('#/read/got-a-gallery-in-the-wild/170');
+  for (let i = 0; i < 3; i++) {
+    failed.scripts[i].onerror();
+    failed.flush();
+  }
+  assert.match(failed.node('.prose').innerHTML, /Try again/);
+  failed.events.get('document:click')({ target: { closest: () => true } });
+  assert.equal(failed.scripts.length, 4, 'Manual retry resets the automatic retry budget');
+  failed.complete(failed.scripts[3]);
+  assert.equal(failed.window.NOVELS.find(n=>n.id==='got-a-gallery-in-the-wild').chapters[169].lazy, false);
 });
 
 test('ongoing stories show caught-up text; completed stories show an ending', () => {
