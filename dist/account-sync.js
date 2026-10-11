@@ -15,7 +15,15 @@
     for (const field of ['progress', 'positions']) {
       for (const [key, value] of Object.entries(local.data[field])) {
         if (JSON.stringify(value) === JSON.stringify(base.data[field][key])) continue;
-        if (!result.data[field][key] || value.at >= result.data[field][key].at) result.data[field][key] = copy(value);
+        const previous = result.data[field][key];
+        // Continue Reading is the furthest chapter reached. A later cloud
+        // update from a tab still showing an older chapter must not roll it
+        // back (e.g. 26 to 18). Paragraph positions remain last-write-wins.
+        const advances = field === 'progress'
+          ? (!previous || value.chapter > previous.chapter ||
+              (value.chapter === previous.chapter && value.at >= previous.at))
+          : (!previous || value.at >= previous.at);
+        if (advances) result.data[field][key] = copy(value);
       }
     }
     for (const [id, value] of Object.entries(local.data.chapterStatus)) {

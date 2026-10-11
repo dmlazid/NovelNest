@@ -161,3 +161,32 @@ test('source recent chapter is not hidden when local importer is already ahead',
   assert.match(markup,/Chapter 5: Genuine source update/);
   assert.match(markup,/>2 hours ago<\/span>/);
 });
+
+test('Latest Novels cards prioritize genuine five-day updates without using chapter imports',()=>{
+  const recent=Array.from({length:13},(_,i)=>source('fresh-'+i,{
+    sourceReleaseAt:'2026-10-11T08:'+String(59-i).padStart(2,'0')+':00Z'
+  }));
+  const backfills=Array.from({length:4},(_,i)=>book('backfill-'+i,{
+    updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'
+  }));
+  const view=harness([...recent,...backfills]);
+  const html=view('home()');
+  const area=html.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1]
+    .split('</section>')[0];
+  assert.equal((area.match(/class="home-novel-tile"/g)||[]).length,6);
+  assert.doesNotMatch(area,/backfill-/);
+  assert.match(area,/fresh-/);
+});
+test('Latest Novels full directory orders real releases ahead of imported older novels',()=>{
+  const v=harness([
+    book('a-old-import',{updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'}),
+    source('z-first',{sourceReleaseAt:'2026-10-11T08:50:00Z'}),
+    source('y-newest',{sourceReleaseAt:'2026-10-11T08:58:00Z'})
+  ]);
+  const html=v("directoryPage('novels')");
+  const newer=html.indexOf('/novel/y-newest/');
+  const earlier=html.indexOf('/novel/z-first/');
+  const old=html.indexOf('/novel/a-old-import/');
+  assert(newer>=0 && earlier>=0 && old>=0);
+  assert(newer < earlier && earlier < old);
+});

@@ -383,6 +383,10 @@
     if (event.key === OWNER) { generation++; clearTimeout(timer); user = null; window.NovelNestPositions?.stop(); applying = true; location.reload(); }
     else if (event.key?.startsWith('novelnest.') && !event.key.startsWith('novelnest.account-')) {
       window.NovelNestReading?.reload(); window.NovelNestPositions?.reload(); window.NovelNestApp?.reloadData(); renderStatus();
+      // Cross-tab reading updates should refresh the visible library card,
+      // without rerendering an open chapter and resetting its scroll position.
+      if (location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || ''))
+        window.NovelNestApp?.refresh();
     }
   });
   try {
