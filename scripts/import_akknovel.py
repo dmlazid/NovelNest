@@ -583,7 +583,7 @@ def ensure_index_registration(key: str) -> None:
 def previous_catalog_field(catalog: Path, field: str) -> str:
     if not catalog.exists():
         return ""
-    match = re.search(r'"' + re.escape(json.dumps(field)) + r':"([^"]+)"', catalog.read_text(encoding="utf-8"))
+    match = re.search(re.escape(json.dumps(field)) + r':"([^"]+)"', catalog.read_text(encoding="utf-8"))
     return match.group(1) if match else ""
 
 
