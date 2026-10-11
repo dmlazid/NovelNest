@@ -33,6 +33,18 @@
     lastTracked = JSON.stringify(state);
   }
   function apply(state) {
+    const previous = current();
+    // An older remote session must not roll this book's Continue Reading
+    // backward while cloud synchronization finishes.
+    for (const [id, progress] of Object.entries(previous.data.progress)) {
+      const incoming = state.data.progress?.[id];
+      if (Number.isInteger(progress?.chapter) &&
+          (!incoming || progress.chapter > incoming.chapter)) {
+        state.data.progress[id] = progress;
+      }
+    }
+    const savedChanged = JSON.stringify(previous.data.saved) !== JSON.stringify(state.data.saved);
+    const progressChanged = JSON.stringify(previous.data.progress) !== JSON.stringify(state.data.progress);
     applying = true;
     try {
       write(state);
@@ -41,7 +53,13 @@
       window.NovelNestApp?.reloadData();
       cache();
     } finally { applying = false; }
-    if (!(location.hash.startsWith('#/read/') || /^\/read\/[^/]+\/?$/.test(location.pathname || '') || /^\/novel\/[^/]+\/chapter-\d+\/?$/.test(location.pathname || ''))) window.dispatchEvent(new Event('hashchange'));
+    const isLibrary = location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || '');
+    if (isLibrary) {
+      // Synchronization is NOT navigation. Never animate a page transition,
+      // throw the user to the top, or discard the existing Library DOM.
+      if (savedChanged) window.NovelNestApp?.refresh({ preserveScroll: true });
+      else if (progressChanged) window.NovelNestApp?.refreshLibraryProgress();
+    }
     render();
   }
   function fail(error) {
@@ -383,10 +401,12 @@
     if (event.key === OWNER) { generation++; clearTimeout(timer); user = null; window.NovelNestPositions?.stop(); applying = true; location.reload(); }
     else if (event.key?.startsWith('novelnest.') && !event.key.startsWith('novelnest.account-')) {
       window.NovelNestReading?.reload(); window.NovelNestPositions?.reload(); window.NovelNestApp?.reloadData(); renderStatus();
-      // Cross-tab reading updates should refresh the visible library card,
-      // without rerendering an open chapter and resetting its scroll position.
-      if (location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || ''))
-        window.NovelNestApp?.refresh();
+      // Only relevant changes touch the visible Library. Position autosaves,
+      // seen acknowledgements and preferences must not flash/rebuild the page.
+      if (event.key === 'novelnest.progress') window.NovelNestApp?.refreshLibraryProgress();
+      else if (event.key === 'novelnest.saved' &&
+               (location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || '')))
+        window.NovelNestApp?.refresh({ preserveScroll: true });
     }
   });
   try {
