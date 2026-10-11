@@ -20,26 +20,6 @@ jobs:
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
       - name: Test original-source activity parser
         run: python -m unittest discover -s scripts -p "test_source_activity_scan.py"
-      - name: Inspect AkkNovel source timestamp fields (read only)
-        run: |
-          python - <<'PY'
-          import requests,re
-          from bs4 import BeautifulSoup
-          from html import unescape
-          urls=["https://www.akknovel.com/series/transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel","https://www.akknovel.com/series/mistakenly-bound-by-the-system-lets-squeeze-out-a-space-first"]
-          for url in urls:
-              try:
-                  r=requests.get(url,timeout=20,headers={"User-Agent":"Mozilla/5.0"})
-                  print('AKK diagnostic:',url.rsplit('/',1)[-1],r.status_code,'bytes',len(r.content))
-                  if r.status_code!=200: continue
-                  soup=BeautifulSoup(r.text,'html.parser')
-                  print('time tags:',[(x.get('datetime'),x.get_text(' ',strip=True)[:70]) for x in soup.find_all('time')[:8]])
-                  for key in ('updatedAt','publishedAt','datePublished','dateModified','datetime','createdAt','timestamp'):
-                      matches=list(re.finditer(re.escape(key),r.text,re.I))
-                      print(key,'count',len(matches),'sample',[re.sub(r'\\s+',' ',unescape(r.text[max(0,m.start()-55):m.end()+90]))[:180] for m in matches[:3]])
-              except requests.RequestException as e:
-                  print('AKK diagnostic error:',type(e).__name__)
-          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
