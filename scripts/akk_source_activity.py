@@ -107,10 +107,14 @@ def source_update(novel, html, observed, previous=None, homepage_age=None):
     tip,title = max(chapters, key=lambda x:(x[0],len(x[1])))
     title = (f"Chapter {tip}: {title}" if title else f"Chapter {tip}")[:180]
     old = previous if isinstance(previous,dict) else {}
-    old_tip = max(
-        int(novel.get("sourceObservedChapter") or 0),
-        int(old.get("sourceScanObservedTip") or 0)
-    )
+    # Once the independent source scanner has its own baseline, do NOT
+    # compare against the importer's checkpoint. Import can run first and
+    # advance sourceObservedChapter, which would hide a real new release.
+    scanner_tip = old.get("sourceScanObservedTip")
+    if type(scanner_tip) is int and scanner_tip > 0:
+        old_tip = scanner_tip
+    else:
+        old_tip = int(novel.get("sourceObservedChapter") or 0)
     # The first visit is only a baseline when no earlier source observation
     # exists; this does not turn the importer checkpoint into a release.
     release = {
