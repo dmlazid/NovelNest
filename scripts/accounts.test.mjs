@@ -11,6 +11,7 @@ const settle = async () => { for(let i=0;i<20;i++) await Promise.resolve(); };
 function harness({ storage = new Map(), uid = null, cloud = new Map(), error = null } = {}) {
   const handlers = new Map(), timers = new Map(), nodes = new Map();
   let reloads = 0, stopped = 0, timerId = 0, callback, transactions = 0, failure = error, gate = null;
+  const uiUpdates={full:0,card:0,lastRefresh:null};
   const on = (name, fn) => handlers.set(name, [...handlers.get(name)||[], fn]);
   const fire = (name, event) => { for(const fn of handlers.get(name)||[]) fn(event); };
   const node = name => {
@@ -18,7 +19,7 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
     return nodes.get(name);
   };
   const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
-  const window = {NOVELS:[{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}],addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){}},NovelNestReading:{reload(){}}};
+  const window = {NOVELS:[{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}],addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;}},NovelNestReading:{reload(){}}};
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
@@ -34,7 +35,7 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
     if(name==='accounts.js')source=source.replace(/import\('https:\/\/www\.gstatic\.com\/firebasejs\/[^']+'\)/g,'Promise.resolve(firebaseMock)');
     vm.runInContext(source,context);
   }
-  return {window,storage,cloud,nodes,timers,context,get reloads(){return reloads;},get transactions(){return transactions;},get stopped(){return stopped;},
+  return {window,storage,cloud,nodes,timers,context,uiUpdates,get reloads(){return reloads;},get transactions(){return transactions;},get stopped(){return stopped;},
     async start(){const entry=[...timers].find(([,t])=>t.ms===0);timers.delete(entry[0]);entry[1].fn();await settle();},
     async account(next){auth.currentUser=next?{uid:next,displayName:next}:null;callback(auth.currentUser);await settle();},
     async click(selector){fire('click',{target:{closest:s=>s===selector}});await settle();},
@@ -99,4 +100,30 @@ test('permission errors preserve local data and identify cloud access failure', 
 test('another tab switching accounts stops this reader before reloading', async () => {
   const h=harness();await h.start();h.fire('storage',{key:'novelnest.account-owner'});
   assert.equal(h.stopped,1);assert.equal(h.reloads,1);
+});
+
+test('background position autosaves never repaint or flicker the Library page',async()=>{
+  const h=harness();await h.start();
+  const before=h.uiUpdates.full;
+  h.fire('storage',{key:'novelnest.positions'});
+  h.fire('storage',{key:'novelnest.update-seen'});
+  h.fire('storage',{key:'novelnest.preferences'});
+  assert.equal(h.uiUpdates.full,before,'No full route transition during autosave');
+  assert.equal(h.uiUpdates.card,0,'Unrelated autosaves cannot redraw Continue Reading');
+  h.fire('storage',{key:'novelnest.progress'});
+  assert.equal(h.uiUpdates.full,before);
+  assert.equal(h.uiUpdates.card,1,'Progress edits refresh only the in-place card');
+  h.fire('storage',{key:'novelnest.saved'});
+  assert.equal(h.uiUpdates.full,before+1);
+  assert.equal(h.uiUpdates.lastRefresh?.preserveScroll,true);
+});
+test('cloud session with newer timestamp cannot return Continue Reading to older chapter',async()=>{
+  const storage=new Map();
+  const data=fixture();data.data.progress.book={chapter:2,at:100};
+  save(storage,data);storage.set('novelnest.account-owner','"alice"');
+  const remote=empty();remote.data.progress.book={chapter:1,at:200};
+  const cloud=new Map([['alice',{version:1,...remote}]]);
+  const h=harness({storage,uid:'alice',cloud});await h.start();
+  assert.equal(h.state().data.progress.book.chapter,2);
+  assert.equal(h.uiUpdates.full,0,'Progress synchronization does not flash the entire library');
 });
