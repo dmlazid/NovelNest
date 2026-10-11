@@ -33,3 +33,21 @@ jobs:
             fi
             rm -f "$tmp"
           done
+      - name: Verify browser actually displays chapter text on both URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -z "$BROWSER" ]; then echo "Browser unavailable"; exit 1; fi
+          for num in 17 18 19; do
+            page="/tmp/farming-live-chapter-$num.html"
+            timeout 85s "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
+              --disable-background-networking --disable-extensions --virtual-time-budget=18000 \
+              --dump-dom "https://novelhaven.top/novel/farming-cultivating-immortality/chapter-$num/?audit-browser=1" > "$page" 2>"/tmp/farming-browser-$num.log" || true
+            echo "BROWSER chapter=$num bytes=$(wc -c < "$page")"
+            if grep -q 'This chapter could not load' "$page"; then echo "BROWSER_STATUS $num FAILED_CANNOT_LOAD"; fi
+            if grep -q 'Loading chapter…' "$page"; then echo "BROWSER_STATUS $num STILL_LOADING"; fi
+            if grep -q 'Chapter $num:' "$page" && ! grep -q 'This chapter could not load' "$page"; then echo "BROWSER_STATUS $num VISIBLE_TITLE"; fi
+            echo "BROWSER_ERRORS $num:"
+            grep -Ei 'ERR_|Uncaught|SyntaxError|TypeError|ReferenceError|Failed to load' "/tmp/farming-browser-$num.log" | head -n 8 || true
+          done
