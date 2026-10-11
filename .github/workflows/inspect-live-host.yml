@@ -94,3 +94,26 @@ jobs:
           done
           echo "::warning::Live source-report release rows not verified yet; Cloudflare deployment may be pending."
           echo "Live release rows not yet verified; do not mark deployment complete." >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify AkkNovel confirmed source release is present in Latest Releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=commonjs - <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
+          const source=fs.readFileSync('dist/source-activity.js','utf8');
+          const reports=source.match(/const reports = (\\{.*?\\});/s);
+          if (!reports) throw new Error('No source-release snapshot in checkout');
+          const data=JSON.parse(reports[1]);
+          const target='freeloading-daily-but-the-system-makes-me-a-big-spender';
+          if (!data[target]?.sourceReleaseAt) {
+            console.log('AkkNovel sample has no confirmed source growth; skip live Akk row check.');
+            process.exit(0);
+          }
+          const section=html.match(/<section class="home-feed-section home-release-section"[\\s\\S]*?<\\/section>/);
+          if (!section) throw new Error('Missing Latest Release Novels section in rendered DOM');
+          if (!section[0].includes('class="home-release-row"') || !section[0].includes('/novel/'+target+'/')) {
+            throw new Error('Confirmed AkkNovel source update missing from live Latest Release Novels.');
+          }
+          console.log('VERIFIED LIVE AKKNOVEL: new chapter appears in Latest Release Novels.');
+          NODE
