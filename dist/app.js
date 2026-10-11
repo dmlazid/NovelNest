@@ -203,7 +203,13 @@ function home(){
   // Recent releases must remain chronological, unlike the discovery cards.
   const releases=latestOngoingReleases(novels);
   const displayed=new Set([...topFeatures,...topRows].map(n=>n.id));
-  const latestNovels=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
+  // Show genuinely recently updated books first; keep the six cards rotating
+  // within the recent pool. Local chapter import and catalog updated times
+  // never qualify a book as a new source release.
+  const freshlyUpdated=latestOngoingReleases(novels).filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id));
+  const recentPool=shuffledNovels(freshlyUpdated);
+  const otherPool=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id)&&!freshlyUpdated.some(f=>f.id===n.id)));
+  const latestNovels=[...recentPool,...otherPool].slice(0,6);
   latestNovels.forEach(n=>displayed.add(n.id));
   const completed=shuffledNovels(sorted.filter(n=>n.status==='Completed'&&n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
   return `<div class="home-feed">
@@ -332,7 +338,16 @@ function directoryPage(kind){
   let results=[...novels];
   if(kind==='releases') results=latestOngoingReleases(novels);
   else if(kind==='completed') results=results.filter(n=>n.status==='Completed');
-  if(kind==='novels') results.sort((a,b)=>b.updated.localeCompare(a.updated)||a.title.localeCompare(b.title));
+  if(kind==='novels'){
+    const active=latestOngoingReleases(novels), order=new Map(active.map((n,i)=>[n.id,i]));
+    results.sort((a,b)=>{
+      const aOrder=order.get(a.id), bOrder=order.get(b.id);
+      if(aOrder!==undefined&&bOrder!==undefined)return aOrder-bOrder;
+      if(aOrder!==undefined)return -1;
+      if(bOrder!==undefined)return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }
   else if(kind!=='releases') results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
