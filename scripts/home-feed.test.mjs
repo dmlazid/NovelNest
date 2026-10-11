@@ -53,7 +53,9 @@ test('empty actual releases list shows a truthful explanation',()=>{
 });
 test('source release directory shows actual latest source numbers and time',()=>{
   const html=harness([source('source-updated'),book('old-backfill')])("directoryPage('releases')");
-  assert.match(html,/Source chapter updates · last 5 days/);
+  assert.match(html,/Latest Novels/);
+  assert.match(html,/Completed Novels/);
+  assert.doesNotMatch(html,/Verified source chapter changes|New source chapters detected|local import progress|Source chapter updates/);
   assert.match(html,/source-updated/);
   assert.doesNotMatch(html,/old-backfill/);
 });

@@ -161,8 +161,8 @@ test('home See more routes open novel directories instead of chapter feeds', () 
   assert.match(home, /href="\.\/#\/completed"/);
 
   h.go('#/latest-releases');
-  assert.match(h.node('#main').innerHTML, /Latest Release Novels/);
-  assert.match(h.node('#main').innerHTML, /No verified source chapter releases|home-release-row/);
+  assert.match(h.node('#main').innerHTML, /Latest Novels/);
+  assert.match(h.node('#main').innerHTML, /No novels available|home-release-row/);
   assert.doesNotMatch(h.node('#main').innerHTML, /Every available chapter/);
 
   h.go('#/latest-novels');
@@ -215,14 +215,21 @@ test('See More directories keep the approved clean novel-list layout', () => {
 
   h.go('#/latest-releases');
   let html = h.node('#main').innerHTML;
-  assert.match(html, /Latest Release Novels/);
-  assert.match(html, /No verified source chapter releases|home-release-row/);
-  assert.match(html, /Source chapter updates · last 5 days/);
-  assert.match(html, /Completed novels/);
+  assert.match(html, /class="directory-switch"/);
+  assert.match(html, /href="\.\/#\/latest-releases" aria-current="page">Latest Novels<\/a>/);
+  assert.match(html, /href="\.\/#\/completed">Completed Novels<\/a>/);
+  assert.match(html, /No novels available|home-release-row/);
+  assert.doesNotMatch(html, /Verified source chapter changes|New source chapters detected|local import progress|Source chapter updates/);
   assert.doesNotMatch(html, /href="\/novel\/legend-of-swordsman\//,
     'Completed novels must not appear in recent releases');
   assert.doesNotMatch(html, /directory-search/);
   assert.doesNotMatch(html, /data-directory-filter/);
+
+  h.go('#/completed');
+  html = h.node('#main').innerHTML;
+  assert.match(html, /href="\.\/#\/completed" aria-current="page">Completed Novels<\/a>/);
+  assert.match(html, /href="\.\/#\/latest-releases">Latest Novels<\/a>/);
+  assert.doesNotMatch(html, /Finished stories|Complete novels you can read/);
 
   h.go('#/latest-novels');
   html = h.node('#main').innerHTML;
