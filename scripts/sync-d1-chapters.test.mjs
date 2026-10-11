@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   checkCapacity, firstMissingNumber, prioritizeNovels,
-  syncPublishedChapters, validateOptions, D1Client, SOFT_LIMIT_BYTES,
+  syncPublishedChapters, validateOptions, D1Client, D1ApiError, classifyD1Failure, SOFT_LIMIT_BYTES,
 } from './sync-d1-chapters.mjs';
 
 function fixture() {
@@ -165,4 +165,32 @@ test('D1 REST API parses valid GET and query envelopes', async () => {
   const result = await client.query('SELECT ?', ['hello']);
   assert.equal(result.results[0].novel_id,'a');
   assert.equal(calls.length,2);
+});
+
+
+test('HTTP 400 D1 quota response is classified without exposing API contents',async()=>{
+ const fetchFn=async()=>({ok:false,status:400,json:async()=>({success:false,errors:[{code:7500,message:'Daily rows read quota exceeded. SELECT secret_book_text FROM chapters'}]})});
+ const client=new D1Client({token:'secret',accountId:'a'.repeat(32),fetchFn});
+ await assert.rejects(client.query('SELECT ?',['private chapter text']),e=>{
+   assert(e instanceof D1ApiError);
+   assert.equal(e.status,400);
+   assert.equal(e.kind,'quota');
+   assert.equal(e.code,'7500');
+   assert.match(e.message,/category quota/);
+   assert.doesNotMatch(e.message,/private|secret_book_text|SELECT|token/i);
+   return true;
+ });
+});
+
+test('HTTP 400 invalid request preserves safe diagnostic category, never SQL payload',async()=>{
+ const fetchFn=async()=>({ok:false,status:400,json:async()=>({success:false,errors:[{code:7400,message:'Invalid property: params. SQL select PRIVATE'}]})});
+ const client=new D1Client({token:'secret',accountId:'a'.repeat(32),fetchFn});
+ await assert.rejects(client.query('SELECT PRIVATE',[]),e=>{
+   assert(e instanceof D1ApiError);
+   assert.equal(e.kind,'bad_request');
+   assert.equal(e.code,'7400');
+   assert.doesNotMatch(e.message,/PRIVATE|params/i);
+   return true;
+ });
+ assert.deepEqual(classifyD1Failure(403,[{code:9109,message:'Permission denied'}]),{code:'9109',kind:'permission'});
 });

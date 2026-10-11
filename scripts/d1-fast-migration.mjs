@@ -6,7 +6,7 @@ import {loadNovelCatalog, selectChapters, MAX_ROW_BYTES} from './export-d1-batch
 import {createClients, planAssignments, indexExistingRows} from './sync-d1-sharded.mjs';
 import {estimatePublishedVolumes} from './plan-d1-capacity.mjs';
 import {SHARDS, ROUTING_SCHEMA} from '../cloudflare/d1/shards.mjs';
-import {SOFT_LIMIT_BYTES} from './sync-d1-chapters.mjs';
+import {SOFT_LIMIT_BYTES,D1ApiError} from './sync-d1-chapters.mjs';
 
 export const DAILY_BUDGET=80000; // Leave 20,000 writes for other account activity.
 export const PRIOR_USAGE_RESERVE=10000; // Includes earlier importer activity and DDL.
@@ -43,8 +43,17 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   const budget=(await master.query('SELECT reserved FROM migration_write_budget WHERE day=?',[today])).results;
   const novels=loadNovelCatalog(root);
   const report={verified:0,source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),total_stored:null,remaining_chapters:null,stop_reason:'run_cap',cutover_ready:false};
-  // Read-only progress remains visible after the daily write budget is spent.
-  // Also reject cross-shard duplicates before reporting misleading totals.
+  // Critical Free-tier guard: DO NOT repeatedly GROUP BY every imported chapter
+  // every 20 minutes once the daily write budget is already used. Those scans
+  // themselves consume the daily D1 rows-read quota and previously caused 400s.
+  // Progress is deliberately unknown until the next safe full count, not invented.
+  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){
+    report.stop_reason='daily_budget_reached';
+    report.progress_stale=true;
+    return report;
+  }
+  // Only scan shards when there is budget to do useful verified copying.
+  // Reject cross-shard duplicates before reporting totals.
   for(const s of SHARDS){
     const client=clients.get(s.id);
     stats.set(s.id,(await client.query('SELECT novel_id,COUNT(*) AS stored,MIN(chapter_number) AS minimum,MAX(chapter_number) AS maximum FROM chapters GROUP BY novel_id')).results);
@@ -53,11 +62,6 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   report.total_stored=[...stats.values()].flat().reduce((sum,row)=>sum+Number(row.stored),0);
   assert(Number.isSafeInteger(report.total_stored)&&report.total_stored>=0,'Invalid D1 chapter counts');
   report.remaining_chapters=Math.max(0,report.source_chapters-report.total_stored);
-  if(budget.length&&Number(budget[0].reserved)>=DAILY_BUDGET-100){
-    // A full read-only audit can run even after writes reach their daily limit.
-    report.stop_reason=report.remaining_chapters===0?'copy_complete_full_audit_required':'daily_budget_reached';
-    return report;
-  }
   for(const s of SHARDS){
     const client=clients.get(s.id);sizes.set(s.id,await client.size());
     const list=(await client.query('PRAGMA index_list(chapters)')).results;
@@ -129,7 +133,18 @@ export async function main(){
   const token=process.env.CLOUDFLARE_API_TOKEN,accountId=process.env.CLOUDFLARE_ACCOUNT_ID;
   const clients=createClients({token,accountId});
   await accessAudit(token,accountId);
-  const result=await migrate({clients,maxChapters:Number(process.env.D1_FAST_LIMIT||4000)});
+  let result;
+  try { result=await migrate({clients,maxChapters:Number(process.env.D1_FAST_LIMIT||4000)}); }
+  catch(error){
+    if(!(error instanceof D1ApiError) || error.kind!=='quota')throw error;
+    // Cloudflare has exhausted its own daily quota. Stop without more database
+    // queries and without claiming the reader is ready. Resume on a later run.
+    result={verified:0,source_chapters:null,total_stored:null,remaining_chapters:null,
+      stop_reason:'cloudflare_d1_quota_reached',cutover_ready:false,
+      diagnostic:{status:error.status,code:error.code,kind:error.kind,
+        shard:error.shard,operation:error.operation}};
+    console.log('Cloudflare D1 Free quota reached; waiting for reset: '+JSON.stringify(result.diagnostic));
+  }
   if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT,'copy_complete='+(result.stop_reason==='copy_complete_full_audit_required')+'\n');
   console.log('Fast migration result: '+JSON.stringify(result));
   if(process.env.D1_REPORT_PATH)fs.writeFileSync(process.env.D1_REPORT_PATH,JSON.stringify(result,null,2));

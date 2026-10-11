@@ -47,7 +47,7 @@ test('persistent reservations stop at daily budget and resume on UTC date change
  assert.equal(await reserveWrites(master,100,'2026-10-09'),true);
 });
 
-test('quota-exhausted runs report stored and remaining chapters without importing',async t=>{
+test('quota-exhausted runs never rescan chapters or waste rows-read quota',async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-quota-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
  fs.mkdirSync(path.join(root,'data'));
@@ -66,15 +66,16 @@ test('quota-exhausted runs report stored and remaining chapters without importin
  }]));
  const report=await migrate({clients,root});
  assert.equal(report.source_chapters,2);
- assert.equal(report.total_stored,1);
- assert.equal(report.remaining_chapters,1);
+ assert.equal(report.total_stored,null);
+ assert.equal(report.remaining_chapters,null);
+ assert.equal(report.progress_stale,true);
  assert.equal(report.stop_reason,'daily_budget_reached');
  assert.equal(report.cutover_ready,false);
- assert.equal(reads,SHARDS.length);
+ assert.equal(reads,0,'Expensive shard scans must be skipped after quota exhausted');
  assert.equal(mutations,0);
 });
 
-test('quota-exhausted but fully copied database requests a read-only content audit',async t=>{
+test('quota-exhausted runs do not claim full audit readiness without verification',async t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-ready-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
  fs.mkdirSync(path.join(root,'data'));
@@ -90,8 +91,8 @@ test('quota-exhausted but fully copied database requests a read-only content aud
   }
  }]));
  const report=await migrate({clients,root});
- assert.equal(report.total_stored,1);
- assert.equal(report.remaining_chapters,0);
- assert.equal(report.stop_reason,'copy_complete_full_audit_required');
+ assert.equal(report.total_stored,null);
+ assert.equal(report.remaining_chapters,null);
+ assert.equal(report.stop_reason,'daily_budget_reached');
  assert.equal(report.cutover_ready,false,'Only a full verified content audit can ever authorize cutover');
 });

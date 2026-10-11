@@ -71,6 +71,32 @@ function maskError(error) {
   return 'Unspecified Cloudflare request error';
 }
 
+// Diagnostic fields contain only the HTTP status, sanitized Cloudflare error code,
+// database slot, and request type. Never log SQL, chapter text, API tokens, or response bodies.
+export class D1ApiError extends Error {
+  constructor({ status, code = 'none', kind = 'bad_request', shard, operation }) {
+    super('Cloudflare D1 ' + operation + ' on shard ' + shard +
+      ' returned HTTP ' + status + ' (CF code ' + code + ', category ' + kind + ')');
+    this.name = 'D1ApiError';
+    this.status = status;
+    this.code = code;
+    this.kind = kind;
+    this.shard = shard;
+    this.operation = operation;
+  }
+}
+
+export function classifyD1Failure(status, errors = []) {
+  const first = Array.isArray(errors) ? errors.find(x => x && typeof x === 'object') : null;
+  const code = Number.isSafeInteger(first?.code) ? String(first.code) : 'none';
+  const detail = String(first?.message || '').slice(0, 500).toLowerCase();
+  const kind = /quota|daily.+limit|limit.+(read|write|query|request)|exceed.+(read|write|quota)|too many rows/.test(detail) ? 'quota' :
+    status === 429 ? 'rate_limit' :
+    /permission|not authorized|forbidden|not allowed|token|scope|unauthorized/.test(detail) ? 'permission' :
+    /not found|unknown database|database.*not exist/.test(detail) ? 'database' : 'bad_request';
+  return { code, kind };
+}
+
 export class D1Client {
   constructor({ token, accountId, databaseId = DATABASE_ID, allowedDatabaseIds = [DATABASE_ID], fetchFn = fetch }) {
     assert(typeof token === 'string' && token.trim(), 'Missing CLOUDFLARE_API_TOKEN');
@@ -105,8 +131,15 @@ export class D1Client {
         if (attempt < 2) { await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); continue; }
         throw new Error('Cloudflare API rate limit or server error; import paused');
       }
-      if (!response.ok) throw new Error('Cloudflare API returned HTTP ' + response.status +
-        '; check scoped D1 token and account ID');
+      if (!response.ok) {
+        // Cloudflare can report D1 Free-plan quota exhaustion as HTTP 400.
+        // Reading the structured errors is safe; the response body itself is NEVER logged.
+        const detail = await response.json().catch(() => ({}));
+        const info = classifyD1Failure(response.status, detail?.errors);
+        const shard = String(this.databaseId).slice(0, 8);
+        throw new D1ApiError({status: response.status, ...info, shard,
+          operation: endpoint === '/query' ? 'query' : 'metadata'});
+      }
       let data;
       try { data = await response.json(); }
       catch { throw new Error('Cloudflare API returned invalid JSON'); }
