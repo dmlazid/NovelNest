@@ -37,7 +37,7 @@ test('all existing chapters and their catalog entries validate', () => {
   assert.equal(result.chapters, h.window.NOVELS.reduce((total, novel) => total + novel.chapters.length, 0));
 });
 
-test('homepage features hand-picked novels without source branding or source categories', () => {
+test('homepage rotates unique featured novels without source branding or source categories', () => {
   const h = harness();
   const html = h.node('#main').innerHTML;
   const banned = /AkkNovel|AkkNovel pick|More From AkkNovel|Explore all AkkNovel|source collection|Featured source collection/i;
@@ -46,16 +46,12 @@ test('homepage features hand-picked novels without source branding or source cat
   assert.match(html,/Latest Release Novels/);
   assert.match(html,/Latest Novels/);
   assert.match(html,/Completed Novels/);
-  const expected = [
-    'after-rebirth-i-was-forced-to-become-the-mafia-princess',
-    'ah-the-villains-i-forced-to-turn-evil-can-read-my-mind',
-    'my-beloved-concubine-only-wants-to-eat-melons',
-    'an-innocent-girl-seeking-a-husband-was-deceived-and-married-a-childless-officer-crying-with-emotion'
-  ];
   const featured = [...html.matchAll(/class="home-top-feature" href="\/novel\/([^/]+)\/"/g)]
     .map(match => decodeURIComponent(match[1]));
-  assert.deepEqual(featured,expected,'Chosen novels should lead the existing homepage');
+  assert.equal(featured.length,4,'Four novels should be featured at the top');
   assert.equal(new Set(featured).size,4,'No duplicate featured novels');
+  assert(featured.every(id=>h.window.NOVELS.some(n=>n.id===id)),
+    'Randomized featured links must belong to existing novels');
   h.go('#/browse');
   assert.match(h.node('#main').innerHTML,/Astral Pet Store/,'Other books remain available');
   assert.match(h.node('#main').innerHTML,/After Rebirth, I Was Forced/,'Featured books remain in regular browse');
@@ -220,8 +216,10 @@ test('See More directories keep the approved clean novel-list layout', () => {
   let html = h.node('#main').innerHTML;
   assert.match(html, /Latest Release Novels/);
   assert.match(html, /directory-novel-row/);
-  assert.match(html, /All novels/);
-  assert.match(html, /Completed/);
+  assert.match(html, /Ongoing · last 7 days/);
+  assert.match(html, /Completed novels/);
+  assert.doesNotMatch(html, /href="\/novel\/legend-of-swordsman\//,
+    'Completed novels must not appear in recent releases');
   assert.doesNotMatch(html, /directory-search/);
   assert.doesNotMatch(html, /data-directory-filter/);
 
