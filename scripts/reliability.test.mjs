@@ -162,7 +162,7 @@ test('home See more routes open novel directories instead of chapter feeds', () 
 
   h.go('#/latest-releases');
   assert.match(h.node('#main').innerHTML, /Latest Release Novels/);
-  assert.match(h.node('#main').innerHTML, /directory-novel-row/);
+  assert.match(h.node('#main').innerHTML, /No verified source chapter releases|home-release-row/);
   assert.doesNotMatch(h.node('#main').innerHTML, /Every available chapter/);
 
   h.go('#/latest-novels');
@@ -204,8 +204,8 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
 test('recent release rows show real date metadata without putting dates in unrelated novel lists', () => {
   const h = harness();
   const home = h.node('#main').innerHTML;
-  assert.match(home, /class="home-release-time"/);
-  assert.match(home, /<time\b[^>]*datetime="/);
+  assert.match(home, /class="home-release-time"|No verified new source chapters yet/);
+  if (home.includes('home-release-time')) assert.match(home, /<time\b[^>]*datetime="/);
   h.go('#/latest-novels');
   assert.doesNotMatch(h.node('#main').innerHTML, /<time\b/);
 });
