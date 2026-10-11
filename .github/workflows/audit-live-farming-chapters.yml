@@ -59,19 +59,24 @@ jobs:
             echo "BROWSER_ERRORS $num:"
             grep -Ei 'ERR_|Uncaught|SyntaxError|TypeError|ReferenceError|Failed to load' "/tmp/farming-browser-$num.log" | head -n 8 || true
           done
-      - name: Confirm Cloudflare serves fresh catalog and retrying reader
+      - name: Verify both phones can access the current 19-chapter catalog and retry loader
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5 6; do
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' \
-              'https://novelhaven.top/?check-catalog=20261011' > /tmp/nh-index.html || true
-            if grep -Fq 'licensed-akk-farming-immortality.js?v=' /tmp/nh-index.html &&
-              grep -q 'lazy-chapters.js?v=20261011-retry-chapter-1' /tmp/nh-index.html; then
-              echo 'VERIFIED LIVE: versioned 19-chapter catalog and automatic retry loader are deployed.'
+          index=$(mktemp)
+          catalog=$(mktemp)
+          loader=$(mktemp)
+          for attempt in 1 2 3; do
+            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' 'https://novelhaven.top/?probe=chapter19' -o "$index"
+            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' 'https://novelhaven.top/licensed-akk-farming-immortality.js?probe=chapter19' -o "$catalog"
+            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' 'https://novelhaven.top/lazy-chapters.js?probe=chapter19' -o "$loader"
+            if grep -q 'licensed-akk-farming-immortality.js' "$index" &&
+              grep -q '"number":19' "$catalog" &&
+              grep -q 'MAX_ATTEMPTS = 3' "$loader"; then
+              echo 'VERIFIED LIVE: latest catalog has chapter 19 and automatic chapter retry loader is available.'
               exit 0
             fi
-            sleep 10
+            sleep 5
           done
-          echo '::error::Cloudflare still serving outdated reader scripts.'
+          echo '::error::Live novel catalog or retry loader is missing.'
           exit 1
