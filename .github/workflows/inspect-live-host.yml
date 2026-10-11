@@ -84,8 +84,8 @@ jobs:
               --disable-background-networking --disable-extensions --virtual-time-budget=25000 \
               --dump-dom "https://novelhaven.top/" > /tmp/novelhaven-source-dom.html 2>/dev/null || true
             if grep -q 'home-release-row' /tmp/novelhaven-source-dom.html && \
-               grep -q 'Source: about ' /tmp/novelhaven-source-dom.html; then
-              echo "VERIFIED LIVE: NovelHaven homepage shows source-reported recent chapter rows."
+               grep -q 'home-release-time' /tmp/novelhaven-source-dom.html; then
+              echo "VERIFIED LIVE: NovelHaven homepage shows recent chapter rows with compact timestamps."
               echo "Verified live source-reported release rows in Chrome." >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
