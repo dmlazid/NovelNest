@@ -39,21 +39,33 @@ function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<d
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
 function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
-// Prefer real upload timestamps. Other importers only supply a calendar day,
-// so never invent minutes or claim the source itself published at that moment.
+// Publication times are only displayed when the source supplies a verified
+// timestamp for the exact chapter. Polling/import times are not publication times.
+function sourcePublicationTime(n){
+  const published=String(n.sourcePublishedAt||'').trim();
+  const number=Number(n.sourcePublishedChapter);
+  const valid=/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(published)&&Number.isFinite(Date.parse(published));
+  return valid&&number===Number(n.sourceReleaseNumber)&&n.sourcePublishedVerified===true?published:'';
+}
+function releaseSortTime(n){return sourcePublicationTime(n)||String(n.sourceReleaseAt||'')}
 function releaseTimeLabel(n,now=Date.now()){
-  const exact=String(n.sourceReleaseAt||'').trim();
+  const exact=sourcePublicationTime(n);
+  const detected=String(n.sourceReleaseAt||'').trim();
   const timestamp=Date.parse(exact);
-  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(exact)&&Number.isFinite(timestamp)){
+  if(exact&&Number.isFinite(timestamp)){
     const age=Math.max(0,Number(now)-timestamp);
     let label;
-    if(age<60000)label='Just detected';
-    else if(age<3600000){const m=Math.floor(age/60000);label='Detected '+m+' min'+(m===1?'':'s')+' ago';}
-    else if(age<86400000){const h=Math.floor(age/3600000);label='Detected '+h+' hour'+(h===1?'':'s')+' ago';}
-    else {const d=Math.floor(age/86400000);label='Detected '+d+' day'+(d===1?'':'s')+' ago';}
-    return {label,dateTime:exact,full:'Source chapter increase first detected by NovelHaven: '+exact+'. Original publication time unavailable.'};
+    if(age<60000)label='Just now';
+    else if(age<3600000)label=Math.floor(age/60000)+' mins ago';
+    else if(age<86400000)label=Math.floor(age/3600000)+' hours ago';
+    else if(age<172800000)label='Yesterday';
+    else label=Math.floor(age/86400000)+' days ago';
+    return {label,dateTime:exact,full:'Verified original source publication: '+exact};
   }
-  return {label:'Source update',dateTime:'',full:'Source detection time unavailable'};
+  // Never present import detection as original chapter publication.
+  if(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected)))
+    return {label:'New chapter detected',dateTime:detected,full:'NovelHaven first detected source chapter growth at '+detected+'. Original publication time unavailable.'};
+  return {label:'Source update',dateTime:'',full:'Original publication time unavailable'};
 }
 function homeReleaseRow(n){
   const number=Number(n.sourceReleaseNumber)||0;
@@ -105,7 +117,7 @@ function latestOngoingReleases(all,now=Date.now()){
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&
       Number.isFinite(ms)&&Number.isFinite(clock)&&ms<=clock+60000&&
       clock-ms<RELEASE_DAYS*86400000;
-  }).sort((a,b)=>String(b.sourceReleaseAt).localeCompare(String(a.sourceReleaseAt))||
+  }).sort((a,b)=>Date.parse(releaseSortTime(b))-Date.parse(releaseSortTime(a))||
     Number(b.sourceReleaseNumber)-Number(a.sourceReleaseNumber)||a.title.localeCompare(b.title));
 }
 function shuffledNovels(items){
