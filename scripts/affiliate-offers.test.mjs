@@ -90,8 +90,8 @@ test('affiliate module is bundled without altering AdSense publisher inclusion',
   assert.match(homepage, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-9356195452195758/);
 });
 
-test('only five user-provided affiliate links are configured', () => {
-  const found = [...source.matchAll(/url:\s*'(https:\/\/invl\.me\/[^']+)'/g)].map(match => match[1]);
+test('only five original Involve Asia affiliate URLs are configured', () => {
+  const found = [...source.matchAll(/"url":"(https:\/\/invl\.me\/[^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(found, [
     'https://invl.me/clo37p0',
     'https://invl.me/clo37pl',
@@ -101,9 +101,10 @@ test('only five user-provided affiliate links are configured', () => {
   ]);
 });
 
-test('real product thumbnails are stored locally and all four Shopee reference URLs are never used as checkout links', () => {
+test('verified screenshot product thumbnails are local and never replace affiliate destination links', () => {
   for (const image of ['butterfly-hook', 'poptips-nails']) {
-    assert.match(source, new RegExp('/assets/affiliate-' + image + '\\.jpg'));
+    assert(source.includes('/assets/affiliate-' + image + '.jpg'));
   }
-  assert.doesNotMatch(source, /href\\s*=\\s*['\"]https:\\/\\/s\\.shopee\\.ph\\//);
+  assert(!source.includes("link.href = 'https://s.shopee.ph/"));
+  assert(!source.includes('link.href = "https://s.shopee.ph/'));
 });
