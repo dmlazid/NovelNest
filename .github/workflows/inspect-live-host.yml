@@ -7,6 +7,7 @@ on:
       - "scripts/inspect-live-host.mjs"
       - "dist/index.html"
       - "dist/app.js"
+      - "dist/source-activity.js"
       - "dist/styles.css"
   workflow_dispatch:
 permissions:
@@ -28,6 +29,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             scripts/inspect-live-host.mjs
+            dist/source-activity.js
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
@@ -64,3 +66,31 @@ jobs:
               grep -Ei 'Uncaught|ERR_|error|failed|blocked|Refused|SyntaxError|ReferenceError|TypeError' /tmp/novelhaven-chrome-errors.log | head -n 25 || true
             fi
           done
+      - name: Check actual source-update rows on the live homepage
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! grep -q '"sourceActivityVerified":true' dist/source-activity.js; then
+            echo "No recent source activity snapshot yet; cannot assert live chapter rows." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [ -z "$BROWSER" ]; then
+            echo "Cannot verify release rows without a browser." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for attempt in 1 2 3 4 5 6; do
+            timeout 80s "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
+              --disable-background-networking --disable-extensions --virtual-time-budget=25000 \
+              --dump-dom "https://novelhaven.top/" > /tmp/novelhaven-source-dom.html 2>/dev/null || true
+            if grep -q 'home-release-row' /tmp/novelhaven-source-dom.html && \
+               grep -q 'Source: about ' /tmp/novelhaven-source-dom.html; then
+              echo "VERIFIED LIVE: NovelHaven homepage shows source-reported recent chapter rows."
+              echo "Verified live source-reported release rows in Chrome." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Source release rows not yet seen on live host (attempt $attempt)."
+            sleep 12
+          done
+          echo "::warning::Live source-report release rows not verified yet; Cloudflare deployment may be pending."
+          echo "Live release rows not yet verified; do not mark deployment complete." >> "$GITHUB_STEP_SUMMARY"
