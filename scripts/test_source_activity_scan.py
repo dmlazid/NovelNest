@@ -1,5 +1,6 @@
 import unittest
 from source_activity_scan import report_seconds, source_activity, serialize
+from akk_source_activity import source_update as akk_source_update
 
 URL="https://freewebnovel.com/novel/dimensional-keeper-all-my-skills-are-at-level-100"
 BOOK={"id":"dimensional-keeper-all-my-skills-are-at-level-100",
@@ -38,3 +39,49 @@ class SourceActivityTests(unittest.TestCase):
         self.assertIn("const reports =",output)
 if __name__=="__main__":
     unittest.main()
+
+
+AKK_URL="https://www.akknovel.com/series/transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel"
+AKK_BOOK={"id":"transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel",
+          "source":"AkkNovel","sourceUrl":AKK_URL,"sourceObservedChapter":280,
+          "lastChapterAddedAt":"2026-10-11T06:00:00Z"}
+AKK_HTML="""<html><h1>Transmigrated as the Male Lead's Vegetative Sister in a Game Novel</h1>
+<p>OnGoing</p><p>Author: Xuanmen koi</p>
+<p><a href="/series/transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel/chapter-282-settling-old-grudges-today">Last chapter: Ch.282 Settling Old Grudges Today</a></p>
+<h2>All 282 Chapters</h2>
+<a href="/series/transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel/chapter-1-title">Ch.1 Intro</a>
+<a href="/series/unrelated-book/chapter-9999-foo">Ch.9999 unrelated recommendation</a></html>"""
+
+class AkkSourceActivityTests(unittest.TestCase):
+    def test_akk_tracks_genuine_tip_increase_not_import_time(self):
+        n=akk_source_update(AKK_BOOK,AKK_HTML,"2026-10-11T07:00:00Z")
+        self.assertEqual(n["sourceScanObservedTip"],282)
+        self.assertEqual(n["sourceReleaseNumber"],282)
+        self.assertEqual(n["sourceReleaseAt"],"2026-10-11T07:00:00Z")
+        self.assertEqual(n["sourceReleaseTitle"],"Chapter 282: Settling Old Grudges Today")
+        self.assertTrue(n["sourceIsOngoing"])
+        same=akk_source_update(AKK_BOOK,AKK_HTML,"2026-10-11T09:00:00Z",n)
+        self.assertEqual(same["sourceReleaseAt"],n["sourceReleaseAt"])
+        self.assertEqual(same["sourceReleaseNumber"],282)
+    def test_akk_first_poll_baseline_is_never_a_release(self):
+        new={**AKK_BOOK,"sourceObservedChapter":0}
+        seen=akk_source_update(new,AKK_HTML,"2026-10-11T07:00:00Z")
+        self.assertEqual(seen["sourceScanObservedTip"],282)
+        self.assertNotIn("sourceReleaseAt",seen)
+        same=akk_source_update(new,AKK_HTML,"2026-10-11T08:00:00Z",seen)
+        self.assertNotIn("sourceReleaseNumber",same)
+    def test_akk_rejects_completed_foreign_and_unchanged(self):
+        n=akk_source_update(AKK_BOOK,AKK_HTML.replace("OnGoing","Completed"),"2026-10-11T07:00:00Z")
+        self.assertFalse(n["sourceScanIsOngoing"])
+        self.assertFalse(n["sourceIsOngoing"])
+        self.assertIsNone(akk_source_update({**AKK_BOOK,"sourceUrl":"https://example.com/series/a"},AKK_HTML,"2026-10-11T07:00:00Z"))
+        self.assertIsNone(akk_source_update(AKK_BOOK,AKK_HTML.replace("OnGoing","unknown"),"2026-10-11T07:00:00Z"))
+        stable=akk_source_update({**AKK_BOOK,"sourceObservedChapter":282},AKK_HTML,"2026-10-11T07:00:00Z")
+        self.assertNotIn("sourceReleaseNumber",stable)
+    def test_akk_cursor_does_not_erase_freewebnovel_records(self):
+        data={"akk":{"sourceScanObservedTip":282},"free":{"sourceActivityChapter":3}}
+        out=serialize(data,4,8)
+        self.assertIn("const cursor = 4;",out)
+        self.assertIn("const akkCursor = 8;",out)
+        self.assertIn('"akk":',out)
+        self.assertIn('"free":',out)
