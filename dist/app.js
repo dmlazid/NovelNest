@@ -323,11 +323,12 @@ function directoryRow(n){
 }
 function directoryPage(kind){
   const settings={
-    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Verified source chapter changes',description:'New source chapters detected after a previous check; local import progress is excluded.'},
+    releases:{title:'Latest Novels',icon:'↻',eyebrow:'',description:''},
     novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelHaven',description:'Browse the latest novels available in the NovelHaven catalog.'},
-    completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
+    completed:{title:'Completed Novels',icon:'✓',eyebrow:'',description:''}
   };
   const cfg=settings[kind]||settings.novels;
+  const simple=kind==='releases'||kind==='completed';
   let results=[...novels];
   if(kind==='releases') results=latestOngoingReleases(novels);
   else if(kind==='completed') results=results.filter(n=>n.status==='Completed');
@@ -336,13 +337,13 @@ function directoryPage(kind){
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
     <section class="directory-shell">
-      <header class="directory-heading">
-        <span class="eyebrow">${esc(cfg.eyebrow)}</span>
-        <h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1>
-        <p>${esc(cfg.description)}</p>
+      <header class="directory-heading${simple?' directory-heading-simple':''}">
+        ${simple?'':`<span class="eyebrow">${esc(cfg.eyebrow)}</span>`}
+        <h1>${simple?'':`<span aria-hidden="true">${cfg.icon}</span> `}${esc(cfg.title)}</h1>
+        ${simple?'':`<p>${esc(cfg.description)}</p>`}
       </header>
-      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Source chapter updates · last 5 days</span><a href="./#/completed">Completed novels</a></nav>':''}
-      ${results.length?`<div class="directory-novel-list">${(kind==='releases'?results.map(homeReleaseRow):results.map(directoryRow)).join('')}</div>`:kind==='releases'?'<div class="empty"><h2>No verified source chapter releases</h2><p>New releases appear when a source adds chapters after its first check.</p></div>':'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
+      ${simple?`<nav class="directory-switch" aria-label="Novel status"><a href="./#/latest-releases"${kind==='releases'?' aria-current="page"':''}>Latest Novels</a><a href="./#/completed"${kind==='completed'?' aria-current="page"':''}>Completed Novels</a></nav>`:''}
+      ${results.length?`<div class="directory-novel-list">${(kind==='releases'?results.map(homeReleaseRow):results.map(directoryRow)).join('')}</div>`:'<div class="empty"><h2>No novels available.</h2></div>'}
     </section>
   </div>`;
 }
@@ -537,7 +538,7 @@ function renderRoute(){
   applySettings();document.querySelector('#library-count').textContent=saved.length;
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
-  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Release Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
+  switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
   main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
 }
 // Keep the current page visible until the next page is ready to paint.
