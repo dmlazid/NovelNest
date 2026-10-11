@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from akk_source_activity import source_update as akk_source_update
 
 DIST = Path("dist")
 OUTPUT = DIST / "source-activity.js"
@@ -120,15 +121,65 @@ def read_cursor():
     found = re.search(r"const cursor = (\d+);", OUTPUT.read_text(encoding="utf-8"))
     return int(found.group(1)) if found else 0
 
-def serialize(data, cursor=0):
+def read_akk_cursor():
+    if not OUTPUT.exists():
+        return 0
+    found = re.search(r"const akkCursor = (\\d+);", OUTPUT.read_text(encoding="utf-8"))
+    return int(found.group(1)) if found else 0
+
+def serialize(data, cursor=0, akk_cursor=0):
     payload = json.dumps(data, ensure_ascii=False, separators=(",",":")).replace("<","\\u003c")
     return (
         "// Source-reported chapter activity, not NovelHaven import timestamps.\n"
-        "(() => {\n  const cursor = "+str(cursor)+";\n  const reports = "+payload+";\n"
+        "(() => {\n  const cursor = "+str(cursor)+";\n  const akkCursor = "+str(akk_cursor)+";\n  const reports = "+payload+";\n"
         "  for (const n of window.NOVELS || []) {\n"
         "    if (Object.prototype.hasOwnProperty.call(reports, n.id)) Object.assign(n, reports[n.id]);\n"
         "  }\n})();\n"
     )
+
+def scan_akk(results, session, index, observed):
+    """Check a rotating subset of AkkNovel source tips without downloading chapters."""
+    candidates = []
+    for path in sorted(DIST.glob("licensed-akk-*.js")):
+        if f'src="{path.name}"' not in index:
+            continue
+        novel = catalog(path)
+        if not novel or novel.get("source") != "AkkNovel":
+            continue
+        parsed = urlparse(novel.get("sourceUrl", ""))
+        if parsed.scheme == "https" and parsed.hostname in ("www.akknovel.com", "akknovel.com") and parsed.path.startswith("/series/"):
+            candidates.append(novel)
+    if not candidates:
+        print("No registered AkkNovel sources; leaving previous source reports untouched.", flush=True)
+        return read_akk_cursor()
+    offset = read_akk_cursor() % len(candidates)
+    checked = 0
+    max_per_scan = 20
+    for i in range(min(max_per_scan, len(candidates))):
+        novel = candidates[(offset + i) % len(candidates)]
+        try:
+            response = session.get(novel["sourceUrl"], timeout=22)
+            if response.status_code == 429:
+                print(f"AkkNovel rate limit reached; resuming at {novel['id']} next time.",flush=True)
+                break
+            response.raise_for_status()
+            report = akk_source_update(novel, response.text, observed, results.get(novel["id"]))
+            if report is None:
+                print(f"Could not confirm chapter/status on AkkNovel for {novel['id']}; preserving earlier data.",flush=True)
+            else:
+                old_tip = int(results.get(novel["id"], {}).get("sourceScanObservedTip") or novel.get("sourceObservedChapter") or 0)
+                if report.get("sourceReleaseNumber") and int(report["sourceReleaseNumber"]) > old_tip:
+                    print(f"AkkNovel new SOURCE chapter: {novel['id']} #{report['sourceReleaseNumber']} (detected, publication date unknown)",flush=True)
+                results[novel["id"]] = report
+            checked += 1
+        except (requests.RequestException, ValueError) as exc:
+            print(f"WARNING AkkNovel {novel['id']}: {str(exc)[:150]}",file=sys.stderr,flush=True)
+            checked += 1
+        if i + 1 < max_per_scan:
+            time.sleep(1.5)
+    next_cursor = (offset + checked) % len(candidates)
+    print(f"Checked {checked}/{len(candidates)} AkkNovel source pages; next cursor {next_cursor}.",flush=True)
+    return next_cursor
 
 def scan():
     index = (DIST / "index.html").read_text(encoding="utf-8")
@@ -176,8 +227,9 @@ def scan():
         if i+1 < max_per_scan:
             time.sleep(3.2)
     next_cursor = (offset + checked) % len(candidates)
-    OUTPUT.write_text(serialize(results, next_cursor), encoding="utf-8")
-    print(f"Checked {checked}/{len(candidates)} source pages, next cursor {next_cursor}; {len(results)} recorded activity snapshots.",flush=True)
+    akk_cursor = scan_akk(results, session, index, observed)
+    OUTPUT.write_text(serialize(results, next_cursor, akk_cursor), encoding="utf-8")
+    print(f"Checked {checked}/{len(candidates)} FreeWebNovel source pages, next cursor {next_cursor}; {len(results)} combined activity records.",flush=True)
 
 if __name__=="__main__":
     scan()
