@@ -201,11 +201,12 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
   assert.match(cleanRoutes, /renderGenericRoute/);
 });
 
-test('novel update lists do not show upload or update dates', () => {
+test('recent release rows show real date metadata without putting dates in unrelated novel lists', () => {
   const h = harness();
   const home = h.node('#main').innerHTML;
-  assert.doesNotMatch(home, /<time\b/);
-  h.go('#/latest');
+  assert.match(home, /class="home-release-time"/);
+  assert.match(home, /<time\b[^>]*datetime="/);
+  h.go('#/latest-novels');
   assert.doesNotMatch(h.node('#main').innerHTML, /<time\b/);
 });
 
