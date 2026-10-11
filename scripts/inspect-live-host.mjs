@@ -55,7 +55,7 @@ const affiliatePublication=await (async()=>{
     const modernVersion=homepage.includes('affiliate-offers.js?v=20261011-photo-hero-1');
     const spriteReady=imageResponse.status===200&&imageIsWebp&&image.length>1024;
     const noRedirect=offerCode.includes('link.href = offer.url;')&&
-      !/location\\.(?:assign|replace)\\s*\\(|window\\.open\\s*\\(/.test(offerCode);
+      !/location\.(?:assign|replace)\s*\(|window\.open\s*\(/.test(offerCode);
     output.status=modernVersion&&spriteReady&&linksPresent&&noRedirect?'published':'not_yet_verified';
     output.home_status=homeResponse.status;
     output.offer_script_status=offerResponse.status;
