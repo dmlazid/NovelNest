@@ -1,0 +1,59 @@
+name: Check source chapter activity
+on:
+  schedule:
+    - cron: "23 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/source_activity_scan.py"
+      - ".github/workflows/source-activity-scan.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: source-activity-main
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Validate source-report parsing
+        run: python -m unittest discover -s scripts -p 'test_source_activity_scan.py'
+      - name: Poll recent release ages from authorized source pages
+        run: python scripts/source_activity_scan.py
+      - name: Validate catalog before publishing
+        run: node scripts/check.mjs
+      - name: Commit only source activity snapshot (no chapter or advertising changes)
+        run: |
+          set -euo pipefail
+          git add dist/source-activity.js
+          if git diff --cached --quiet; then
+            echo "No source activity change to publish."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh original-source chapter activity (not imports)"
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "Concurrent edit of source activity; stopping safely."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Could not push source snapshot safely; next scheduled check will retry."
+          exit 1
