@@ -141,7 +141,7 @@ def scan_akk(results, session, index, observed):
     """Scan home-reported newest chapters first, then rotate remaining titles."""
     candidates = []
     for path in sorted(DIST.glob("licensed-akk-*.js")):
-        if f'src="{path.name}"' not in index:
+        if f'src="{path.name}' not in index:
             continue
         novel = catalog(path)
         if not novel or novel.get("source") != "AkkNovel":
@@ -215,7 +215,7 @@ def scan():
     observed = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z")
     candidates = []
     for path in sorted(DIST.glob("licensed-fwn-*.js")):
-        if f'src="{path.name}"' not in index:
+        if f'src="{path.name}' not in index:
             continue
         n = catalog(path)
         if not n or n.get("source") != "FreeWebNovel":
