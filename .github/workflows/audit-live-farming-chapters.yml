@@ -22,11 +22,11 @@ jobs:
             status=$(curl -LsS --connect-timeout 12 --max-time 25 -A 'NovelHaven-Live-Audit/1.0' -H 'Cache-Control: no-cache' -o "$tmp" -w '%{http_code}' "$origin$p?novelhaven-audit=20261011" || echo 000)
             size=$(wc -c < "$tmp")
             chapter='no'
-            grep -q 'data-static-chapter="farming-cultivating-immortality"' "$tmp" && chapter='yes'
+            if grep -q 'data-static-chapter="farming-cultivating-immortality"' "$tmp"; then chapter='yes'; fi
             failed='no'
-            grep -q 'This chapter is temporarily unavailable\|This chapter could not load\|Page not found' "$tmp" && failed='yes'
+            if grep -q 'This chapter is temporarily unavailable\|This chapter could not load\|Page not found' "$tmp"; then failed='yes'; fi
             app=$(grep -Eo 'src="app.js\?v=[^"]+' "$tmp" | head -1 || true)
-            count=$(grep -Eo '"number":19' "$tmp" | wc -l)
+            count=$(grep -Eo '"number":19' "$tmp" | wc -l || true)
             echo "LIVE_CHECK path=$p status=$status bytes=$size readable_static_chapter=$chapter failure_body=$failed app_version=$app chapter19_mention=$count"
             if [ "$p" = "/novel/$id/chapter-18/" ] || [ "$p" = "/novel/$id/chapter-19/" ]; then
               echo "CHAPTER_FIRST_BYTES_$(basename "$p")=$(head -c 200 "$tmp" | tr '\n' ' ' | sed 's/</[/g')"
