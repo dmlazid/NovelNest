@@ -66,7 +66,8 @@ def source_update(novel, html, observed, previous=None):
     release = {
         "sourceScanObservedTip": max(tip,old_tip),
         "sourceScanObservedAt": observed,
-        "sourceScanIsOngoing": ongoing
+        "sourceScanIsOngoing": ongoing,
+        "sourceIsOngoing": ongoing
     }
     prior_number = int(old.get("sourceReleaseNumber") or 0)
     prior_time = str(old.get("sourceReleaseAt") or "")
