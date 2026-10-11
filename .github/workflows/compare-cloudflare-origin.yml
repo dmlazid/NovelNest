@@ -1,0 +1,34 @@
+name: Compare Cloudflare Pages and live domain
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/compare-cloudflare-origin.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check deployed versions and chapter assets without writing
+        shell: bash
+        run: |
+          set -euo pipefail
+          for origin in 'https://novelhaven.top' 'https://novelnest-ac6.pages.dev' 'https://novelnest.pages.dev'; do
+            echo "===== ORIGIN $origin ====="
+            for suffix in '/' '/index.html' '/lazy-chapters.js' '/licensed-akk-farming-immortality.js' '/data/akk-farming-immortality-chapters-01.js'; do
+              outfile=$(mktemp)
+              meta=$(curl -LsS -w '%{http_code} %{url_effective}' -o "$outfile" --connect-timeout 10 --max-time 24 -H 'Cache-Control: no-cache' "$origin$suffix?audit=$(date +%s)" || echo 000)
+              app=$(grep -oE 'app.js\\?v=[A-Za-z0-9-]+' "$outfile" | head -1 || true)
+              loader=$(grep -oE 'lazy-chapters.js\\?v=[A-Za-z0-9-]+' "$outfile" | head -1 || true)
+              farming=$(grep -oE 'licensed-akk-farming-immortality.js\\?v=[A-Za-z0-9-]+' "$outfile" | head -1 || true)
+              retries=no
+              grep -q 'MAX_ATTEMPTS = 3' "$outfile" && retries=yes
+              ch19=no
+              grep -q '"number":19' "$outfile" && ch19=yes
+              echo "$suffix | $meta | bytes=$(wc -c < "$outfile") | app=$app loader=$loader farming=$farming retries=$retries chapter19=$ch19"
+              rm -f "$outfile"
+            done
+          done
