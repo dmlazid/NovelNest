@@ -53,21 +53,28 @@ test('no affiliate URL means nothing visible and no automatic redirects', () => 
   assert.doesNotMatch(source, /location\.(?:assign|replace|href\s*=)|window\.open\s*\(/);
 });
 
-test('safe voluntary outbound link contains visible disclosure and sponsored rel', () => {
+test('safe voluntary product link includes image, price, disclosure, and sponsored rel', () => {
   const { cards, handlers } = run([{
-    title: 'Reading accessories', description: 'Optional items',
-    partner: 'Example Store', url: 'https://example.com/affiliate?ref=demo',
+    title: 'Butterfly Foldable Bag Hook', description: 'Optional item',
+    partner: 'Shopee', url: 'https://invl.me/clo37p0',
+    image: '/assets/affiliate-butterfly-hook.jpg', price: '₱135',
+    sold: '617 sold', priceNote: 'Screenshot price',
   }]);
   assert.equal(cards.length, 1);
   const card = cards[0];
   assert.equal(card.tag, 'aside');
   assert.equal(card['data-affiliate-offer'], '');
-  const link = card.children.find(x => x.tag === 'a' && x.href.startsWith('https://'));
-  assert.equal(link.href, 'https://example.com/affiliate?ref=demo');
+  const descendants = [];
+  function visit(node) { descendants.push(node); for (const child of node.children || []) visit(child); }
+  visit(card);
+  const link = descendants.find(x => x.tag === 'a' && x.href?.startsWith('https://'));
+  assert.equal(link.href, 'https://invl.me/clo37p0');
   assert.equal(link.target, '_blank');
   assert.equal(link.rel, 'sponsored noopener noreferrer');
-  assert(card.children.some(x => x.textContent?.includes('commission')));
-  assert(card.children.some(x => x.href === '/advertising-disclosure.html'));
+  assert(descendants.some(x => x.tag === 'img' && x.src === '/assets/affiliate-butterfly-hook.jpg'));
+  assert(descendants.some(x => x.textContent === '₱135'));
+  assert(descendants.some(x => x.textContent?.includes('commission')));
+  assert(descendants.some(x => x.href === '/advertising-disclosure.html'));
   handlers['novelnest:route-rendered']();
   assert.equal(cards.length, 1, 'duplicate promotion must not be added');
 });
@@ -79,7 +86,7 @@ test('invalid and unsafe affiliate destinations are ignored', () => {
 });
 
 test('affiliate module is bundled without altering AdSense publisher inclusion', () => {
-  assert.match(homepage, /src="affiliate-offers\.js\?v=20261010-five-offers-1"/);
+  assert.match(homepage, /src="affiliate-offers\.js\?v=20261011-product-cards-1"/);
   assert.match(homepage, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-9356195452195758/);
 });
 
@@ -92,4 +99,11 @@ test('only five user-provided affiliate links are configured', () => {
     'https://invl.me/clo37q9',
     'https://invl.me/clo37qk',
   ]);
+});
+
+test('real product thumbnails are stored locally and all four Shopee reference URLs are never used as checkout links', () => {
+  for (const image of ['butterfly-hook', 'poptips-nails']) {
+    assert.match(source, new RegExp('/assets/affiliate-' + image + '\\.jpg'));
+  }
+  assert.doesNotMatch(source, /href\\s*=\\s*['\"]https:\\/\\/s\\.shopee\\.ph\\//);
 });
