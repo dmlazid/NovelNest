@@ -1,16 +1,16 @@
-/* Optional click-only affiliate promotions for NovelHaven. The short-link destinations
- * could not be independently verified, so do not make claims about merchants or products.
- * All offers are user-initiated, visibly disclosed, and remain after reading content.
+/* Optional click-only affiliate offers. Photos and indicative prices come from
+ * owner-supplied product listings. Keep Involve Asia URLs as purchase destinations.
+ * Never open links automatically or place sponsored items inside chapter prose.
  */
 (() => {
   'use strict';
 
   const OFFERS = [
-    {"title":"Butterfly Foldable Bag Hook","description":"Portable purse hanger with a sparkly butterfly design. Several colors are shown in the listing.","partner":"Shopee","url":"https://invl.me/clo37p0","referenceUrl":"https://s.shopee.ph/3LRVoV9lyL","image":"/assets/affiliate-butterfly-hook.jpg","price":"₱135","priceNote":"After voucher in screenshot · 11 Oct 2026","sold":"617 sold (at screenshot)"},
-    {"title":"PopTips 10pcs Press-On Nails","description":"Short square, reusable press-on nails in soft everyday shades.","partner":"Shopee","url":"https://invl.me/clo37pl","referenceUrl":"https://s.shopee.ph/8KqBljOeB","image":"/assets/affiliate-poptips-nails.jpg","price":"₱39","oldPrice":"₱78","priceNote":"Screenshot price · 11 Oct 2026","sold":"3K+ sold (at screenshot)"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37pr","referenceUrl":"https://s.shopee.ph/4qGJbKNTzV"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37q9","referenceUrl":"https://s.shopee.ph/2gBp1N9XkQ"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37qk","referenceUrl":"https://s.shopee.ph/BUU3ChcOO"}
+    {"title":"Butterfly Foldable Bag Hook","description":"Sparkly butterfly bag hook to accessorize your handbag.","partner":"Shopee","url":"https://invl.me/clo37p0","referenceUrl":"https://s.shopee.ph/3LRVoV9lyL","imageIndex":0,"price":"₱135","sold":"617 sold"},
+    {"title":"PopTips Clean Girl Press-On Nails","description":"Reusable short square nails in soft, everyday colors.","partner":"Shopee","url":"https://invl.me/clo37pl","referenceUrl":"https://s.shopee.ph/8KqBljOeB","imageIndex":1,"price":"₱39","oldPrice":"₱78","sold":"3K+ sold"},
+    {"title":"POPTIPS Handmade 3D Floral Nails","description":"Colorful 3D floral press-on nails with blue and pink styles.","partner":"Shopee","url":"https://invl.me/clo37pr","referenceUrl":"https://s.shopee.ph/4qGJbKNTzV","imageIndex":2,"price":"₱39–₱99","sold":"10K+ sold"},
+    {"title":"DIY 3D Miniature Model House","description":"Cute colorful miniature houses to assemble and display.","partner":"Shopee","url":"https://invl.me/clo37q9","referenceUrl":"https://s.shopee.ph/2gBp1N9XkQ","imageIndex":3,"price":"From ₱49","sold":"10K+ sold"},
+    {"title":"CIVAGO 22oz Insulated Tumbler","description":"Leopard-style water bottle with a wide mouth and sport lid.","partner":"Shopee","url":"https://invl.me/clo37qk","referenceUrl":"https://s.shopee.ph/BUU3ChcOO","imageIndex":4,"price":"₱368","sold":"10K+ sold"}
   ];
 
   function allowedOffer(item) {
@@ -53,14 +53,15 @@
 
     const media = document.createElement('div');
     media.className = 'affiliate-offer-media';
-    if (typeof offer.image === 'string' && /^\/assets\/affiliate-[a-z0-9-]+\.jpg$/.test(offer.image)) {
+    if (Number.isInteger(offer.imageIndex) && offer.imageIndex >= 0 && offer.imageIndex < 5) {
       const photo = document.createElement('img');
-      photo.src = offer.image;
-      photo.alt = offer.title;
+      photo.src = '/assets/affiliate-hero-sprite.webp';
+      photo.alt = offer.title + ' product photograph';
       photo.loading = 'lazy';
       photo.decoding = 'async';
-      photo.width = 128;
-      photo.height = 128;
+      photo.width = 1100;
+      photo.height = 165;
+      photo.setAttribute('data-sprite-index', String(offer.imageIndex));
       media.append(photo);
     } else {
       media.className += ' affiliate-offer-placeholder';
@@ -99,13 +100,6 @@
       sold.textContent = offer.sold;
       info.append(sold);
     }
-    if (offer.priceNote) {
-      const priceNote = document.createElement('small');
-      priceNote.className = 'affiliate-offer-price-note';
-      priceNote.textContent = offer.priceNote + ' · Actual price may change.';
-      info.append(priceNote);
-    }
-
     const link = document.createElement('a');
     link.className = 'affiliate-offer-link';
     link.href = offer.url; // ALWAYS the original Involve Asia affiliate link.

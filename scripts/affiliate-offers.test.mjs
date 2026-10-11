@@ -57,8 +57,7 @@ test('safe voluntary product link includes image, price, disclosure, and sponsor
   const { cards, handlers } = run([{
     title: 'Butterfly Foldable Bag Hook', description: 'Optional item',
     partner: 'Shopee', url: 'https://invl.me/clo37p0',
-    image: '/assets/affiliate-butterfly-hook.jpg', price: '₱135',
-    sold: '617 sold', priceNote: 'Screenshot price',
+    imageIndex: 0, price: '₱135', sold: '617 sold',
   }]);
   assert.equal(cards.length, 1);
   const card = cards[0];
@@ -71,7 +70,7 @@ test('safe voluntary product link includes image, price, disclosure, and sponsor
   assert.equal(link.href, 'https://invl.me/clo37p0');
   assert.equal(link.target, '_blank');
   assert.equal(link.rel, 'sponsored noopener noreferrer');
-  assert(descendants.some(x => x.tag === 'img' && x.src === '/assets/affiliate-butterfly-hook.jpg'));
+  assert(descendants.some(x => x.tag === 'img' && x.src === '/assets/affiliate-hero-sprite.webp' && x['data-sprite-index'] === '0'));
   assert(descendants.some(x => x.textContent === '₱135'));
   assert(descendants.some(x => x.textContent?.includes('commission')));
   assert(descendants.some(x => x.href === '/advertising-disclosure.html'));
@@ -86,7 +85,7 @@ test('invalid and unsafe affiliate destinations are ignored', () => {
 });
 
 test('affiliate module is bundled without altering AdSense publisher inclusion', () => {
-  assert.match(homepage, /src="affiliate-offers\.js\?v=20261011-product-cards-1"/);
+  assert.match(homepage, /src="affiliate-offers\.js\?v=20261011-photo-hero-1"/);
   assert.match(homepage, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=ca-pub-9356195452195758/);
 });
 
@@ -101,14 +100,13 @@ test('only five original Involve Asia affiliate URLs are configured', () => {
   ]);
 });
 
-test('verified screenshot product thumbnails are local and never replace affiliate destination links', () => {
-  for (const image of ['butterfly-hook', 'poptips-nails']) {
-    assert(source.includes('/assets/affiliate-' + image + '.jpg'));
-  }
-  assert(!source.includes("link.href = 'https://s.shopee.ph/"));
-  assert(!source.includes('link.href = "https://s.shopee.ph/'));
+test('five product photo panels are selected from one local WebP asset', () => {
+  assert(source.includes("photo.src = '/assets/affiliate-hero-sprite.webp'"));
+  assert(source.includes("photo.setAttribute('data-sprite-index', String(offer.imageIndex))"));
+  assert.doesNotMatch(source, /\(at screenshot\)|After voucher in screenshot|Actual price may change/);
+  const ids=[...source.matchAll(/"imageIndex":([0-4])/g)].map(x=>Number(x[1]));
+  assert.deepEqual(ids,[0,1,2,3,4]);
 });
-
 
 test('five Shopee product references are recorded in order but purchase clicks still use Involve Asia', () => {
   const shopee = [...source.matchAll(/"referenceUrl":"(https:\/\/s\.shopee\.ph\/[^"]+)"/g)].map(x=>x[1]);

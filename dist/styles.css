@@ -1097,3 +1097,31 @@
 .affiliate-offer-disclosure p{font-size:11px;line-height:1.5;margin:0 0 5px;color:var(--muted)}
 .affiliate-offer-disclosure a{font-size:11px;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 @media(max-width:480px){.affiliate-offer{grid-template-columns:92px minmax(0,1fr);gap:12px;padding:14px}.affiliate-offer-media{width:92px;height:92px}.affiliate-offer h2{font-size:15px}.affiliate-offer-price{font-size:20px}.affiliate-offer .affiliate-offer-link{padding:9px 11px;font-size:12px}}
+
+/* Affiliate hero cards: five owner-provided product photos packed into one tiny
+   local image for free hosting. Each 20% slice is a different product. */
+.affiliate-offer{grid-template-columns:minmax(0,235px) minmax(0,1fr);column-gap:20px;row-gap:14px;padding:17px;border:1px solid #d7e5df;border-radius:18px;background:#fff;box-shadow:0 8px 28px rgba(25,74,66,.08)}
+.affiliate-offer-media{position:relative;width:100%;height:auto;aspect-ratio:4/3;border-radius:13px;background:#edf6f2;overflow:hidden}
+.affiliate-offer-media img{position:absolute;left:0;top:0;height:100%;width:500%;max-width:none;object-fit:fill;display:block}
+.affiliate-offer-media img[data-sprite-index="0"]{transform:translateX(0)}
+.affiliate-offer-media img[data-sprite-index="1"]{transform:translateX(-20%)}
+.affiliate-offer-media img[data-sprite-index="2"]{transform:translateX(-40%)}
+.affiliate-offer-media img[data-sprite-index="3"]{transform:translateX(-60%)}
+.affiliate-offer-media img[data-sprite-index="4"]{transform:translateX(-80%)}
+.affiliate-offer-label{display:block;margin:2px 0 8px!important;color:#62776f!important;font-size:10px!important;letter-spacing:.07em}
+.affiliate-offer h2{font-size:19px;line-height:1.32;font-weight:800;margin:0 0 7px}
+.affiliate-offer-pricing{margin:8px 0 4px}
+.affiliate-offer-price{font-size:25px;color:#c65130}
+.affiliate-offer-info>p{margin:6px 0 7px;font-size:13px;line-height:1.45}
+.affiliate-offer-sold{color:#6a7872;font-size:12px;margin:2px 0}
+.affiliate-offer .affiliate-offer-link{display:inline-block;text-align:center;text-decoration:none;margin-top:13px;padding:11px 17px;color:#fff;background:var(--green);border-radius:10px;font-size:14px;line-height:1.3}
+.affiliate-offer .affiliate-offer-link:focus-visible{outline:3px solid #f3a86c;outline-offset:2px}
+.affiliate-offer-disclosure{grid-column:1/-1;padding-top:11px}
+.affiliate-offer-disclosure p,.affiliate-offer-disclosure a{font-size:11px}
+@media(max-width:680px){
+  .affiliate-offer{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:13px}
+  .affiliate-offer-media{aspect-ratio:4/3;max-height:285px}
+  .affiliate-offer-info{padding:14px 6px 8px}
+  .affiliate-offer-disclosure{margin-top:8px}
+  .affiliate-offer .affiliate-offer-link{display:block;max-width:100%;width:100%;box-sizing:border-box;margin-top:14px}
+}
