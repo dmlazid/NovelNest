@@ -80,7 +80,10 @@ function latestOngoingReleases(all,now=Date.now()){
     const update=String(n.lastChapterAddedAt||n.releaseUpdated||n.updated||'').slice(0,10);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(update))return false;
     const ms=Date.parse(update+'T00:00:00Z');
-    return Number.isFinite(ms)&&Number.isFinite(clock)&&ms<=clock+day&&clock-ms<RELEASE_DAYS*day+day;
+    const currentDay=Math.floor(clock/day)*day;
+    const oldestDay=currentDay-(RELEASE_DAYS-1)*day;
+    // Accommodate a source's local calendar date slightly ahead of UTC.
+    return Number.isFinite(ms)&&Number.isFinite(clock)&&ms>=oldestDay&&ms<=currentDay+day;
   }).sort((a,b)=>{
     const aDate=String(a.lastChapterAddedAt||a.releaseUpdated||a.updated||'');
     const bDate=String(b.lastChapterAddedAt||b.releaseUpdated||b.updated||'');

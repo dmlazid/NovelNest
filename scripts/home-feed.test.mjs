@@ -22,7 +22,7 @@ function pageHarness(books,{now='2026-10-11T09:00:00Z',seed=0.1,storage}={}){
     window:{NOVELS:books,sessionStorage:{getItem:k=>session.get(k)||null,setItem:(k,v)=>session.set(k,v)}},
     document:{querySelector:()=>({}),body:{},documentElement:{}},
     localStorage:{getItem:()=>null},
-    URLSearchParams,Date,Math:pseudoMath,console,
+    URLSearchParams,Date:class FixedDate extends Date { static now(){ return Date.parse(now); } },Math:pseudoMath,console,
   });
   vm.runInContext(prefix,context);
   return {context,session,
@@ -34,6 +34,7 @@ test('release list excludes completed, old, future-dated, and external novels',(
   const books=[
     makeNovel('today',{updated:'2026-10-11'}),
     makeNovel('week',{updated:'2026-10-06'}),
+    makeNovel('boundary-old',{updated:'2026-10-04'}),
     makeNovel('completed',{status:'Completed',updated:'2026-10-11'}),
     makeNovel('old',{updated:'2026-09-20'}),
     makeNovel('future',{updated:'2026-12-11'}),
@@ -45,7 +46,7 @@ test('release list excludes completed, old, future-dated, and external novels',(
   const list=site.render("directoryPage('releases')");
   assert.match(list,/today/);
   assert.match(list,/week/);
-  for(const banned of ['completed','old','future','external','empty']){
+  for(const banned of ['completed','old','boundary-old','future','external','empty']){
     assert.doesNotMatch(list,new RegExp('href="/novel/'+banned+'/'));
   }
   assert.match(list,/Ongoing · last 7 days/);
