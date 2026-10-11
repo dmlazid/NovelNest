@@ -54,7 +54,7 @@ function sourceActivityTime(n){
   const age=Number(n.sourceActivityAgeSeconds),number=Number(n.sourceActivityChapter);
   if(n.sourceActivityVerified!==true||n.sourceActivityIsOngoing!==true||
      !Number.isFinite(observed)||!Number.isInteger(age)||age<0||
-     !Number.isInteger(number)||number<1||number<n.chapters.length)return NaN;
+     !Number.isInteger(number)||number<1)return NaN;
   return observed-age*1000;
 }
 function releaseSortTime(n){
