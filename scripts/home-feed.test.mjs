@@ -144,3 +144,18 @@ test('visible release times omit Source and Detected while tooltips keep timesta
     sourceActivityAgeSeconds:86400,sourceActivityChapter:3})],now);
   assert.equal(yesterday('releaseTimeLabel(novels[0]).label'),'Yesterday');
 });
+
+test('source recent chapter is not hidden when local importer is already ahead',()=>{
+  const reported=book('source-newest-five',{
+    chapters:Array.from({length:12},(_,i)=>({number:i+1,title:'Local '+(i+1)})),
+    sourceActivityVerified:true,sourceActivityIsOngoing:true,
+    sourceActivityObservedAt:'2026-10-11T09:00:00Z',
+    sourceActivityAgeSeconds:7200,sourceActivityChapter:5,
+    sourceActivityTitle:'Chapter 5: Genuine source update'
+  });
+  const view=harness([reported]);
+  assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['source-newest-five']);
+  const markup=view('homeReleaseRow(novels[0])');
+  assert.match(markup,/Chapter 5: Genuine source update/);
+  assert.match(markup,/>2 hours ago<\/span>/);
+});
