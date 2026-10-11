@@ -67,3 +67,33 @@ test('verified source publication time is distinguished from import detection',(
   const wrong=harness([source('mismatch',{sourcePublishedAt:'2026-10-11T08:56:00Z',sourcePublishedChapter:2,sourcePublishedVerified:true})]);
   assert.equal(wrong("releaseTimeLabel(novels[0])").label,'New chapter detected');
 });
+
+test('source-reported 5-day chapters appear even before tracking baseline; old imports do not',()=>{
+  const reported=book('source-five-days',{
+    sourceIsOngoing:true,
+    sourceActivityVerified:true,sourceActivityIsOngoing:true,
+    sourceActivityObservedAt:'2026-10-11T08:59:00Z',
+    sourceActivityAgeSeconds:5*86400,sourceActivityChapter:5,
+    sourceActivityTitle:'Chapter 5: Real source update',
+    chapters:Array.from({length:3},(_,i)=>({title:'Chapter '+(i+1)}))
+  });
+  const view=harness([
+    book('imported-hundreds',{lastChapterAddedAt:'2026-10-11T08:59:00Z',
+      chapters:Array(500).fill({title:'Older chapter'})}),reported,
+    book('source-eighteen-days',{...reported,id:'source-eighteen-days',sourceActivityAgeSeconds:18*86400})
+  ]);
+  assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['source-five-days']);
+  const markup=view('homeReleaseRow(novels[1])');
+  assert.match(markup,/Chapter 5: Real source update/);
+  assert.match(markup,/Source: about 5 days ago/);
+  assert.match(markup,/Syncing chapter to NovelHaven/);
+});
+test('source-reported hourly activity sorts ahead of older source updates',()=>{
+  const one=source('detected',{sourceReleaseAt:'2026-10-10T09:00:00Z'});
+  const newer=book('reported',{sourceIsOngoing:true,sourceActivityIsOngoing:true,
+    sourceActivityVerified:true,sourceActivityObservedAt:'2026-10-11T08:59:00Z',
+    sourceActivityAgeSeconds:3600,sourceActivityChapter:3,sourceActivityTitle:'Chapter 3'});
+  const view=harness([one,newer]);
+  assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['reported','detected']);
+  assert.match(view('homeReleaseRow(novels[1])'),/Source: about 1 hour ago/);
+});
