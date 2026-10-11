@@ -102,7 +102,7 @@ jobs:
           const fs=require('node:fs');
           const html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
           const source=fs.readFileSync('dist/source-activity.js','utf8');
-          const reports=source.match(/const reports = (\\{.*?\\});/s);
+          const reports=source.match(/const reports = (\{.*?\});/s);
           if (!reports) throw new Error('No source-release snapshot in checkout');
           const data=JSON.parse(reports[1]);
           const target='freeloading-daily-but-the-system-makes-me-a-big-spender';
@@ -110,7 +110,7 @@ jobs:
             console.log('AkkNovel sample has no confirmed source growth; skip live Akk row check.');
             process.exit(0);
           }
-          const section=html.match(/<section class="home-feed-section home-release-section"[\\s\\S]*?<\\/section>/);
+          const section=html.match(/<section class="home-feed-section home-release-section"[\s\S]*?<\/section>/);
           if (!section) throw new Error('Missing Latest Release Novels section in rendered DOM');
           if (!section[0].includes('class="home-release-row"') || !section[0].includes('/novel/'+target+'/')) {
             throw new Error('Confirmed AkkNovel source update missing from live Latest Release Novels.');
