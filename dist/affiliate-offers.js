@@ -53,7 +53,7 @@
 
     const media = document.createElement('div');
     media.className = 'affiliate-offer-media';
-    if (typeof offer.image === 'string' && /^\\/assets\\/affiliate-[a-z0-9-]+\\.jpg$/.test(offer.image)) {
+    if (typeof offer.image === 'string' && /^\/assets\/affiliate-[a-z0-9-]+\.jpg$/.test(offer.image)) {
       const photo = document.createElement('img');
       photo.src = offer.image;
       photo.alt = offer.title;
