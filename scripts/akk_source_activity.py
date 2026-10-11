@@ -70,7 +70,7 @@ def source_update(novel, html, observed, previous=None):
     }
     prior_number = int(old.get("sourceReleaseNumber") or 0)
     prior_time = str(old.get("sourceReleaseAt") or "")
-    if tip > old_tip:
+    if old_tip > 0 and tip > old_tip:
         release.update(sourceReleaseNumber=tip,sourceReleaseTitle=title,
                        sourceReleaseAt=observed,sourceIsOngoing=ongoing)
     elif prior_number > 0 and prior_time and ongoing:
