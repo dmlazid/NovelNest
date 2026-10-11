@@ -93,28 +93,13 @@
       'v=' + encodeURIComponent(revision) +
       (attempt ? '&retry=' + attempt + '-' + Date.now() : '');
     script.dataset.lazyChapterChunk = key;
-    let settled = false;
-    const watchdog = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      script.onload = null; script.onerror = null;
-      retryLoad(key, script);
-    }, 22000);
     script.onload = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(watchdog);
       pending.delete(key);
       if (!findLoaded(novel, number)) { retryLoad(key, script); return; }
       attempts.delete(key);
       if (currentTarget()?.key === key) hydrateCurrent();
     };
-    script.onerror = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(watchdog);
-      retryLoad(key, script);
-    };
+    script.onerror = () => retryLoad(key, script);
     document.head.appendChild(script);
   }
 
