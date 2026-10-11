@@ -62,32 +62,33 @@ function releaseSortTime(n){
   if(Number.isFinite(src))return src;
   return Date.parse(sourcePublicationTime(n)||n.sourceReleaseAt||'');
 }
+// Render compact relative ages. The tooltip retains the provenance so
+// source-reported, verified-published, and first-seen times are not confused.
+function compactReleaseAge(timestamp,now=Date.now()){
+  const age=Math.max(0,Number(now)-timestamp);
+  if(age<60000)return 'Just now';
+  if(age<3600000){const m=Math.floor(age/60000);return m+' min'+(m===1?'':'s')+' ago';}
+  if(age<86400000){const h=Math.floor(age/3600000);return h+' hour'+(h===1?'':'s')+' ago';}
+  const d=Math.floor(age/86400000);
+  return d===1?'Yesterday':d+' days ago';
+}
 function releaseTimeLabel(n,now=Date.now()){
   const sourceAt=sourceActivityTime(n);
   if(Number.isFinite(sourceAt)){
-    const age=Math.max(0,Number(now)-sourceAt),minutes=Math.floor(age/60000),hours=Math.floor(age/3600000),days=Math.floor(age/86400000);
-    const relative=minutes<60?(minutes<1?'just now':minutes+' min'+(minutes===1?'':'s')+' ago'):
-      hours<24?hours+' hour'+(hours===1?'':'s')+' ago':
-      days===1?'yesterday':days+' days ago';
-    return {label:'Source: about '+relative,dateTime:'',
-      full:'Approximate age reported by the original source page, observed '+n.sourceActivityObservedAt+'. Original timestamp was not supplied.'};
+    return {label:compactReleaseAge(sourceAt,now),dateTime:'',
+      full:'Approximate age reported by the original source page, observed '+n.sourceActivityObservedAt+'. Original publication timestamp was not supplied.'};
   }
   const exact=sourcePublicationTime(n);
-  const detected=String(n.sourceReleaseAt||'').trim();
-  const timestamp=Date.parse(exact);
-  if(exact&&Number.isFinite(timestamp)){
-    const age=Math.max(0,Number(now)-timestamp);
-    let label;
-    if(age<60000)label='Just now';
-    else if(age<3600000)label=Math.floor(age/60000)+' mins ago';
-    else if(age<86400000)label=Math.floor(age/3600000)+' hours ago';
-    else if(age<172800000)label='Yesterday';
-    else label=Math.floor(age/86400000)+' days ago';
-    return {label,dateTime:exact,full:'Verified original source publication: '+exact};
+  if(exact){
+    return {label:compactReleaseAge(Date.parse(exact),now),dateTime:exact,
+      full:'Verified original source publication: '+exact};
   }
-  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected)))
-    return {label:'New chapter detected',dateTime:detected,full:'NovelHaven first detected source chapter growth at '+detected+'. Original publication time unavailable.'};
-  return {label:'Source update',dateTime:'',full:'Original publication time unavailable'};
+  const detected=String(n.sourceReleaseAt||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected))){
+    return {label:compactReleaseAge(Date.parse(detected),now),dateTime:detected,
+      full:'NovelHaven first detected source chapter growth at '+detected+'. Original publication time unavailable.'};
+  }
+  return {label:'Time unavailable',dateTime:'',full:'Original publication time unavailable'};
 }
 function homeReleaseRow(n){
   const src=sourceActivityTime(n);
