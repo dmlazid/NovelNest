@@ -18,6 +18,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
 from publication_guard import may_import_auto_title
+from source_release_tracking import source_release_metadata
 
 BASE = "https://freewebnovel.com/novel"
 CHUNK_CAPACITY = 100
@@ -704,7 +705,7 @@ def previous_updated(catalog: Path) -> str:
     return match.group(1) if match else datetime.now(timezone.utc).date().isoformat()
 
 
-def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: str, synopsis: str, updated: str, author: str) -> None:
+def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: str, synopsis: str, updated: str, author: str, source_release: dict | None = None) -> None:
     metadata = [
         {"number": c["number"], "title": c["title"], "paragraphs": ["Loading chapter…"], "lazy": True}
         for c in chapters
@@ -718,6 +719,7 @@ def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: st
         "status": status,
         "cover": p["cover"].relative_to(DIST).as_posix(),
         "updated": updated,
+        **(source_release or {}),
         "sample": False,
         "synopsis": synopsis,
         "license": {"type": "Authorized publication"},
@@ -790,7 +792,10 @@ def import_series(key: str) -> None:
         soup,
         f"{cfg['title']} is an authorized FreeWebNovel title available to read on NovelNest.",
     )
-    write_catalog(key, cfg, p, chapters, status, synopsis, updated, find_author(soup, cfg["author"]))
+    # Source growth is independent of how many old chapters were imported.
+    source_release = source_release_metadata(p["catalog"], latest, source_status)
+    write_catalog(key, cfg, p, chapters, status, synopsis, updated,
+                  find_author(soup, cfg["author"]), source_release)
     ensure_index_registration(key)
 
     if len(chapters) < latest:

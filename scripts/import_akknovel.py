@@ -18,6 +18,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, ImageOps
 
 from publication_guard import may_import_auto_title
+from source_release_tracking import source_release_metadata
 
 BASE = "https://www.akknovel.com"
 CHUNK_CAPACITY = 100
@@ -592,7 +593,7 @@ def previous_updated(catalog: Path) -> str:
 
 
 def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: str, author: str, updated: str,
-                  last_chapter_added_at: str = ""):
+                  last_chapter_added_at: str = "", source_release: dict | None = None):
     metadata = [
         {"number": c["number"], "title": c["title"], "paragraphs": ["Loading chapter…"], "lazy": True}
         for c in chapters
@@ -601,7 +602,8 @@ def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: st
         "id": cfg["id"], "title": cfg["title"], "author": author,
         "genre": cfg["genre"], "tags": cfg["tags"], "status": status,
         "cover": p["cover"].relative_to(DIST).as_posix(), "updated": updated, "sample": False,
-        "lastChapterAddedAt": last_chapter_added_at,  # Actual NovelHaven upload time, never invented source publication time.
+        "lastChapterAddedAt": last_chapter_added_at,  # Local import time; not the source release time.
+        **(source_release or {}),
         "synopsis": cfg["synopsis"],
         "license": {
             "type": "Authorized publication",
@@ -654,11 +656,15 @@ def import_series(key: str):
     last_chapter_added_at = (datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
                              if grew else previous_catalog_field(p["catalog"], "lastChapterAddedAt"))
     source_status = find_status(soup)
+    # Compare highest observed source chapter, NOT the importer checkpoint.
+    source_top = source[-1]
+    top_title = f"Chapter {latest}" + (f": {source_top['suffix']}" if source_top.get("suffix") else "")
+    source_release = source_release_metadata(p["catalog"], latest, source_status, top_title)
     # A completed source is NOT a fresh ongoing release while its older chapters
     # are still being imported. Neither 'Ongoing' nor 'Completed' is accurate.
     published_status = source_status if len(existing) >= latest else "Importing"
     write_catalog(key, cfg, p, existing, published_status, find_author(soup, cfg["author"]),
-                  updated, last_chapter_added_at)
+                  updated, last_chapter_added_at, source_release)
     ensure_index_registration(key)
     if len(existing) < latest:
         print(
