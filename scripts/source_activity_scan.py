@@ -59,7 +59,8 @@ def source_activity(novel, page, observed):
         return None
     # Status must belong to the series, before the latest chapter list.
     prefix = text.split("6 Latest Chapters", 1)[0]
-    if not re.search(r"\bOnGoing\b", prefix, re.I) or re.search(r"\bCompleted\b", prefix, re.I):
+    statuses = re.findall(r"\b(OnGoing|Completed)\b", prefix, re.I)
+    if not statuses or statuses[-1].lower() != "ongoing":
         return None
     slug = parsed.path.rstrip("/").split("/")[-1]
     # The six latest chapters appear immediately AFTER the latest list heading.
