@@ -8,6 +8,7 @@ on:
       - "scripts/import_akknovel.py"
       - "scripts/discover_auto_novels.py"
       - "scripts/auto_akknovel.json"
+      - "scripts/owner_priority_akknovel.json"
       - "scripts/auto_import_policy.json"
       - ".github/workflows/import-akknovel.yml"
   workflow_dispatch:

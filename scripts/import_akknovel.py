@@ -682,7 +682,13 @@ load_approved_auto_series()
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--keys":
-        print("\n".join(SERIES))
+        # The owner explicitly selected these novels for the next batch.
+        # Keep all older updates queued, but check requested titles first.
+        priority_path = Path("scripts/owner_priority_akknovel.json")
+        priority = json.loads(priority_path.read_text(encoding="utf-8")) if priority_path.exists() else []
+        keys = [key for key in priority if key in SERIES]
+        keys += [key for key in SERIES if key not in keys]
+        print("\n".join(keys))
         return
     if len(sys.argv) != 2 or sys.argv[1] not in SERIES:
         raise SystemExit("Usage: python scripts/import_akknovel.py <series-key>|--keys")
