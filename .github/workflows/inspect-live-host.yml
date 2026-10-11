@@ -117,3 +117,17 @@ jobs:
           }
           console.log('VERIFIED LIVE AKKNOVEL: new chapter appears in Latest Release Novels.');
           NODE
+      - name: Report current live five-day release list
+        shell: bash
+        run: |
+          node --input-type=commonjs - <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
+          const section=html.match(/<section class="home-feed-section home-release-section"[\s\S]*?<\/section>/);
+          if(!section){console.log('Live Latest Release section missing.');process.exitCode=1;}
+          else {
+            const rows=[...section[0].matchAll(/<a class="home-release-row" href="\/novel\/([^/]+)\//g)].map(m=>m[1]);
+            console.log('LIVE RELEASE COUNT:',rows.length,'NOVELS:',JSON.stringify(rows));
+            if(rows.length<2)console.log('WARNING: Live release count is below two; investigate deployment or source data.');
+          }
+          NODE
