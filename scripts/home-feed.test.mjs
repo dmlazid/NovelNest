@@ -37,12 +37,12 @@ test('unavailable newly released chapter never points to a nonexistent local cha
   assert.match(waiting,/Syncing chapter to NovelHaven/);
   const ready=view('homeReleaseRow(novels[1])');
   assert.match(ready,/href="\/novel\/ready\/chapter-3\/"/);
-  assert.match(ready,/Detected 4 mins ago/);
+  assert.match(ready,/New chapter detected/);
 });
 test('timestamps are detection times, not imported-at or catalog-updated times',()=>{
   const view=harness([book('a')]),now=Date.parse('2026-10-11T09:00:00Z');
   const time=view("releaseTimeLabel({sourceReleaseAt:'2026-10-11T08:56:00Z',lastChapterAddedAt:'2026-10-11T08:59:00Z'},"+now+")");
-  assert.equal(time.label,'Detected 4 mins ago');
+  assert.equal(time.label,'New chapter detected');
   const wrong=view("releaseTimeLabel({updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'},"+now+")");
   assert.equal(wrong.label,'Source update');
 });
@@ -56,4 +56,44 @@ test('source release directory shows actual latest source numbers and time',()=>
   assert.match(html,/Detected source chapters · last 7 days/);
   assert.match(html,/source-updated/);
   assert.doesNotMatch(html,/old-backfill/);
+});
+
+test('verified source publication time is distinguished from import detection',()=>{
+  const n=source('published',{sourcePublishedAt:'2026-10-11T08:56:00Z',sourcePublishedChapter:3,sourcePublishedVerified:true});
+  const view=harness([n]);
+  const time=view("releaseTimeLabel(novels[0],Date.parse('2026-10-11T09:00:00Z'))");
+  assert.equal(time.label,'4 mins ago');
+  assert.match(time.full,/Verified original source publication/);
+  const wrong=harness([source('mismatch',{sourcePublishedAt:'2026-10-11T08:56:00Z',sourcePublishedChapter:2,sourcePublishedVerified:true})]);
+  assert.equal(wrong("releaseTimeLabel(novels[0])").label,'New chapter detected');
+});
+
+test('source-reported 5-day chapters appear even before tracking baseline; old imports do not',()=>{
+  const reported=book('source-five-days',{
+    sourceIsOngoing:true,
+    sourceActivityVerified:true,sourceActivityIsOngoing:true,
+    sourceActivityObservedAt:'2026-10-11T08:59:00Z',
+    sourceActivityAgeSeconds:5*86400,sourceActivityChapter:5,
+    sourceActivityTitle:'Chapter 5: Real source update',
+    chapters:Array.from({length:3},(_,i)=>({title:'Chapter '+(i+1)}))
+  });
+  const view=harness([
+    book('imported-hundreds',{lastChapterAddedAt:'2026-10-11T08:59:00Z',
+      chapters:Array(500).fill({title:'Older chapter'})}),reported,
+    book('source-eighteen-days',{...reported,id:'source-eighteen-days',sourceActivityAgeSeconds:18*86400})
+  ]);
+  assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['source-five-days']);
+  const markup=view('homeReleaseRow(novels[1])');
+  assert.match(markup,/Chapter 5: Real source update/);
+  assert.match(markup,/Source: about 5 days ago/);
+  assert.match(markup,/Syncing chapter to NovelHaven/);
+});
+test('source-reported hourly activity sorts ahead of older source updates',()=>{
+  const one=source('detected',{sourceReleaseAt:'2026-10-10T09:00:00Z'});
+  const newer=book('reported',{sourceIsOngoing:true,sourceActivityIsOngoing:true,
+    sourceActivityVerified:true,sourceActivityObservedAt:'2026-10-11T08:59:00Z',
+    sourceActivityAgeSeconds:3600,sourceActivityChapter:3,sourceActivityTitle:'Chapter 3'});
+  const view=harness([one,newer]);
+  assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['reported','detected']);
+  assert.match(view('homeReleaseRow(novels[1])'),/Source: about 1 hour ago/);
 });

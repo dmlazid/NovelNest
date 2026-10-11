@@ -39,30 +39,66 @@ function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<d
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
 function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
-// Prefer real upload timestamps. Other importers only supply a calendar day,
-// so never invent minutes or claim the source itself published at that moment.
+// Publication times are only displayed when the source supplies a verified
+// timestamp for the exact chapter. Polling/import times are not publication times.
+function sourcePublicationTime(n){
+  const published=String(n.sourcePublishedAt||'').trim();
+  const number=Number(n.sourcePublishedChapter);
+  const valid=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(published)&&Number.isFinite(Date.parse(published));
+  return valid&&number===Number(n.sourceReleaseNumber)&&n.sourcePublishedVerified===true?published:'';
+}
+// FreeWebNovel sometimes reports the latest chapter's age on its own page.
+// A source-reported relative age is approximate; it is never an import time.
+function sourceActivityTime(n){
+  const observed=Date.parse(n.sourceActivityObservedAt||'');
+  const age=Number(n.sourceActivityAgeSeconds),number=Number(n.sourceActivityChapter);
+  if(n.sourceActivityVerified!==true||n.sourceActivityIsOngoing!==true||
+     !Number.isFinite(observed)||!Number.isInteger(age)||age<0||
+     !Number.isInteger(number)||number<1||number<n.chapters.length)return NaN;
+  return observed-age*1000;
+}
+function releaseSortTime(n){
+  const src=sourceActivityTime(n);
+  if(Number.isFinite(src))return src;
+  return Date.parse(sourcePublicationTime(n)||n.sourceReleaseAt||'');
+}
 function releaseTimeLabel(n,now=Date.now()){
-  const exact=String(n.sourceReleaseAt||'').trim();
+  const sourceAt=sourceActivityTime(n);
+  if(Number.isFinite(sourceAt)){
+    const age=Math.max(0,Number(now)-sourceAt),minutes=Math.floor(age/60000),hours=Math.floor(age/3600000),days=Math.floor(age/86400000);
+    const relative=minutes<60?(minutes<1?'just now':minutes+' min'+(minutes===1?'':'s')+' ago'):
+      hours<24?hours+' hour'+(hours===1?'':'s')+' ago':
+      days===1?'yesterday':days+' days ago';
+    return {label:'Source: about '+relative,dateTime:'',
+      full:'Approximate age reported by the original source page, observed '+n.sourceActivityObservedAt+'. Original timestamp was not supplied.'};
+  }
+  const exact=sourcePublicationTime(n);
+  const detected=String(n.sourceReleaseAt||'').trim();
   const timestamp=Date.parse(exact);
-  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(exact)&&Number.isFinite(timestamp)){
+  if(exact&&Number.isFinite(timestamp)){
     const age=Math.max(0,Number(now)-timestamp);
     let label;
-    if(age<60000)label='Just detected';
-    else if(age<3600000){const m=Math.floor(age/60000);label='Detected '+m+' min'+(m===1?'':'s')+' ago';}
-    else if(age<86400000){const h=Math.floor(age/3600000);label='Detected '+h+' hour'+(h===1?'':'s')+' ago';}
-    else {const d=Math.floor(age/86400000);label='Detected '+d+' day'+(d===1?'':'s')+' ago';}
-    return {label,dateTime:exact,full:'Source chapter increase first detected by NovelHaven: '+exact+'. Original publication time unavailable.'};
+    if(age<60000)label='Just now';
+    else if(age<3600000)label=Math.floor(age/60000)+' mins ago';
+    else if(age<86400000)label=Math.floor(age/3600000)+' hours ago';
+    else if(age<172800000)label='Yesterday';
+    else label=Math.floor(age/86400000)+' days ago';
+    return {label,dateTime:exact,full:'Verified original source publication: '+exact};
   }
-  return {label:'Source update',dateTime:'',full:'Source detection time unavailable'};
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected)))
+    return {label:'New chapter detected',dateTime:detected,full:'NovelHaven first detected source chapter growth at '+detected+'. Original publication time unavailable.'};
+  return {label:'Source update',dateTime:'',full:'Original publication time unavailable'};
 }
 function homeReleaseRow(n){
-  const number=Number(n.sourceReleaseNumber)||0;
+  const src=sourceActivityTime(n);
+  const number=Number.isFinite(src)?Number(n.sourceActivityChapter):Number(n.sourceReleaseNumber)||0;
   const available=number>0&&number<=n.chapters.length;
   const i=available?number-1:Math.max(0,n.chapters.length-1),c=available?n.chapters[i]:null;
-  const newest=String(n.sourceReleaseTitle||'').trim()||chapterTitle(c)||('Chapter '+number);
+  const newest=(Number.isFinite(src)?String(n.sourceActivityTitle||'').trim():'')||
+    String(n.sourceReleaseTitle||'').trim()||chapterTitle(c)||('Chapter '+number);
   const href=available?chapterUrl(n,i):bookUrl(n);
   const time=releaseTimeLabel(n);
-  const when=time.dateTime?`<time class="home-release-time" datetime="${esc(time.dateTime)}" title="${esc(time.full)}">${esc(time.label)}</time>`:`<span class="home-release-time">${esc(time.label)}</span>`;
+  const when=time.dateTime?`<time class="home-release-time" datetime="${esc(time.dateTime)}" title="${esc(time.full)}">${esc(time.label)}</time>`:`<span class="home-release-time" title="${esc(time.full)}">${esc(time.label)}</span>`;
   return `<a class="home-release-row" href="${href}">
     <img class="home-release-cover" src="${esc(n.cover)}" alt="" loading="lazy">
     <span class="home-release-copy">
@@ -98,15 +134,17 @@ const RELEASE_DAYS=7;
 function latestOngoingReleases(all,now=Date.now()){
   const clock=Number(now);
   return all.filter(n=>{
-    if(n.sourceIsOngoing!==true||n.externalUrl||!n.chapters?.length)return false;
-    const number=Number(n.sourceReleaseNumber),detected=String(n.sourceReleaseAt||'');
-    const ms=Date.parse(detected);
-    return Number.isInteger(number)&&number>0&&
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&
-      Number.isFinite(ms)&&Number.isFinite(clock)&&ms<=clock+60000&&
-      clock-ms<RELEASE_DAYS*86400000;
-  }).sort((a,b)=>String(b.sourceReleaseAt).localeCompare(String(a.sourceReleaseAt))||
-    Number(b.sourceReleaseNumber)-Number(a.sourceReleaseNumber)||a.title.localeCompare(b.title));
+    if(n.externalUrl||!n.chapters?.length)return false;
+    const src=sourceActivityTime(n);
+    const sourceRecent=n.status!=='Completed'&&Number.isFinite(src)&&src<=clock+60000&&clock-src<RELEASE_DAYS*86400000;
+    const detected=Date.parse(n.sourceReleaseAt||'');
+    const number=Number(n.sourceReleaseNumber);
+    const observedRecent=n.sourceIsOngoing===true&&Number.isInteger(number)&&number>0&&
+      Number.isFinite(detected)&&detected<=clock+60000&&clock-detected<RELEASE_DAYS*86400000;
+    return sourceRecent||observedRecent;
+  }).sort((a,b)=>releaseSortTime(b)-releaseSortTime(a)||
+    Number(b.sourceActivityChapter||b.sourceReleaseNumber)-Number(a.sourceActivityChapter||a.sourceReleaseNumber)||
+    a.title.localeCompare(b.title));
 }
 function shuffledNovels(items){
   const result=[...items];
