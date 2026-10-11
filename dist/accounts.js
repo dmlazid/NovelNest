@@ -57,8 +57,8 @@
     if (isLibrary) {
       // Synchronization is NOT navigation. Never animate a page transition,
       // throw the user to the top, or discard the existing Library DOM.
-      if (savedChanged) window.NovelNestApp?.refresh({ preserveScroll: true });
-      else if (progressChanged) window.NovelNestApp?.refreshLibraryProgress();
+      if (savedChanged) window.NovelNestApp?.refresh?.({ preserveScroll: true });
+      else if (progressChanged) window.NovelNestApp?.refreshLibraryProgress?.();
     }
     render();
   }
@@ -403,10 +403,10 @@
       window.NovelNestReading?.reload(); window.NovelNestPositions?.reload(); window.NovelNestApp?.reloadData(); renderStatus();
       // Only relevant changes touch the visible Library. Position autosaves,
       // seen acknowledgements and preferences must not flash/rebuild the page.
-      if (event.key === 'novelnest.progress') window.NovelNestApp?.refreshLibraryProgress();
+      if (event.key === 'novelnest.progress') window.NovelNestApp?.refreshLibraryProgress?.();
       else if (event.key === 'novelnest.saved' &&
                (location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || '')))
-        window.NovelNestApp?.refresh({ preserveScroll: true });
+        window.NovelNestApp?.refresh?.({ preserveScroll: true });
     }
   });
   try {
