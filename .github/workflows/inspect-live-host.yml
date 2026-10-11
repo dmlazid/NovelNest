@@ -146,3 +146,30 @@ jobs:
           console.log('LIVE COMPACT RELEASE LABELS:',JSON.stringify(labels.slice(0,20)));
           if(invalid.length)throw new Error('Unwanted prefix or unknown time label: '+JSON.stringify(invalid));
           NODE
+      - name: Verify simple Latest and Completed novel directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$BROWSER" || { echo "::warning::No Chrome for directory UI verification"; exit 1; }
+          for route in latest-releases completed; do
+            verified=0
+            for attempt in 1 2 3 4 5; do
+              timeout 70s "$BROWSER" --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
+                --disable-background-networking --disable-extensions --virtual-time-budget=17000 \
+                --dump-dom "https://novelhaven.top/#/$route" > "/tmp/novelhaven-$route.html" 2>/dev/null || true
+              if grep -q 'class="directory-switch"' "/tmp/novelhaven-$route.html" && \
+                 grep -q '>Latest Novels</a>' "/tmp/novelhaven-$route.html" && \
+                 grep -q '>Completed Novels</a>' "/tmp/novelhaven-$route.html" && \
+                 ! grep -q -E 'Verified source chapter changes|New source chapters detected after|Source chapter updates · last 5 days|Finished stories' "/tmp/novelhaven-$route.html"; then
+                verified=1
+                break
+              fi
+              sleep 12
+            done
+            if [ "$verified" -ne 1 ]; then
+              echo "::error::Clean novel-directory navigation is not verified on live $route route."
+              exit 1
+            fi
+            echo "VERIFIED LIVE SIMPLE DIRECTORY: $route has only Latest Novels and Completed Novels navigation."
+          done
