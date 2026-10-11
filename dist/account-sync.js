@@ -29,7 +29,16 @@
     return result;
   }
   function updates(novels, state) {
-    return novels.filter(n => state.data.saved.includes(n.id) && Number.isInteger(state.seen[n.id]) && n.chapters.length > state.seen[n.id]).map(n => ({ id: n.id, title: n.title, count: n.chapters.length - state.seen[n.id], first: state.seen[n.id] + 1 }));
+    return novels.flatMap(n => {
+      if (!state.data.saved.includes(n.id) || !Number.isInteger(state.seen[n.id]) || n.sourceIsOngoing !== true) return [];
+      const newestAvailable=Math.min(n.chapters.length,Number(n.sourceReleaseNumber)||0);
+      const first=Math.max(state.seen[n.id]+1,Number(n.sourceReleaseFirst)||newestAvailable);
+      const at=Date.parse(String(n.sourceReleaseAt||''));
+      // Newly imported old chapters are not new source publications.
+      if(!Number.isInteger(newestAvailable)||!Number.isInteger(first)||first>newestAvailable||
+         !Number.isFinite(at)||at>Date.now()+60000) return [];
+      return [{id:n.id,title:n.title,count:newestAvailable-first+1,first}];
+    });
   }
   window.NovelNestSync = { empty, merge, updates };
 })();

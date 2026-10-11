@@ -42,35 +42,34 @@ function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(l
 // Prefer real upload timestamps. Other importers only supply a calendar day,
 // so never invent minutes or claim the source itself published at that moment.
 function releaseTimeLabel(n,now=Date.now()){
-  const exact=String(n.lastChapterAddedAt||'').trim();
+  const exact=String(n.sourceReleaseAt||'').trim();
   const timestamp=Date.parse(exact);
   if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(exact)&&Number.isFinite(timestamp)){
     const age=Math.max(0,Number(now)-timestamp);
     let label;
-    if(age<60000)label='Just now';
-    else if(age<3600000){const m=Math.floor(age/60000);label=m+' min'+(m===1?'':'s')+' ago';}
-    else if(age<86400000){const h=Math.floor(age/3600000);label=h+' hour'+(h===1?'':'s')+' ago';}
-    else {const d=Math.floor(age/86400000);label=d+' day'+(d===1?'':'s')+' ago';}
-    return {label,dateTime:exact,full:'Added to NovelHaven: '+exact};
+    if(age<60000)label='Just detected';
+    else if(age<3600000){const m=Math.floor(age/60000);label='Detected '+m+' min'+(m===1?'':'s')+' ago';}
+    else if(age<86400000){const h=Math.floor(age/3600000);label='Detected '+h+' hour'+(h===1?'':'s')+' ago';}
+    else {const d=Math.floor(age/86400000);label='Detected '+d+' day'+(d===1?'':'s')+' ago';}
+    return {label,dateTime:exact,full:'Source chapter increase first detected by NovelHaven: '+exact+'. Original publication time unavailable.'};
   }
-  const date=String(n.updated||'').slice(0,10);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
-  const millis=Date.parse(date+'T00:00:00Z');
-  if(!Number.isFinite(millis))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
-  const label='Updated '+new Date(millis).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
-  return {label,dateTime:date,full:'NovelHaven catalog updated: '+date};
+  return {label:'Source update',dateTime:'',full:'Source detection time unavailable'};
 }
 function homeReleaseRow(n){
-  const i=Math.max(0,n.chapters.length-1),c=n.chapters[i];
+  const number=Number(n.sourceReleaseNumber)||0;
+  const available=number>0&&number<=n.chapters.length;
+  const i=available?number-1:Math.max(0,n.chapters.length-1),c=available?n.chapters[i]:null;
+  const newest=String(n.sourceReleaseTitle||'').trim()||chapterTitle(c)||('Chapter '+number);
+  const href=available?chapterUrl(n,i):bookUrl(n);
   const time=releaseTimeLabel(n);
   const when=time.dateTime?`<time class="home-release-time" datetime="${esc(time.dateTime)}" title="${esc(time.full)}">${esc(time.label)}</time>`:`<span class="home-release-time">${esc(time.label)}</span>`;
-  return `<a class="home-release-row" href="${chapterUrl(n,i)}">
+  return `<a class="home-release-row" href="${href}">
     <img class="home-release-cover" src="${esc(n.cover)}" alt="" loading="lazy">
     <span class="home-release-copy">
       <strong>${esc(n.title)}</strong>
       <span class="home-release-details">
         <small class="home-release-genres">${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
-        <span class="home-release-chapter">${esc(chapterTitle(c)||'Latest chapter')}</span>
+        <span class="home-release-chapter">${esc(newest)}${available?'':' · Syncing chapter to NovelHaven'}</span>
         ${when}
       </span>
     </span>
@@ -93,28 +92,21 @@ function homeNovelTile(n){
     </span>
   </a>`;
 }
-// A real recent-release list: only novels marked ongoing with a populated
-// chapter list and a catalog update during the last seven calendar days.
-// "updated" is the available catalog update date; use a chapter-specific date
-// if an importer provides one in future. Completed works never qualify.
+// Genuine releases are SOURCE chapter-tip increases compared with prior
+// observations. Uploading old chapters or changing an import date never counts.
 const RELEASE_DAYS=7;
 function latestOngoingReleases(all,now=Date.now()){
-  const day=86400000;
   const clock=Number(now);
   return all.filter(n=>{
-    if(String(n.status||'').trim().toLowerCase()!=='ongoing'||n.externalUrl||!n.chapters?.length)return false;
-    const update=String(n.lastChapterAddedAt||n.releaseUpdated||n.updated||'').slice(0,10);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(update))return false;
-    const ms=Date.parse(update+'T00:00:00Z');
-    const currentDay=Math.floor(clock/day)*day;
-    const oldestDay=currentDay-(RELEASE_DAYS-1)*day;
-    // Accommodate a source's local calendar date slightly ahead of UTC.
-    return Number.isFinite(ms)&&Number.isFinite(clock)&&ms>=oldestDay&&ms<=currentDay+day;
-  }).sort((a,b)=>{
-    const aDate=String(a.lastChapterAddedAt||a.releaseUpdated||a.updated||'');
-    const bDate=String(b.lastChapterAddedAt||b.releaseUpdated||b.updated||'');
-    return bDate.localeCompare(aDate)||b.chapters.length-a.chapters.length||a.title.localeCompare(b.title);
-  });
+    if(n.sourceIsOngoing!==true||n.externalUrl||!n.chapters?.length)return false;
+    const number=Number(n.sourceReleaseNumber),detected=String(n.sourceReleaseAt||'');
+    const ms=Date.parse(detected);
+    return Number.isInteger(number)&&number>0&&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&
+      Number.isFinite(ms)&&Number.isFinite(clock)&&ms<=clock+60000&&
+      clock-ms<RELEASE_DAYS*86400000;
+  }).sort((a,b)=>String(b.sourceReleaseAt).localeCompare(String(a.sourceReleaseAt))||
+    Number(b.sourceReleaseNumber)-Number(a.sourceReleaseNumber)||a.title.localeCompare(b.title));
 }
 function shuffledNovels(items){
   const result=[...items];
@@ -182,7 +174,7 @@ function home(){
     </section>
     <section class="home-feed-section home-release-section">
       <div class="home-feed-head"><h1><span aria-hidden="true">↻</span> Latest Release Novels</h1><a href="./#/latest-releases">See more</a></div>
-      ${releases.length?'<div class="home-release-list">'+releases.map(homeReleaseRow).join('')+'</div>':'<p class="home-empty">No ongoing novels have a recent chapter update listed this week. Check back for new releases.</p>'}
+      ${releases.length?'<div class="home-release-list">'+releases.map(homeReleaseRow).join('')+'</div>':'<p class="home-empty">No verified new source chapters yet. Importing older chapters does not count as a new release.</p>'}
     </section>
     <section class="home-feed-section">
       <div class="home-feed-head"><h2><span aria-hidden="true">↻</span> Latest Novels</h2><a href="./#/latest-novels">See more</a></div>
@@ -292,7 +284,7 @@ function directoryRow(n){
 }
 function directoryPage(kind){
   const settings={
-    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Ongoing · past seven days',description:'Ongoing stories with a recent update date, newest first. Finished stories are excluded.'},
+    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Verified source chapter changes',description:'New source chapters detected after a previous check; local import progress is excluded.'},
     novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelHaven',description:'Browse the latest novels available in the NovelHaven catalog.'},
     completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
   };
@@ -310,8 +302,8 @@ function directoryPage(kind){
         <h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1>
         <p>${esc(cfg.description)}</p>
       </header>
-      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Ongoing · last 7 days</span><a href="./#/completed">Completed novels</a></nav>':''}
-      ${results.length?`<div class="directory-novel-list">${results.map(directoryRow).join('')}</div>`:kind==='releases'?'<div class="empty"><h2>No recent ongoing updates</h2><p>Check back when new chapters are added to an ongoing story.</p></div>':'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
+      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Detected source chapters · last 7 days</span><a href="./#/completed">Completed novels</a></nav>':''}
+      ${results.length?`<div class="directory-novel-list">${(kind==='releases'?results.map(homeReleaseRow):results.map(directoryRow)).join('')}</div>`:kind==='releases'?'<div class="empty"><h2>No verified source chapter releases</h2><p>New releases appear when a source adds chapters after its first check.</p></div>':'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
     </section>
   </div>`;
 }

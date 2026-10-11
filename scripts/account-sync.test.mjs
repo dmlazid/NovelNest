@@ -41,9 +41,22 @@ test('edits during a sync request survive applying its result', () => {
 
 test('chapter alerts only include newly added chapters of saved novels and acknowledgements merge', () => {
   const state = empty(); state.data.saved = ['a']; state.seen.a = 2;
-  const novels = [{id:'a',title:'A',chapters:[1,2,3,4]}, {id:'b',title:'B',chapters:[1,2]}];
+  const novels = [{id:'a',title:'A',chapters:[1,2,3,4],sourceIsOngoing:true,sourceReleaseFirst:3,
+    sourceReleaseNumber:4,sourceReleaseAt:new Date(Date.now()-60000).toISOString()}, {id:'b',title:'B',chapters:[1,2]}];
   assert.deepEqual(plain(updates(novels, state)), [{id:'a',title:'A',count:2,first:3}]);
   const acknowledged = empty(); acknowledged.seen.a = 4;
   const merged = merge(empty(), acknowledged, state);
   assert.deepEqual(plain(updates(novels, merged)), []);
+});
+
+
+test('backfill checkpoints and unsynced releases never generate false notifications',()=>{
+ const state=empty(); state.data.saved=['a']; state.seen.a=10;
+ const old={id:'a',title:'A',chapters:Array(500).fill(1),lastChapterAddedAt:new Date().toISOString()};
+ assert.deepEqual(plain(updates([old],state)),[]);
+ const metadata={...old,sourceIsOngoing:true,sourceReleaseAt:new Date().toISOString(),
+   sourceReleaseFirst:501,sourceReleaseNumber:501};
+ assert.deepEqual(plain(updates([metadata],state)),[]);
+ metadata.chapters.push(1);
+ assert.deepEqual(plain(updates([metadata],state)),[{id:'a',title:'A',count:1,first:501}]);
 });
