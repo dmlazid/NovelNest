@@ -337,11 +337,7 @@ function directoryPage(kind){
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
     <section class="directory-shell">
-      <header class="directory-heading${simple?' directory-heading-simple':''}">
-        ${simple?'':`<span class="eyebrow">${esc(cfg.eyebrow)}</span>`}
-        <h1>${simple?'':`<span aria-hidden="true">${cfg.icon}</span> `}${esc(cfg.title)}</h1>
-        ${simple?'':`<p>${esc(cfg.description)}</p>`}
-      </header>
+      ${simple?`<h1 class="directory-visually-hidden">${esc(cfg.title)}</h1>`:`<header class="directory-heading"><span class="eyebrow">${esc(cfg.eyebrow)}</span><h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1><p>${esc(cfg.description)}</p></header>`}
       ${simple?`<nav class="directory-switch" aria-label="Novel status"><a href="./#/latest-releases"${kind==='releases'?' aria-current="page"':''}>Latest Novels</a><a href="./#/completed"${kind==='completed'?' aria-current="page"':''}>Completed Novels</a></nav>`:''}
       ${results.length?`<div class="directory-novel-list">${(kind==='releases'?results.map(homeReleaseRow):results.map(directoryRow)).join('')}</div>`:'<div class="empty"><h2>No novels available.</h2></div>'}
     </section>
