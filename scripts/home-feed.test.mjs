@@ -93,3 +93,26 @@ test('homepage gives helpful empty state when no current ongoing releases exist'
   assert.match(html,/No ongoing novels have a recent chapter update listed this week/);
   assert.doesNotMatch(html,/home-release-row/);
 });
+
+test('release timestamp labels are accurate and dates without hours never invent minutes',()=>{
+  const site=pageHarness([makeNovel('ongoing')]);
+  const now=Date.parse('2026-10-11T09:00:00Z');
+  const precise=site.render("releaseTimeLabel({lastChapterAddedAt:'2026-10-11T08:56:00Z',updated:'2026-10-11'},"+now+")");
+  assert.equal(precise.label,'4 mins ago');
+  assert.equal(precise.full,'Added to NovelHaven: 2026-10-11T08:56:00Z');
+  const byDay=site.render("releaseTimeLabel({updated:'2026-10-10'},"+now+")");
+  assert.equal(byDay.label,'Updated Oct 10');
+  assert.doesNotMatch(byDay.label,/min|hour/i);
+});
+
+test('release items show readable chapter details and timestamp without fake source times',()=>{
+  const books=[makeNovel('newer',{updated:'2026-10-11'})];
+  books[0].lastChapterAddedAt='2026-10-11T08:56:00Z';
+  const site=pageHarness(books,{now:'2026-10-11T09:00:00Z'});
+  const row=site.render("homeReleaseRow(novels[0])");
+  assert.match(row,/home-release-genres/);
+  assert.match(row,/home-release-chapter/);
+  assert.match(row,/home-release-time/);
+  assert.match(row,/datetime="2026-10-11T08:56:00Z"/);
+  assert.match(row,/ago/);
+});

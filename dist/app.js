@@ -39,14 +39,40 @@ function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<d
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
 function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
+// Prefer real upload timestamps. Other importers only supply a calendar day,
+// so never invent minutes or claim the source itself published at that moment.
+function releaseTimeLabel(n,now=Date.now()){
+  const exact=String(n.lastChapterAddedAt||'').trim();
+  const timestamp=Date.parse(exact);
+  if(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(exact)&&Number.isFinite(timestamp)){
+    const age=Math.max(0,Number(now)-timestamp);
+    let label;
+    if(age<60000)label='Just now';
+    else if(age<3600000){const m=Math.floor(age/60000);label=m+' min'+(m===1?'':'s')+' ago';}
+    else if(age<86400000){const h=Math.floor(age/3600000);label=h+' hour'+(h===1?'':'s')+' ago';}
+    else {const d=Math.floor(age/86400000);label=d+' day'+(d===1?'':'s')+' ago';}
+    return {label,dateTime:exact,full:'Added to NovelHaven: '+exact};
+  }
+  const date=String(n.updated||'').slice(0,10);
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
+  const millis=Date.parse(date+'T00:00:00Z');
+  if(!Number.isFinite(millis))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
+  const label='Updated '+new Date(millis).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
+  return {label,dateTime:date,full:'NovelHaven catalog updated: '+date};
+}
 function homeReleaseRow(n){
   const i=Math.max(0,n.chapters.length-1),c=n.chapters[i];
+  const time=releaseTimeLabel(n);
+  const when=time.dateTime?`<time class="home-release-time" datetime="${esc(time.dateTime)}" title="${esc(time.full)}">${esc(time.label)}</time>`:`<span class="home-release-time">${esc(time.label)}</span>`;
   return `<a class="home-release-row" href="${chapterUrl(n,i)}">
     <img class="home-release-cover" src="${esc(n.cover)}" alt="" loading="lazy">
     <span class="home-release-copy">
       <strong>${esc(n.title)}</strong>
-      <small>${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
-      <span>${esc(chapterTitle(c)||'Latest chapter')}</span>
+      <span class="home-release-details">
+        <small class="home-release-genres">${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
+        <span class="home-release-chapter">${esc(chapterTitle(c)||'Latest chapter')}</span>
+        ${when}
+      </span>
     </span>
   </a>`;
 }
