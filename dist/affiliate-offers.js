@@ -6,11 +6,11 @@
   'use strict';
 
   const OFFERS = [
-    {"title":"Butterfly Foldable Bag Hook","description":"Portable purse hanger with a sparkly butterfly design. Several colors are shown in the listing.","partner":"Shopee","url":"https://invl.me/clo37p0","image":"/assets/affiliate-butterfly-hook.jpg","price":"₱135","priceNote":"After voucher in screenshot · 11 Oct 2026","sold":"617 sold (at screenshot)"},
-    {"title":"PopTips 10pcs Press-On Nails","description":"Short square, reusable press-on nails in soft everyday shades.","partner":"Shopee","url":"https://invl.me/clo37pl","image":"/assets/affiliate-poptips-nails.jpg","price":"₱39","oldPrice":"₱78","priceNote":"Screenshot price · 11 Oct 2026","sold":"3K+ sold (at screenshot)"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37pr"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37q9"},
-    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37qk"}
+    {"title":"Butterfly Foldable Bag Hook","description":"Portable purse hanger with a sparkly butterfly design. Several colors are shown in the listing.","partner":"Shopee","url":"https://invl.me/clo37p0","referenceUrl":"https://s.shopee.ph/3LRVoV9lyL","image":"/assets/affiliate-butterfly-hook.jpg","price":"₱135","priceNote":"After voucher in screenshot · 11 Oct 2026","sold":"617 sold (at screenshot)"},
+    {"title":"PopTips 10pcs Press-On Nails","description":"Short square, reusable press-on nails in soft everyday shades.","partner":"Shopee","url":"https://invl.me/clo37pl","referenceUrl":"https://s.shopee.ph/8KqBljOeB","image":"/assets/affiliate-poptips-nails.jpg","price":"₱39","oldPrice":"₱78","priceNote":"Screenshot price · 11 Oct 2026","sold":"3K+ sold (at screenshot)"},
+    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37pr","referenceUrl":"https://s.shopee.ph/4qGJbKNTzV"},
+    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37q9","referenceUrl":"https://s.shopee.ph/2gBp1N9XkQ"},
+    {"title":"Discover another Shopee find","description":"Browse this optional partner offer. See the seller's page for product photos, choices, and current prices.","partner":"Shopee","url":"https://invl.me/clo37qk","referenceUrl":"https://s.shopee.ph/BUU3ChcOO"}
   ];
 
   function allowedOffer(item) {

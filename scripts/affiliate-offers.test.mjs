@@ -108,3 +108,19 @@ test('verified screenshot product thumbnails are local and never replace affilia
   assert(!source.includes("link.href = 'https://s.shopee.ph/"));
   assert(!source.includes('link.href = "https://s.shopee.ph/'));
 });
+
+
+test('five Shopee product references are recorded in order but purchase clicks still use Involve Asia', () => {
+  const shopee = [...source.matchAll(/"referenceUrl":"(https:\/\/s\.shopee\.ph\/[^"]+)"/g)].map(x=>x[1]);
+  assert.deepEqual(shopee, [
+    "https://s.shopee.ph/3LRVoV9lyL",
+    "https://s.shopee.ph/8KqBljOeB",
+    "https://s.shopee.ph/4qGJbKNTzV",
+    "https://s.shopee.ph/2gBp1N9XkQ",
+    "https://s.shopee.ph/BUU3ChcOO"
+]);
+  const involve = [...source.matchAll(/"url":"(https:\/\/invl\.me\/[^"]+)"/g)].map(x=>x[1]);
+  assert.equal(involve.length,5);
+  assert(source.includes('link.href = offer.url;'));
+  assert(!source.includes('link.href = offer.referenceUrl'));
+});
