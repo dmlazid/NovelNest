@@ -12,6 +12,8 @@ const limitedFetch=async (url,headers={})=>{
       appAsset:body.match(/src="(app\.js[^\"]*)"/)?.[1]||null,
       cssAsset:body.match(/href="(styles\.css[^\"]*)"/)?.[1]||null,
       hasFeaturedSelection:body.includes('FEATURED_NOVEL_IDS'),
+      homepageRotationVersion:body.includes('app.js?v=20261011-ongoing-random-home-1'),
+      recentOngoingCode:body.includes('function latestOngoingReleases(')&&body.includes('function featuredNovels('),
       unwantedSourceBranding:/AkkNovel Spotlight|AkkNovel pick|More From AkkNovel|AkkNovel Collection|Explore all AkkNovel stories/.test(body),
       bytes:body.length,opening:response.url.includes('pages.dev')?body.slice(0,260).replace(/\\s+/g,' '):undefined};
   }catch(error){return {url,error:String(error.message||error).slice(0,180)}}
@@ -86,6 +88,8 @@ if(process.env.GITHUB_STEP_SUMMARY){
  const rows=live.map(v=>'- '+v.url+': '+(v.error?'Error: '+v.error:'HTTP '+v.status+' | featured picks source code: '+v.hasFeaturedSelection+' | unwanted source-branding: '+v.unwantedSourceBranding));
  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
   '### Production deployment diagnosis','',...rows,'',
+  '- Homepage references rotating featured and ongoing-only release code: '+!!live[0]?.homepageRotationVersion,
+  '- Live app includes ongoing release filter and randomized featured picks: '+!!live[1]?.recentOngoingCode,
   '- Affiliate photo cards published and fully verified: '+(affiliatePublication.status==='published'),
   '- Five Involve Asia purchase links intact: '+!!affiliatePublication.original_affiliate_links_present,
   '- Product sprite HTTP status: '+(affiliatePublication.sprite_status??'not checked'),
