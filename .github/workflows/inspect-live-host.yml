@@ -173,3 +173,34 @@ jobs:
             fi
             echo "VERIFIED LIVE SIMPLE DIRECTORY: $route has only Latest Novels and Completed Novels navigation."
           done
+      - name: Verify live Latest Novels shows genuinely recently updated titles
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if ! grep -q 'app.js?v=20261011-fresh-novels-1' /tmp/novelhaven-source-dom.html; then
+              echo "New Latest Novels script not yet visible on Cloudflare (attempt $attempt)."
+              timeout 80s google-chrome --headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu \
+                --disable-background-networking --disable-extensions --virtual-time-budget=22000 \
+                --dump-dom "https://novelhaven.top/" > /tmp/novelhaven-source-dom.html 2>/dev/null || true
+              sleep 8
+              continue
+            fi
+            break
+          done
+          node --input-type=commonjs - <<'NODE'
+          const fs=require('node:fs'), html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
+          if(!html.includes('app.js?v=20261011-fresh-novels-1'))
+            throw new Error('Cloudflare still has old Latest Novels JavaScript version');
+          const released=[...html.matchAll(/class="home-release-row" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
+          const i=html.indexOf('Latest Novels</h2>');
+          if(i<0)throw new Error('Missing Latest Novels homepage section');
+          const next=html.indexOf('</section>',i);
+          const latest=[...html.slice(i,next<0?undefined:next).matchAll(/class="home-novel-tile" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
+          console.log('LIVE LATEST NOVELS:',JSON.stringify(latest));
+          console.log('LIVE RECENT SOURCE RELEASES:',released.length);
+          if(latest.length!==6)throw new Error('Latest Novels did not render six books');
+          if(released.length>=13 && latest.some(id=>!released.includes(id)))
+            throw new Error('Latest Novels includes old imports despite enough verified recent source updates');
+          console.log('VERIFIED LIVE: Latest Novels prioritizes recently updated source chapters.');
+          NODE
