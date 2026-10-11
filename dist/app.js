@@ -44,7 +44,7 @@ function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(l
 function releaseTimeLabel(n,now=Date.now()){
   const exact=String(n.lastChapterAddedAt||'').trim();
   const timestamp=Date.parse(exact);
-  if(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(exact)&&Number.isFinite(timestamp)){
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(exact)&&Number.isFinite(timestamp)){
     const age=Math.max(0,Number(now)-timestamp);
     let label;
     if(age<60000)label='Just now';
@@ -54,7 +54,7 @@ function releaseTimeLabel(n,now=Date.now()){
     return {label,dateTime:exact,full:'Added to NovelHaven: '+exact};
   }
   const date=String(n.updated||'').slice(0,10);
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
   const millis=Date.parse(date+'T00:00:00Z');
   if(!Number.isFinite(millis))return {label:'Recent update',dateTime:'',full:'Catalog update date unavailable'};
   const label='Updated '+new Date(millis).toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'});
