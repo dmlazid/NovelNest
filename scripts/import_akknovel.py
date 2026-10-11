@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from io import BytesIO
 import math
 import os
@@ -571,14 +572,24 @@ def ensure_cover(raw: str, cfg: dict, p: dict):
 
 def ensure_index_registration(key: str) -> None:
     index_path = DIST / "index.html"
+    catalog_path = DIST / f"licensed-akk-{key}.js"
     html = index_path.read_text(encoding="utf-8")
-    tag = f'<script defer src="licensed-akk-{key}.js"></script>'
-    if tag in html:
-        return
-    anchor = '<script defer src="licensed-supreme-magus.js"></script>'
-    if anchor not in html:
-        raise RuntimeError("Could not locate licensed script anchor in index.html")
-    index_path.write_text(html.replace(anchor, anchor + tag), encoding="utf-8")
+    # Content fingerprint prevents a returning phone from loading an older
+    # catalog after new chapters have been imported. Import dates never
+    # influence publication times or Latest Releases ordering.
+    revision = hashlib.sha256(catalog_path.read_bytes()).hexdigest()[:12]
+    tag = f'<script defer src="licensed-akk-{key}.js?v={revision}"></script>'
+    pattern = re.compile(r'<script defer src="licensed-akk-' + re.escape(key) +
+                         r'\.js(?:\?v=[a-zA-Z0-9_-]+)?"></script>')
+    if pattern.search(html):
+        updated = pattern.sub(lambda _: tag, html, count=1)
+    else:
+        anchor = '<script defer src="licensed-supreme-magus.js"></script>'
+        if anchor not in html:
+            raise RuntimeError("Could not locate licensed script anchor in index.html")
+        updated = html.replace(anchor, anchor + tag)
+    if updated != html:
+        index_path.write_text(updated, encoding="utf-8")
 
 
 def previous_catalog_field(catalog: Path, field: str) -> str:
