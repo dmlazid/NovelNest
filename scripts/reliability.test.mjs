@@ -161,8 +161,8 @@ test('home See more routes open novel directories instead of chapter feeds', () 
   assert.match(home, /href="\.\/#\/completed"/);
 
   h.go('#/latest-releases');
-  assert.match(h.node('#main').innerHTML, /Latest Release Novels/);
-  assert.match(h.node('#main').innerHTML, /No verified source chapter releases|home-release-row/);
+  assert.match(h.node('#main').innerHTML, /Latest Novels/);
+  assert.match(h.node('#main').innerHTML, /No novels available|home-release-row/);
   assert.doesNotMatch(h.node('#main').innerHTML, /Every available chapter/);
 
   h.go('#/latest-novels');
