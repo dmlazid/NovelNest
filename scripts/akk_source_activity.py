@@ -38,7 +38,7 @@ def latest_updated_homepage(html):
     ongoing = False
     for node in heading.next_elements:
         if isinstance(node, Tag):
-            if node.name == "footer" or (node.name in ("h1","h2","h3") and node is not heading):
+            if node.name == "footer" or (node.name in ("h1","h2","h3") and node is not heading and node.get_text(" ",strip=True).lower() in ("new series","completed series","latest updated")):
                 break
             if node.name == "a":
                 parsed = urlparse(node.get("href") or "")
