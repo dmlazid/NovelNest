@@ -11,7 +11,7 @@ fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 const sourceHtml = fs.readFileSync('dist/index.html', 'utf8');
 const scriptNames = [...sourceHtml.matchAll(/<script\b[^>]*src="([^"]+)"/g)].map(m => m[1].split('?')[0]);
-const catalogNames = scriptNames.filter(n => n === 'catalog.js' || /^licensed-(?!ui\.js)/.test(n));
+const catalogNames = scriptNames.filter(n => n === 'catalog.js' || n === 'source-activity.js' || /^licensed-(?!ui\.js)/.test(n));
 const context = vm.createContext({ window: {} });
 for (const name of ['chapter-labels.js', ...catalogNames]) vm.runInContext(fs.readFileSync('dist/' + name, 'utf8'), context);
 const novels = context.window.NOVELS;
