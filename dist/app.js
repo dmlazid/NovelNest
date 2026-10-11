@@ -442,6 +442,7 @@ function reader(id,number){const n=novels.find(x=>x.id===id),i=Number(number)-1;
 // Update only the Continue Reading card so scroll and open controls stay put.
 function refreshLibraryProgress(){
   if(!(/^#\/library(?:\?|$)/.test(location.hash||'') || /^\/library\/?$/.test(location.pathname||'')))return;
+  if((location.hash||'').includes('tab=history') || (location.search||'').includes('tab=history'))return;
   const card=main.querySelector?.('.continue-box');
   const next=continueBox();
   if(card){if(!next)card.remove();else if(card.outerHTML!==next)card.outerHTML=next;}
@@ -533,8 +534,9 @@ function copyrightPage(){return `<article class="policy-page">
   </div>
 </article>`}
 
-function renderRoute(){
-  window.dispatchEvent(new Event('novelnest:before-route'));
+function renderRoute({preserveScroll=false}={}){
+  if(!preserveScroll)window.dispatchEvent(new Event('novelnest:before-route'));
+  const oldScrollY=preserveScroll?(window.scrollY||0):0;
   let pathname=location.pathname||'/',search=location.search||'';
   let cleanNovelPath=/^\/novel\/[^/]+\/?$/.test(pathname);
   let cleanChapter=chapterPathMatch(pathname);
@@ -559,16 +561,19 @@ function renderRoute(){
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
   switch(parts[0]){case undefined:html=home();break;case 'browse':html=browse(params);title='Browse novels';break;case 'genre':{const genreName=decodeURIComponent(parts.slice(1).join('/')||'');html=genreDirectory(genreName,params);title=genreName?genreName+' Novels':'Genres';break;}case 'finder':html=finderPage(params);title='Novel Finder';break;case 'latest-releases':html=directoryPage('releases');title='Latest Novels';break;case 'latest-novels':html=directoryPage('novels');title='Latest Novels';break;case 'completed':html=directoryPage('completed');title='Completed Novels';break;case 'latest':html=`<section class="intro"><div><span class="eyebrow">Fresh from the shelf</span><h1>Latest chapters</h1><p class="muted">Every available chapter, with the latest additions first.</p></div></section><div class="chapter-list">${latestRows()}</div>`;title='Latest chapters';break;case 'novel':html=detail(parts[1]);title=novels.find(n=>n.id===parts[1])?.title||'Not found';break;case 'read':html=reader(parts[1],parts[2]);title=`${novels.find(n=>n.id===parts[1])?.title||'Not found'} · ${chapterTitle(novels.find(n=>n.id===parts[1])?.chapters[Number(parts[2])-1])}`;break;case 'library':html=library(params);title='My library';break;case 'reading-desk':html=readingDesk();title='Reading Desk';break;case 'editorial':html=editorial(parts[1]);title=EDITORIALS[parts[1]]?.title||'Reading Desk';break;case 'about':html=about();title='About NovelHaven';break;case 'privacy':html=privacy();title='Privacy Policy';break;case 'terms':html=terms();title='Terms of Use';break;case 'contact':html=contact();title='Contact';break;case 'copyright':html=copyrightPage();title='Copyright & Takedown';break;default:html=missing();title='Not found'}
-  main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;window.scrollTo(0,0);window.dispatchEvent(new Event('novelnest:route-rendered'));
+  if(preserveScroll && main.innerHTML===html)return;
+  main.innerHTML=html;main.querySelectorAll?.('a[href]')?.forEach(a=>{const h=a.getAttribute('href')||'';if(h.startsWith('./#/'))a.setAttribute('href',h.slice(3));else if(h.startsWith('#/'))a.setAttribute('href',h.slice(1))});document.title=`${title} — NovelHaven`;if(!preserveScroll)window.scrollTo(0,0);
+  else if((window.scrollY||0)!==oldScrollY)window.scrollTo(0,oldScrollY);
+  window.dispatchEvent(new Event('novelnest:route-rendered'));
 }
 // Keep the current page visible until the next page is ready to paint.
 // Reduced-motion and older browsers keep the original immediate navigation.
-function route({animate=false}={}){
+function route({animate=false,preserveScroll=false}={}){
   const reduceMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if(animate&&!reduceMotion&&typeof document.startViewTransition==='function'){
+  if(animate&&!preserveScroll&&!reduceMotion&&typeof document.startViewTransition==='function'){
     try{const transition=document.startViewTransition(()=>renderRoute());transition.finished.catch(()=>{});return}catch(_){/* Native transition unavailable; render normally. */}
   }
-  renderRoute();
+  renderRoute({preserveScroll});
 }
 main.addEventListener('submit',e=>{
   if(e.target.matches('.search-form')){
