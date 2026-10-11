@@ -1,0 +1,35 @@
+name: Audit live novel chapter availability
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/audit-live-farming-chapters.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect live chapter 17 18 19 and metadata (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://novelhaven.top'
+          id='farming-cultivating-immortality'
+          for p in "/" "/novel/$id/" "/novel/$id/chapter-17/" "/novel/$id/chapter-18/" "/novel/$id/chapter-19/" "/licensed-akk-farming-immortality.js" "/data/akk-farming-immortality-chapters-01.js" "/_internal/novels.json"; do
+            tmp="$(mktemp)"
+            status=$(curl -LsS --connect-timeout 12 --max-time 25 -A 'NovelHaven-Live-Audit/1.0' -H 'Cache-Control: no-cache' -o "$tmp" -w '%{http_code}' "$origin$p?novelhaven-audit=20261011" || echo 000)
+            size=$(wc -c < "$tmp")
+            chapter='no'
+            grep -q 'data-static-chapter="farming-cultivating-immortality"' "$tmp" && chapter='yes'
+            failed='no'
+            grep -q 'This chapter is temporarily unavailable\|This chapter could not load\|Page not found' "$tmp" && failed='yes'
+            app=$(grep -Eo 'src="app.js\?v=[^"]+' "$tmp" | head -1 || true)
+            count=$(grep -Eo '"number":19' "$tmp" | wc -l)
+            echo "LIVE_CHECK path=$p status=$status bytes=$size readable_static_chapter=$chapter failure_body=$failed app_version=$app chapter19_mention=$count"
+            if [ "$p" = "/novel/$id/chapter-18/" ] || [ "$p" = "/novel/$id/chapter-19/" ]; then
+              echo "CHAPTER_FIRST_BYTES_$(basename "$p")=$(head -c 200 "$tmp" | tr '\n' ' ' | sed 's/</[/g')"
+            fi
+            rm -f "$tmp"
+          done
