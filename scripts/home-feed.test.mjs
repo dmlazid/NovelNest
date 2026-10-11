@@ -37,12 +37,12 @@ test('unavailable newly released chapter never points to a nonexistent local cha
   assert.match(waiting,/Syncing chapter to NovelHaven/);
   const ready=view('homeReleaseRow(novels[1])');
   assert.match(ready,/href="\/novel\/ready\/chapter-3\/"/);
-  assert.match(ready,/Detected 4 mins ago/);
+  assert.match(ready,/New chapter detected/);
 });
 test('timestamps are detection times, not imported-at or catalog-updated times',()=>{
   const view=harness([book('a')]),now=Date.parse('2026-10-11T09:00:00Z');
   const time=view("releaseTimeLabel({sourceReleaseAt:'2026-10-11T08:56:00Z',lastChapterAddedAt:'2026-10-11T08:59:00Z'},"+now+")");
-  assert.equal(time.label,'Detected 4 mins ago');
+  assert.equal(time.label,'New chapter detected');
   const wrong=view("releaseTimeLabel({updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'},"+now+")");
   assert.equal(wrong.label,'Source update');
 });
@@ -56,4 +56,14 @@ test('source release directory shows actual latest source numbers and time',()=>
   assert.match(html,/Detected source chapters · last 7 days/);
   assert.match(html,/source-updated/);
   assert.doesNotMatch(html,/old-backfill/);
+});
+
+test('verified source publication time is distinguished from import detection',()=>{
+  const n=source('published',{sourcePublishedAt:'2026-10-11T08:56:00Z',sourcePublishedChapter:3,sourcePublishedVerified:true});
+  const view=harness([n]);
+  const time=view("releaseTimeLabel(novels[0],Date.parse('2026-10-11T09:00:00Z'))");
+  assert.equal(time.label,'4 mins ago');
+  assert.match(time.full,/Verified original source publication/);
+  const wrong=harness([source('mismatch',{sourcePublishedAt:'2026-10-11T08:56:00Z',sourcePublishedChapter:2,sourcePublishedVerified:true})]);
+  assert.equal(wrong("releaseTimeLabel(novels[0])").label,'New chapter detected');
 });
