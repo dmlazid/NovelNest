@@ -1,6 +1,21 @@
 (() => {
   const pending = new Set();
   const failed = new Set();
+  const attempts = new Map();
+  const MAX_ATTEMPTS = 3;
+
+  function retryLoad(key, script) {
+    script?.remove();
+    pending.delete(key);
+    const count = (attempts.get(key) || 0) + 1;
+    attempts.set(key, count);
+    if (count < MAX_ATTEMPTS && currentTarget()?.key === key) {
+      setTimeout(() => { if (currentTarget()?.key === key) hydrateCurrent(); }, 600 * count);
+      return;
+    }
+    failed.add(key);
+    showError(key);
+  }
 
   function currentTarget() {
     const hashMatch = location.hash.match(/^#\/read\/([^/]+)\/(\d+)$/);
@@ -69,19 +84,36 @@
     }
     const file = `${novel.lazyChunks.prefix}${String(chunk).padStart(2, '0')}.js`;
     const script = document.createElement('script');
-    script.src = '/' + (window.NOVELNEST_ASSETS?.[file] || file).replace(/^\/+/, '');
+    const base = '/' + (window.NOVELNEST_ASSETS?.[file] || file).replace(/^\/+/, '');
+    // The latest import marker is a cache identifier ONLY, never a release time.
+    // Avoid mixing a new chapter catalog with a cached older text chunk.
+    const revision = String(novel.lastChapterAddedAt || novel.chapters.length);
+    const attempt = attempts.get(key) || 0;
+    script.src = base + (base.includes('?') ? '&' : '?') +
+      'v=' + encodeURIComponent(revision) +
+      (attempt ? '&retry=' + attempt + '-' + Date.now() : '');
     script.dataset.lazyChapterChunk = key;
+    let settled = false;
+    const watchdog = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      script.onload = null; script.onerror = null;
+      retryLoad(key, script);
+    }, 22000);
     script.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
       pending.delete(key);
-      if (!findLoaded(novel, number)) failed.add(key);
-      // A slow previous request must not reset the current reader's scroll.
+      if (!findLoaded(novel, number)) { retryLoad(key, script); return; }
+      attempts.delete(key);
       if (currentTarget()?.key === key) hydrateCurrent();
     };
     script.onerror = () => {
-      pending.delete(key);
-      failed.add(key);
-      script.remove();
-      showError(key);
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
+      retryLoad(key, script);
     };
     document.head.appendChild(script);
   }
@@ -91,6 +123,7 @@
     const target = currentTarget();
     if (!target) return;
     failed.delete(target.key);
+    attempts.delete(target.key);
     const prose = document.querySelector('.prose');
     if (prose) prose.innerHTML = '<p>Loading chapter…</p>';
     hydrateCurrent();
