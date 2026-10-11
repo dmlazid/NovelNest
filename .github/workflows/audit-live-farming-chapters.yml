@@ -48,6 +48,30 @@ jobs:
             if grep -q 'This chapter could not load' "$page"; then echo "BROWSER_STATUS $num FAILED_CANNOT_LOAD"; fi
             if grep -q 'Loading chapter…' "$page"; then echo "BROWSER_STATUS $num STILL_LOADING"; fi
             if grep -q 'Chapter $num:' "$page" && ! grep -q 'This chapter could not load' "$page"; then echo "BROWSER_STATUS $num VISIBLE_TITLE"; fi
+            if [ "$num" = 18 ] && ! grep -Fq 'The Qin family had only recently embarked on the path of cultivation.' "$page"; then
+              echo "::error::Chapter 18 is still not rendering real text on the live reader."
+              exit 1
+            fi
+            if [ "$num" = 19 ] && ! grep -Fq 'The Condensing Dew Grass was in worse shape with each passing day.' "$page"; then
+              echo "::error::Chapter 19 is still not rendering real text on the live reader."
+              exit 1
+            fi
             echo "BROWSER_ERRORS $num:"
             grep -Ei 'ERR_|Uncaught|SyntaxError|TypeError|ReferenceError|Failed to load' "/tmp/farming-browser-$num.log" | head -n 8 || true
           done
+      - name: Confirm Cloudflare serves fresh catalog and retrying reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' \
+              'https://novelhaven.top/?check-catalog=20261011' > /tmp/nh-index.html || true
+            if grep -Eq 'licensed-akk-farming-immortality.js\\?v=[A-Za-z0-9_-]+' /tmp/nh-index.html &&
+              grep -q 'lazy-chapters.js?v=20261011-retry-chapter-1' /tmp/nh-index.html; then
+              echo 'VERIFIED LIVE: versioned 19-chapter catalog and automatic retry loader are deployed.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo '::error::Cloudflare still serving outdated reader scripts.'
+          exit 1
