@@ -67,22 +67,48 @@ function homeNovelTile(n){
     </span>
   </a>`;
 }
-// Hand-picked featured stories. Source identity is internal metadata, never
-// used as an on-site category, recommendation label, or promotional claim.
-const FEATURED_NOVEL_IDS=[
-  'after-rebirth-i-was-forced-to-become-the-mafia-princess',
-  'ah-the-villains-i-forced-to-turn-evil-can-read-my-mind',
-  'my-beloved-concubine-only-wants-to-eat-melons',
-  'an-innocent-girl-seeking-a-husband-was-deceived-and-married-a-childless-officer-crying-with-emotion',
-  'xianxia-inn-management-rpg',
-  'eastern-palaces-devout-yet-amorous-consort',
-  'freeloading-daily-but-the-system-makes-me-a-big-spender'
-];
+// A real recent-release list: only novels marked ongoing with a populated
+// chapter list and a catalog update during the last seven calendar days.
+// "updated" is the available catalog update date; use a chapter-specific date
+// if an importer provides one in future. Completed works never qualify.
+const RELEASE_DAYS=7;
+function latestOngoingReleases(all,now=Date.now()){
+  const day=86400000;
+  const clock=Number(now);
+  return all.filter(n=>{
+    if(String(n.status||'').trim().toLowerCase()!=='ongoing'||n.externalUrl||!n.chapters?.length)return false;
+    const update=String(n.lastChapterAddedAt||n.releaseUpdated||n.updated||'').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(update))return false;
+    const ms=Date.parse(update+'T00:00:00Z');
+    return Number.isFinite(ms)&&Number.isFinite(clock)&&ms<=clock+day&&clock-ms<RELEASE_DAYS*day+day;
+  }).sort((a,b)=>{
+    const aDate=String(a.lastChapterAddedAt||a.releaseUpdated||a.updated||'');
+    const bDate=String(b.lastChapterAddedAt||b.releaseUpdated||b.updated||'');
+    return bDate.localeCompare(aDate)||b.chapters.length-a.chapters.length||a.title.localeCompare(b.title);
+  });
+}
+function shuffledNovels(items){
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+// Shuffle the featured area on every page load, without source-based labels.
+// Within the same tab, avoid repeating the previous seven highlighted books
+// whenever the catalog has enough alternatives.
 function featuredNovels(sorted){
-  const byId=new Map(sorted.filter(n=>n.chapters?.length&&!n.externalUrl).map(n=>[n.id,n]));
-  const picks=FEATURED_NOVEL_IDS.map(id=>byId.get(id)).filter(Boolean);
-  const selected=new Set(picks.map(n=>n.id));
-  return [...picks,...sorted.filter(n=>!selected.has(n.id))];
+  const candidates=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&n.cover));
+  let previouslyShown=[];
+  try{
+    const stored=JSON.parse(window.sessionStorage?.getItem('novelhaven.previousFeatured')||'[]');
+    if(Array.isArray(stored))previouslyShown=stored;
+  }catch{}
+  const previous=new Set(previouslyShown);
+  const reordered=[...candidates.filter(n=>!previous.has(n.id)),...candidates.filter(n=>previous.has(n.id))];
+  try{window.sessionStorage?.setItem('novelhaven.previousFeatured',JSON.stringify(reordered.slice(0,7).map(n=>n.id)))}catch{}
+  return reordered;
 }
 function homeTopFeature(n){
   return `<a class="home-top-feature" href="${bookUrl(n)}">
@@ -114,9 +140,12 @@ function home(){
   const featured=featuredNovels(sorted);
   const topFeatures=featured.slice(0,4);
   const topRows=featured.slice(4,7);
-  const releases=sorted.slice(0,10);
-  const latestNovels=sorted.slice(0,6);
-  const completed=sorted.filter(n=>n.status==='Completed').slice(0,6);
+  // Recent releases must remain chronological, unlike the discovery cards.
+  const releases=latestOngoingReleases(novels).slice(0,10);
+  const displayed=new Set([...topFeatures,...topRows].map(n=>n.id));
+  const latestNovels=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
+  latestNovels.forEach(n=>displayed.add(n.id));
+  const completed=shuffledNovels(sorted.filter(n=>n.status==='Completed'&&n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
   return `<div class="home-feed">
     <section class="home-showcase" aria-label="Featured novels">
       <div class="home-top-grid">${topFeatures.map(homeTopFeature).join('')}</div>
@@ -124,7 +153,7 @@ function home(){
     </section>
     <section class="home-feed-section home-release-section">
       <div class="home-feed-head"><h1><span aria-hidden="true">↻</span> Latest Release Novels</h1><a href="./#/latest-releases">See more</a></div>
-      <div class="home-release-list">${releases.map(homeReleaseRow).join('')}</div>
+      ${releases.length?'<div class="home-release-list">'+releases.map(homeReleaseRow).join('')+'</div>':'<p class="home-empty">No ongoing novels have a recent chapter update listed this week. Check back for new releases.</p>'}
     </section>
     <section class="home-feed-section">
       <div class="home-feed-head"><h2><span aria-hidden="true">↻</span> Latest Novels</h2><a href="./#/latest-novels">See more</a></div>
@@ -234,15 +263,16 @@ function directoryRow(n){
 }
 function directoryPage(kind){
   const settings={
-    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Fresh updates',description:'Novels with the newest chapter updates first.'},
+    releases:{title:'Latest Release Novels',icon:'↻',eyebrow:'Ongoing · past seven days',description:'Ongoing stories with a recent update date, newest first. Finished stories are excluded.'},
     novels:{title:'Latest Novels',icon:'↻',eyebrow:'New on NovelHaven',description:'Browse the latest novels available in the NovelHaven catalog.'},
     completed:{title:'Completed Novels',icon:'✓',eyebrow:'Finished stories',description:'Complete novels you can read from beginning to end.'}
   };
   const cfg=settings[kind]||settings.novels;
   let results=[...novels];
-  if(kind==='completed') results=results.filter(n=>n.status==='Completed');
+  if(kind==='releases') results=latestOngoingReleases(novels);
+  else if(kind==='completed') results=results.filter(n=>n.status==='Completed');
   if(kind==='novels') results.sort((a,b)=>b.updated.localeCompare(a.updated)||a.title.localeCompare(b.title));
-  else results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
+  else if(kind!=='releases') results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
     <section class="directory-shell">
@@ -251,8 +281,8 @@ function directoryPage(kind){
         <h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1>
         <p>${esc(cfg.description)}</p>
       </header>
-      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><a aria-current="page" href="./#/latest-releases">All novels</a><a href="./#/completed">Completed</a></nav>':''}
-      ${results.length?`<div class="directory-novel-list">${results.map(directoryRow).join('')}</div>`:'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
+      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Ongoing · last 7 days</span><a href="./#/completed">Completed novels</a></nav>':''}
+      ${results.length?`<div class="directory-novel-list">${results.map(directoryRow).join('')}</div>`:kind==='releases'?'<div class="empty"><h2>No recent ongoing updates</h2><p>Check back when new chapters are added to an ongoing story.</p></div>':'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
     </section>
   </div>`;
 }
