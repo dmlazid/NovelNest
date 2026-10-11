@@ -31,7 +31,7 @@ export function validateSite(root = 'dist') {
       const signature = fs.readFileSync(path.join(root, novel.cover)).subarray(0, 3);
       assert(signature.equals(Buffer.from([0xff, 0xd8, 0xff])), `${novel.id}: cover is not a JPEG image`);
     }
-    assert(['Ongoing', 'Completed'].includes(novel.status), `${novel.id}: invalid status`);
+    assert(['Ongoing', 'Completed', 'Importing'].includes(novel.status), `${novel.id}: invalid status`);
     const config = novel.lazyChunks;
     assert(config && Number.isInteger(config.capacity) && config.capacity > 0, `${novel.id}: invalid chunk configuration`);
     const count = Math.ceil(novel.chapters.length / config.capacity);
