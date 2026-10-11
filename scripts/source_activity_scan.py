@@ -114,11 +114,17 @@ def read_previous():
     except ValueError:
         return {}
 
-def serialize(data):
-    payload = json.dumps(data, ensure_ascii=False, separators=(",",":" )).replace("<","\\u003c")
+def read_cursor():
+    if not OUTPUT.exists():
+        return 0
+    found = re.search(r"const cursor = (\d+);", OUTPUT.read_text(encoding="utf-8"))
+    return int(found.group(1)) if found else 0
+
+def serialize(data, cursor=0):
+    payload = json.dumps(data, ensure_ascii=False, separators=(",",":")).replace("<","\\u003c")
     return (
         "// Source-reported chapter activity, not NovelHaven import timestamps.\n"
-        "(() => {\n  const reports = "+payload+";\n"
+        "(() => {\n  const cursor = "+str(cursor)+";\n  const reports = "+payload+";\n"
         "  for (const n of window.NOVELS || []) {\n"
         "    if (Object.prototype.hasOwnProperty.call(reports, n.id)) Object.assign(n, reports[n.id]);\n"
         "  }\n})();\n"
@@ -126,40 +132,52 @@ def serialize(data):
 
 def scan():
     index = (DIST / "index.html").read_text(encoding="utf-8")
-    existing=read_previous()
-    results={}
-    session=requests.Session()
+    existing = read_previous()
+    results = dict(existing)
+    session = requests.Session()
     session.headers.update({"User-Agent":"Mozilla/5.0 (compatible; NovelHavenSourceUpdateChecker/1.0)", "Accept-Language":"en-US,en;q=0.9"})
-    observed=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z")
-    checked=0
+    observed = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00","Z")
+    candidates = []
     for path in sorted(DIST.glob("licensed-fwn-*.js")):
         if f'src="{path.name}"' not in index:
             continue
         n = catalog(path)
-        if not n or n.get("source")!="FreeWebNovel":
+        if not n or n.get("source") != "FreeWebNovel":
             continue
-        url=n.get("sourceUrl","")
-        parsed=urlparse(url)
-        if parsed.scheme!="https" or parsed.netloc!="freewebnovel.com":
-            continue
-        checked+=1
+        parsed = urlparse(n.get("sourceUrl",""))
+        if parsed.scheme == "https" and parsed.netloc == "freewebnovel.com":
+            candidates.append(n)
+    if not candidates:
+        raise RuntimeError("No registered sources found; refusing to overwrite source activity")
+    offset = read_cursor() % len(candidates)
+    max_per_scan = 20
+    checked = 0
+    for i in range(min(max_per_scan, len(candidates))):
+        n = candidates[(offset + i) % len(candidates)]
+        url = n["sourceUrl"]
+        checked += 1
         try:
-            response=session.get(url,timeout=22)
+            response = session.get(url, timeout=22)
+            # Honor rate limits immediately rather than hammering blocked pages.
+            if response.status_code == 429:
+                checked -= 1
+                print(f"Source rate-limited requests. Deferring remaining novels until next run; retry from {n['id']}.",flush=True)
+                break
             response.raise_for_status()
-            current=source_activity(n,response.text,observed)
+            current = source_activity(n,response.text,observed)
             if current:
-                results[n["id"]]=current
-                print(f"{n['id']}: source reports chapter {current['sourceActivityChapter']} ~{current['sourceActivityAgeSeconds']}s ago",flush=True)
+                results[n["id"]] = current
+                print(f"{n['id']}: source chapter {current['sourceActivityChapter']}, age ~{current['sourceActivityAgeSeconds']}s",flush=True)
+            else:
+                results.pop(n["id"],None)
         except (requests.RequestException, ValueError) as ex:
-            # Retain the previous observation for temporary source failures.
-            if n["id"] in existing:
-                results[n["id"]]=existing[n["id"]]
-            print(f"WARNING {n['id']}: {str(ex)[:150]}",file=sys.stderr,flush=True)
-        time.sleep(0.15)
-    if checked==0:
-        raise RuntimeError("No registered FreeWebNovel series found; refusing to overwrite source activity")
-    OUTPUT.write_text(serialize(results),encoding="utf-8")
-    print(f"Checked {checked} registered series; {len(results)} sources reported activity in the last 7 days.",flush=True)
+            # Keep the previous verified observation, never infer a new date.
+            print(f"WARNING {n['id']}: {str(ex)[:150]}", file=sys.stderr, flush=True)
+        if i+1 < max_per_scan:
+            time.sleep(3.2)
+    next_cursor = (offset + checked) % len(candidates)
+    OUTPUT.write_text(serialize(results, next_cursor), encoding="utf-8")
+    print(f"Checked {checked}/{len(candidates)} source pages, next cursor {next_cursor}; {len(results)} recorded activity snapshots.",flush=True)
 
 if __name__=="__main__":
     scan()
