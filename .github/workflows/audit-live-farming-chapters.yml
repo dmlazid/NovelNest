@@ -66,7 +66,7 @@ jobs:
           for attempt in 1 2 3 4 5 6; do
             curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' \
               'https://novelhaven.top/?check-catalog=20261011' > /tmp/nh-index.html || true
-            if grep -Eq 'licensed-akk-farming-immortality.js\\?v=[A-Za-z0-9_-]+' /tmp/nh-index.html &&
+            if grep -Fq 'licensed-akk-farming-immortality.js?v=' /tmp/nh-index.html &&
               grep -q 'lazy-chapters.js?v=20261011-retry-chapter-1' /tmp/nh-index.html; then
               echo 'VERIFIED LIVE: versioned 19-chapter catalog and automatic retry loader are deployed.'
               exit 0
