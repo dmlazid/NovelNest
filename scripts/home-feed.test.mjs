@@ -53,7 +53,7 @@ test('empty actual releases list shows a truthful explanation',()=>{
 });
 test('source release directory shows actual latest source numbers and time',()=>{
   const html=harness([source('source-updated'),book('old-backfill')])("directoryPage('releases')");
-  assert.match(html,/Detected source chapters · last 7 days/);
+  assert.match(html,/Source chapter updates · last 5 days/);
   assert.match(html,/source-updated/);
   assert.doesNotMatch(html,/old-backfill/);
 });
@@ -68,12 +68,12 @@ test('verified source publication time is distinguished from import detection',(
   assert.equal(wrong("releaseTimeLabel(novels[0])").label,'New chapter detected');
 });
 
-test('source-reported 5-day chapters appear even before tracking baseline; old imports do not',()=>{
+test('source-reported chapters within five days appear even before tracking baseline; old imports do not',()=>{
   const reported=book('source-five-days',{
     sourceIsOngoing:true,
     sourceActivityVerified:true,sourceActivityIsOngoing:true,
     sourceActivityObservedAt:'2026-10-11T08:59:00Z',
-    sourceActivityAgeSeconds:5*86400,sourceActivityChapter:5,
+    sourceActivityAgeSeconds:4*86400,sourceActivityChapter:5,
     sourceActivityTitle:'Chapter 5: Real source update',
     chapters:Array.from({length:3},(_,i)=>({title:'Chapter '+(i+1)}))
   });
@@ -85,7 +85,7 @@ test('source-reported 5-day chapters appear even before tracking baseline; old i
   assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['source-five-days']);
   const markup=view('homeReleaseRow(novels[1])');
   assert.match(markup,/Chapter 5: Real source update/);
-  assert.match(markup,/Source: about 5 days ago/);
+  assert.match(markup,/Source: about 4 days ago/);
   assert.match(markup,/Syncing chapter to NovelHaven/);
 });
 test('source-reported hourly activity sorts ahead of older source updates',()=>{
@@ -96,4 +96,28 @@ test('source-reported hourly activity sorts ahead of older source updates',()=>{
   const view=harness([one,newer]);
   assert.deepEqual(Array.from(view('latestOngoingReleases(novels)'), n=>n.id),['reported','detected']);
   assert.match(view('homeReleaseRow(novels[1])'),/Source: about 1 hour ago/);
+});
+
+test('five-day rolling cutoff excludes older source reports and import-only changes',()=>{
+  const now='2026-10-11T09:00:00Z';
+  const report=(id,age,status='Ongoing')=>book(id,{status,
+    sourceActivityVerified:true,sourceActivityIsOngoing:true,
+    sourceActivityObservedAt:now,sourceActivityAgeSeconds:age,
+    sourceActivityChapter:3,sourceActivityTitle:'Chapter 3'});
+  const view=harness([report('within',4*86400),report('exactly-five',5*86400),
+    report('over-five',6*86400),report('source-ongoing-cached-completed',3600,'Completed'),
+    book('just-imported',{lastChapterAddedAt:now})],now);
+  const shown=Array.from(view('latestOngoingReleases(novels)'),n=>n.id);
+  assert.deepEqual(shown,['source-ongoing-cached-completed','within']);
+  assert.equal((view('home()').match(/class="home-release-row"/g)||[]).length,2);
+});
+test('homepage includes every five-day source update without top ten truncation',()=>{
+  const rows=Array.from({length:13},(_,i)=>book('novel-'+i,{
+    sourceActivityVerified:true,sourceActivityIsOngoing:true,
+    sourceActivityObservedAt:'2026-10-11T09:00:00Z',
+    sourceActivityAgeSeconds:(i+1)*3600,sourceActivityChapter:3,
+    sourceActivityTitle:'Chapter 3'}));
+  const view=harness(rows);
+  assert.equal((view('home()').match(/class="home-release-row"/g)||[]).length,13);
+  assert.equal(Array.from(view('latestOngoingReleases(novels)')).length,13);
 });

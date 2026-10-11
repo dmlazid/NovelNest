@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
-from akk_source_activity import source_update as akk_source_update
+from akk_source_activity import source_update as akk_source_update, latest_updated_homepage
 
 DIST = Path("dist")
 OUTPUT = DIST / "source-activity.js"
@@ -56,7 +56,7 @@ def source_activity(novel, page, observed):
         tag.decompose()
     text = soup.get_text(" ", strip=True)
     age = report_seconds(text)
-    if age is None or age > 7*86400:
+    if age is None or age >= 5*86400:
         return None
     # Status must belong to the series, before the latest chapter list.
     prefix = text.split("6 Latest Chapters", 1)[0]
@@ -124,7 +124,7 @@ def read_cursor():
 def read_akk_cursor():
     if not OUTPUT.exists():
         return 0
-    found = re.search(r"const akkCursor = (\\d+);", OUTPUT.read_text(encoding="utf-8"))
+    found = re.search(r"const akkCursor = (\d+);", OUTPUT.read_text(encoding="utf-8"))
     return int(found.group(1)) if found else 0
 
 def serialize(data, cursor=0, akk_cursor=0):
@@ -138,7 +138,7 @@ def serialize(data, cursor=0, akk_cursor=0):
     )
 
 def scan_akk(results, session, index, observed):
-    """Check a rotating subset of AkkNovel source tips without downloading chapters."""
+    """Scan home-reported newest chapters first, then rotate remaining titles."""
     candidates = []
     for path in sorted(DIST.glob("licensed-akk-*.js")):
         if f'src="{path.name}"' not in index:
@@ -150,35 +150,60 @@ def scan_akk(results, session, index, observed):
         if parsed.scheme == "https" and parsed.hostname in ("www.akknovel.com", "akknovel.com") and parsed.path.startswith("/series/"):
             candidates.append(novel)
     if not candidates:
-        print("No registered AkkNovel sources; leaving previous source reports untouched.", flush=True)
+        print("No registered AkkNovel sources; keeping prior records.",flush=True)
         return read_akk_cursor()
+    latest = {}
+    try:
+        response = session.get("https://www.akknovel.com/", timeout=22)
+        response.raise_for_status()
+        latest = latest_updated_homepage(response.text)
+        print(f"AkkNovel source homepage lists {len(latest)} recent ongoing series within five days.",flush=True)
+    except requests.RequestException as exc:
+        print(f"WARNING AkkNovel latest listing unavailable: {str(exc)[:120]}",file=sys.stderr,flush=True)
     offset = read_akk_cursor() % len(candidates)
-    checked = 0
     max_per_scan = 20
-    for i in range(min(max_per_scan, len(candidates))):
-        novel = candidates[(offset + i) % len(candidates)]
+    # Check eligible books on source's own most recently updated list first.
+    featured = [novel for novel in candidates
+                if novel["sourceUrl"].rstrip("/").split("/")[-1] in latest]
+    featured = sorted(featured, key=lambda n: latest[n["sourceUrl"].rstrip("/").split("/")[-1]])[:10]
+    queue = [(n,False) for n in featured]
+    # Preserve a rotating cursor so older titles also receive source checks.
+    for i in range(len(candidates)):
+        n = candidates[(offset+i) % len(candidates)]
+        if n["id"] not in {item["id"] for item,_ in queue}:
+            queue.append((n,True))
+        if len(queue)>=max_per_scan:
+            break
+    checked = 0
+    rotated = 0
+    for i,(novel,is_rotated) in enumerate(queue):
+        slug = novel["sourceUrl"].rstrip("/").split("/")[-1]
         try:
-            response = session.get(novel["sourceUrl"], timeout=22)
+            response = session.get(novel["sourceUrl"],timeout=22)
             if response.status_code == 429:
-                print(f"AkkNovel rate limit reached; resuming at {novel['id']} next time.",flush=True)
+                print(f"AkkNovel rate limit; deferring remaining series from {novel['id']}.",flush=True)
                 break
             response.raise_for_status()
-            report = akk_source_update(novel, response.text, observed, results.get(novel["id"]))
+            report = akk_source_update(novel,response.text,observed,results.get(novel["id"]),latest.get(slug))
             if report is None:
-                print(f"Could not confirm chapter/status on AkkNovel for {novel['id']}; preserving earlier data.",flush=True)
+                print(f"AkkNovel source not verified for {novel['id']}, leaving previous record.",flush=True)
             else:
-                old_tip = int(results.get(novel["id"], {}).get("sourceScanObservedTip") or novel.get("sourceObservedChapter") or 0)
+                old_tip = int(results.get(novel["id"],{}).get("sourceScanObservedTip")
+                              or novel.get("sourceObservedChapter") or 0)
                 if report.get("sourceReleaseNumber") and int(report["sourceReleaseNumber"]) > old_tip:
-                    print(f"AkkNovel new SOURCE chapter: {novel['id']} #{report['sourceReleaseNumber']} (detected, publication date unknown)",flush=True)
+                    print(f"AkkNovel SOURCE chapter growth: {novel['id']} #{report['sourceReleaseNumber']}",flush=True)
+                if report.get("sourceActivityVerified") and slug in latest:
+                    print(f"AkkNovel Latest Updated: {novel['id']} #{report['sourceActivityChapter']} (~{latest[slug]} seconds ago)",flush=True)
                 results[novel["id"]] = report
-            checked += 1
         except (requests.RequestException, ValueError) as exc:
-            print(f"WARNING AkkNovel {novel['id']}: {str(exc)[:150]}",file=sys.stderr,flush=True)
-            checked += 1
-        if i + 1 < max_per_scan:
+            print(f"WARNING AkkNovel {novel['id']}: {str(exc)[:120]}",file=sys.stderr,flush=True)
+        checked += 1
+        if is_rotated:
+            rotated += 1
+        if i+1 < len(queue):
             time.sleep(1.5)
-    next_cursor = (offset + checked) % len(candidates)
-    print(f"Checked {checked}/{len(candidates)} AkkNovel source pages; next cursor {next_cursor}.",flush=True)
+    next_cursor = (offset+rotated) % len(candidates)
+    print(f"Checked {checked}/{len(candidates)} AkkNovel series; next cursor {next_cursor}.",flush=True)
     return next_cursor
 
 def scan():

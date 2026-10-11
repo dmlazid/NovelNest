@@ -130,13 +130,13 @@ function homeNovelTile(n){
 }
 // Genuine releases are SOURCE chapter-tip increases compared with prior
 // observations. Uploading old chapters or changing an import date never counts.
-const RELEASE_DAYS=7;
+const RELEASE_DAYS=5;
 function latestOngoingReleases(all,now=Date.now()){
   const clock=Number(now);
   return all.filter(n=>{
     if(n.externalUrl||!n.chapters?.length)return false;
     const src=sourceActivityTime(n);
-    const sourceRecent=n.status!=='Completed'&&Number.isFinite(src)&&src<=clock+60000&&clock-src<RELEASE_DAYS*86400000;
+    const sourceRecent=n.sourceActivityIsOngoing===true&&Number.isFinite(src)&&src<=clock+60000&&clock-src<RELEASE_DAYS*86400000;
     const detected=Date.parse(n.sourceReleaseAt||'');
     const number=Number(n.sourceReleaseNumber);
     const observedRecent=n.sourceIsOngoing===true&&Number.isInteger(number)&&number>0&&
@@ -200,7 +200,7 @@ function home(){
   const topFeatures=featured.slice(0,4);
   const topRows=featured.slice(4,7);
   // Recent releases must remain chronological, unlike the discovery cards.
-  const releases=latestOngoingReleases(novels).slice(0,10);
+  const releases=latestOngoingReleases(novels);
   const displayed=new Set([...topFeatures,...topRows].map(n=>n.id));
   const latestNovels=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
   latestNovels.forEach(n=>displayed.add(n.id));
@@ -340,7 +340,7 @@ function directoryPage(kind){
         <h1><span aria-hidden="true">${cfg.icon}</span> ${esc(cfg.title)}</h1>
         <p>${esc(cfg.description)}</p>
       </header>
-      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Detected source chapters · last 7 days</span><a href="./#/completed">Completed novels</a></nav>':''}
+      ${kind==='releases'?'<nav class="directory-switch" aria-label="Novel status"><span aria-current="page">Source chapter updates · last 5 days</span><a href="./#/completed">Completed novels</a></nav>':''}
       ${results.length?`<div class="directory-novel-list">${(kind==='releases'?results.map(homeReleaseRow):results.map(directoryRow)).join('')}</div>`:kind==='releases'?'<div class="empty"><h2>No verified source chapter releases</h2><p>New releases appear when a source adds chapters after its first check.</p></div>':'<div class="empty"><h2>No novels here yet.</h2><p>More stories will appear here when they are available.</p></div>'}
     </section>
   </div>`;

@@ -217,7 +217,7 @@ test('See More directories keep the approved clean novel-list layout', () => {
   let html = h.node('#main').innerHTML;
   assert.match(html, /Latest Release Novels/);
   assert.match(html, /No verified source chapter releases|home-release-row/);
-  assert.match(html, /Detected source chapters · last 7 days/);
+  assert.match(html, /Source chapter updates · last 5 days/);
   assert.match(html, /Completed novels/);
   assert.doesNotMatch(html, /href="\/novel\/legend-of-swordsman\//,
     'Completed novels must not appear in recent releases');
