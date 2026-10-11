@@ -113,3 +113,22 @@ class AkkHomepageTimeTests(unittest.TestCase):
         self.assertEqual(n["sourceActivityObservedAt"],"2026-10-11T09:00:00Z")
         completed=akk_source_update(AKK_BOOK,AKK_HTML.replace("OnGoing","Completed"),"2026-10-11T09:00:00Z",homepage_age=3600)
         self.assertNotIn("sourceActivityAgeSeconds",completed)
+
+
+class IndependentSourceCheckpointRegressionTests(unittest.TestCase):
+    def test_importer_checkpoint_does_not_hide_new_akk_chapters(self):
+        # Scanner saw chapter 280. Importer reached 282 before next scanner run.
+        # This MUST still be recorded as a new source chapter release.
+        prior = {"sourceScanObservedTip":280,"sourceScanObservedAt":"2026-10-11T07:00:00Z"}
+        importer_ahead = {**AKK_BOOK, "sourceObservedChapter":282,
+                          "lastChapterAddedAt":"2026-10-11T08:59:00Z"}
+        result = akk_source_update(importer_ahead, AKK_HTML,"2026-10-11T09:00:00Z",prior)
+        self.assertEqual(result["sourceReleaseNumber"],282)
+        self.assertEqual(result["sourceReleaseAt"],"2026-10-11T09:00:00Z")
+        # Once detected, refreshes must not turn import activity into another release.
+        again=akk_source_update(importer_ahead,AKK_HTML,"2026-10-11T10:00:00Z",result)
+        self.assertEqual(again["sourceReleaseAt"],"2026-10-11T09:00:00Z")
+    def test_old_baseline_still_not_called_new_on_first_scan(self):
+        initial={**AKK_BOOK,"sourceObservedChapter":282,"lastChapterAddedAt":"2026-10-11T08:59:00Z"}
+        result=akk_source_update(initial,AKK_HTML,"2026-10-11T09:00:00Z")
+        self.assertNotIn("sourceReleaseAt",result)
