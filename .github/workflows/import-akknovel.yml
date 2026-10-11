@@ -69,14 +69,43 @@ jobs:
           pass=0
 
           push_with_rebase() {
+            local catalog_key="${1:-}"
             pushed=0
             for attempt in 1 2 3 4 5; do
               git fetch origin main
               if ! git rebase origin/main; then
-                git rebase --abort || true
-                echo "Rebase raced with another updater; retrying ($attempt/5)..."
-                sleep 3
-                continue
+                # Importers edit dist/index.html to register new books, while
+                # other updates may edit the same file for home/AdSense fixes.
+                # Resolve ONLY an index-only conflict by taking the newer
+                # upstream index and reinserting this one approved script tag.
+                # Never auto-choose sides on catalog/chapter conflicts.
+                unmerged="$(git diff --name-only --diff-filter=U)"
+                if [ -n "$catalog_key" ] && [ "$unmerged" = "dist/index.html" ]; then
+                  echo "Preserving current site index and merging approved novel: $catalog_key"
+                  git checkout --ours -- dist/index.html
+                  if ! python - "$catalog_key" <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          import import_akknovel as importer
+          key = sys.argv[1]
+          if not (importer.DIST / f"licensed-akk-{key}.js").is_file():
+              raise SystemExit("Missing approved novel metadata; refusing index merge")
+          importer.ensure_index_registration(key)
+          PY
+                  then
+                    git rebase --abort || true
+                    return 1
+                  fi
+                  git add dist/index.html
+                  if ! GIT_EDITOR=true git rebase --continue; then
+                    git rebase --abort || true
+                    return 1
+                  fi
+                else
+                  git rebase --abort || true
+                  echo "Unsafe rebase conflict: cannot automatically merge; retry later."
+                  return 1
+                fi
               fi
               if git push origin HEAD:main; then
                 pushed=1
@@ -134,7 +163,7 @@ jobs:
 
               pass_progress=1
               git commit -m "Auto-update AkkNovel $key (pass $pass)"
-              push_with_rebase || exit 1
+              push_with_rebase "$key" || exit 1
               echo "$key checkpoint saved."
             done
 
