@@ -44,7 +44,7 @@ function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(l
 function sourcePublicationTime(n){
   const published=String(n.sourcePublishedAt||'').trim();
   const number=Number(n.sourcePublishedChapter);
-  const valid=/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(published)&&Number.isFinite(Date.parse(published));
+  const valid=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(published)&&Number.isFinite(Date.parse(published));
   return valid&&number===Number(n.sourceReleaseNumber)&&n.sourcePublishedVerified===true?published:'';
 }
 function releaseSortTime(n){return sourcePublicationTime(n)||String(n.sourceReleaseAt||'')}
@@ -63,7 +63,7 @@ function releaseTimeLabel(n,now=Date.now()){
     return {label,dateTime:exact,full:'Verified original source publication: '+exact};
   }
   // Never present import detection as original chapter publication.
-  if(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected)))
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(detected)&&Number.isFinite(Date.parse(detected)))
     return {label:'New chapter detected',dateTime:detected,full:'NovelHaven first detected source chapter growth at '+detected+'. Original publication time unavailable.'};
   return {label:'Source update',dateTime:'',full:'Original publication time unavailable'};
 }
