@@ -1,6 +1,6 @@
 import unittest
 from source_activity_scan import report_seconds, source_activity, serialize
-from akk_source_activity import source_update as akk_source_update
+from akk_source_activity import source_update as akk_source_update, latest_updated_homepage, relative_seconds
 
 URL="https://freewebnovel.com/novel/dimensional-keeper-all-my-skills-are-at-level-100"
 BOOK={"id":"dimensional-keeper-all-my-skills-are-at-level-100",
@@ -31,7 +31,7 @@ class SourceActivityTests(unittest.TestCase):
         html=HTML.replace("OnGoing","Completed")
         self.assertIsNone(source_activity(BOOK,html,"2026-10-11T06:00:00Z"))
         html=HTML.replace("11 mins ago","5 days ago")
-        self.assertEqual(source_activity(BOOK,html,"2026-10-11T06:00:00Z")["sourceActivityAgeSeconds"],432000)
+        self.assertIsNone(source_activity(BOOK,html,"2026-10-11T06:00:00Z"))
         self.assertIsNone(source_activity({**BOOK,"sourceUrl":"https://example.com/novel/x"},HTML,"2026-10-11T06:00:00Z"))
     def test_source_titles_are_json_escaped_for_the_browser(self):
         output=serialize({"abc":{"sourceActivityTitle":"<script>bad</script>"}})
@@ -85,3 +85,31 @@ class AkkSourceActivityTests(unittest.TestCase):
         self.assertIn("const akkCursor = 8;",out)
         self.assertIn('"akk":',out)
         self.assertIn('"free":',out)
+
+
+AKK_HOMEPAGE = """<section><h2>New Series</h2><a href="/series/do-not-use">New Series Only</a><span>2 minutes ago</span></section>
+<section><h2>Latest Updated</h2><a href="/series">View All</a>
+<article><h3><a href="/series/transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel">Sister Game</a></h3><span>OnGoing</span><small>4 hours ago</small></article>
+<article><a href="/series/freeloading-daily-but-the-system-makes-me-a-big-spender">Freeloading</a><span>OnGoing</span><span>an hour ago</span></article>
+<article><a href="/series/completed">Completed novel</a><span>Completed</span><span>2 minutes ago</span></article>
+<article><a href="/series/five-days">Too old</a><span>OnGoing</span><span>5 days ago</span></article>
+</section><footer>Site footer</footer>"""
+class AkkHomepageTimeTests(unittest.TestCase):
+    def test_original_homepage_latest_updated_only(self):
+        self.assertEqual(relative_seconds("an hour ago"),3600)
+        self.assertEqual(relative_seconds("2 minutes ago"),120)
+        self.assertEqual(relative_seconds("yesterday"),86400)
+        self.assertIsNone(relative_seconds("Imported 2 hours ago"))
+        listing=latest_updated_homepage(AKK_HOMEPAGE)
+        self.assertEqual(listing,{
+            "transmigrated-as-the-male-leads-vegetative-sister-in-a-game-novel":14400,
+            "freeloading-daily-but-the-system-makes-me-a-big-spender":3600,
+        })
+    def test_latest_updated_time_can_activate_verified_source_chapter(self):
+        n=akk_source_update({**AKK_BOOK,"sourceObservedChapter":0},AKK_HTML,"2026-10-11T09:00:00Z",homepage_age=14400)
+        self.assertNotIn("sourceReleaseAt",n)
+        self.assertEqual(n["sourceActivityChapter"],282)
+        self.assertEqual(n["sourceActivityAgeSeconds"],14400)
+        self.assertEqual(n["sourceActivityObservedAt"],"2026-10-11T09:00:00Z")
+        completed=akk_source_update(AKK_BOOK,AKK_HTML.replace("OnGoing","Completed"),"2026-10-11T09:00:00Z",homepage_age=3600)
+        self.assertNotIn("sourceActivityAgeSeconds",completed)
