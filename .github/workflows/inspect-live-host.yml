@@ -131,3 +131,18 @@ jobs:
             if(rows.length<2)console.log('WARNING: Live release count is below two; investigate deployment or source data.');
           }
           NODE
+      - name: Verify visible release ages have no prefixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=commonjs - <<'NODE'
+          const fs=require('node:fs');
+          const html=fs.readFileSync('/tmp/novelhaven-source-dom.html','utf8');
+          const section=html.match(/<section class="home-feed-section home-release-section"[\s\S]*?<\/section>/);
+          if(!section)throw new Error('Latest Release Novels section missing');
+          const labels=[...section[0].matchAll(/<(?:time|span)\b[^>]*class="home-release-time"[^>]*>([^<]+)<\/(?:time|span)>/g)].map(x=>x[1].trim());
+          if(labels.length===0)throw new Error('No time labels in release rows');
+          const invalid=labels.filter(x=>! /^(?:Just now|Yesterday|\d+ (?:min|mins|hour|hours|day|days) ago)$/.test(x));
+          console.log('LIVE COMPACT RELEASE LABELS:',JSON.stringify(labels.slice(0,20)));
+          if(invalid.length)throw new Error('Unwanted prefix or unknown time label: '+JSON.stringify(invalid));
+          NODE
