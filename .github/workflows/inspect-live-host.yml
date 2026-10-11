@@ -204,3 +204,19 @@ jobs:
             throw new Error('Latest Novels includes old imports despite enough verified recent source updates');
           console.log('VERIFIED LIVE: Latest Novels prioritizes recently updated source chapters.');
           NODE
+      - name: Verify live Library no-flicker scripts are deployed
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            curl -fsSL --retry 2 --retry-delay 2 'https://novelhaven.top/library?live-check=1' > /tmp/novelhaven-library-html || true
+            if grep -q 'app.js?v=20261011-stable-library-1' /tmp/novelhaven-library-html &&
+               grep -q 'accounts.js?v=20261011-no-flicker-1' /tmp/novelhaven-library-html; then
+              echo 'VERIFIED LIVE: Cloudflare serves the Library flicker fix and updated account sync.'
+              exit 0
+            fi
+            echo "Waiting for latest Library scripts on Cloudflare (attempt $attempt)"
+            sleep 12
+          done
+          echo '::error::Latest no-flicker Library scripts not yet deployed on Cloudflare.'
+          exit 1
