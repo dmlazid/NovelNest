@@ -1,11 +1,12 @@
 name: Check source chapter activity
 on:
   schedule:
-    - cron: "23 */2 * * *"
+    - cron: "23 * * * *"
   push:
     branches: [main]
     paths:
       - "scripts/source_activity_scan.py"
+      - "scripts/akk_source_activity.py"
       - ".github/workflows/source-activity-scan.yml"
   workflow_dispatch:
 permissions:
@@ -28,7 +29,7 @@ jobs:
       - run: python -m pip install --disable-pip-version-check requests beautifulsoup4
       - name: Validate source-report parsing
         run: python -m unittest discover -s scripts -p 'test_source_activity_scan.py'
-      - name: Poll recent release ages from authorized source pages
+      - name: Poll recent releases from both FreeWebNovel and AkkNovel
         run: python scripts/source_activity_scan.py
       - name: Validate catalog before publishing
         run: node scripts/check.mjs
