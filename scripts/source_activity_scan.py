@@ -161,11 +161,11 @@ def scan_akk(results, session, index, observed):
     except requests.RequestException as exc:
         print(f"WARNING AkkNovel latest listing unavailable: {str(exc)[:120]}",file=sys.stderr,flush=True)
     offset = read_akk_cursor() % len(candidates)
-    max_per_scan = 20
+    max_per_scan = 35
     # Check eligible books on source's own most recently updated list first.
     featured = [novel for novel in candidates
                 if novel["sourceUrl"].rstrip("/").split("/")[-1] in latest]
-    featured = sorted(featured, key=lambda n: latest[n["sourceUrl"].rstrip("/").split("/")[-1]])[:10]
+    featured = sorted(featured, key=lambda n: latest[n["sourceUrl"].rstrip("/").split("/")[-1]])[:15]
     queue = [(n,False) for n in featured]
     # Preserve a rotating cursor so older titles also receive source checks.
     for i in range(len(candidates)):
@@ -226,7 +226,7 @@ def scan():
     if not candidates:
         raise RuntimeError("No registered sources found; refusing to overwrite source activity")
     offset = read_cursor() % len(candidates)
-    max_per_scan = 20
+    max_per_scan = 30
     checked = 0
     for i in range(min(max_per_scan, len(candidates))):
         n = candidates[(offset + i) % len(candidates)]
