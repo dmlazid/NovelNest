@@ -6,8 +6,8 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { validateSite } from './check.mjs';
 
-function harness(hash = '#/') {
-  const nodes = new Map(), events = new Map(), timers = [], scripts = [], storage = new Map();
+function harness(hash = '#/', initialStorage = {}) {
+  const nodes = new Map(), events = new Map(), timers = [], scripts = [], storage = new Map(Object.entries(initialStorage));
   const node = id => {
     if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', dataset: {}, style: { setProperty() {} }, classList: { add() {}, remove() {}, toggle() {} }, addEventListener() {}, focus() {}, setAttribute() {}, removeAttribute() {} });
     return nodes.get(id);
@@ -429,4 +429,30 @@ test('top header exposes notifications beside menu and novel breadcrumbs use hom
   assert.match(reader, />Home</);
   assert.match(reader, />Action Novels</);
   assert.match(reader, /Chapter 1/);
+});
+
+test('existing bookmarks survive a temporarily unavailable catalog and another tab adding books', () => {
+  const h = harness('#/', {'novelnest.saved':JSON.stringify(['queued-authorized-novel','got-a-gallery-in-the-wild'])});
+  assert.deepEqual(JSON.parse(h.storage.get('novelnest.saved')),['queued-authorized-novel','got-a-gallery-in-the-wild']);
+  // A separate tab saved another book AFTER this page initially loaded.
+  h.storage.set('novelnest.saved',JSON.stringify(['queued-authorized-novel','got-a-gallery-in-the-wild','astral-pet-store']));
+  h.run("toggleSave('cultivation-online')");
+  const saved=JSON.parse(h.storage.get('novelnest.saved'));
+  assert.deepEqual(saved,['queued-authorized-novel','got-a-gallery-in-the-wild','astral-pet-store','cultivation-online']);
+  assert.match(h.node('#toast').textContent,/Bookmarked/);
+  h.go('#/novel/cultivation-online');
+  assert.match(h.node('#main').innerHTML,/♥ Bookmarked/);
+  assert.doesNotMatch(h.node('#main').innerHTML,/Save to library|Saved in library/);
+});
+test('bookmark save failure does not falsely confirm that it was saved', () => {
+  const h=harness();
+  const original=h.context.localStorage.setItem;
+  h.context.localStorage.setItem=(key,value)=>{
+    if(key==='novelnest.saved')throw Error('Storage full');
+    return original(key,value);
+  };
+  const result=h.run("toggleSave('astral-pet-store')");
+  assert.equal(result.saved,false);
+  assert.match(h.node('#toast').textContent,/not saved/);
+  assert.equal(h.storage.has('novelnest.saved'),false);
 });
