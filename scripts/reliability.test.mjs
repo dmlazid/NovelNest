@@ -456,3 +456,13 @@ test('bookmark save failure does not falsely confirm that it was saved', () => {
   assert.match(h.node('#toast').textContent,/not saved/);
   assert.equal(h.storage.has('novelnest.saved'),false);
 });
+
+test('a bookmark for a temporarily missing novel remains visible in My Bookmarks', () => {
+  const h=harness('#/library', {'novelnest.saved':JSON.stringify(['temporarily-unloaded-series'])});
+  const html=h.node('#main').innerHTML;
+  assert.match(html,/My Bookmarks/);
+  assert.match(html,/Temporarily Unloaded Series/);
+  assert.match(html,/Bookmarked · temporarily unavailable/);
+  assert.doesNotMatch(html,/A shelf waiting for stories/);
+  assert.deepEqual(JSON.parse(h.storage.get('novelnest.saved')),['temporarily-unloaded-series']);
+});
