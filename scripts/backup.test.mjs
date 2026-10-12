@@ -52,7 +52,7 @@ test('invalid, oversized, and unsupported backups are rejected before any storag
   for (const text of ['not json', '{}', '{"format":"novelnest-backup","version":2}', 'x'.repeat(1000001)]) assert.throws(() => h.api.parse(text));
   const bad = fixture(); bad.positions['book:2'].fraction = -1;
   assert.throws(() => h.api.parse(backup(bad)), /invalid reading data/);
-  bad.positions['book:2'] = position(100); bad.chapterStatus.book.finished = [99];
+  bad.positions['book:2'] = position(100); bad.chapterStatus.book.finished = [1000001];
   assert.throws(() => h.api.parse(backup(bad)), /invalid reading data/);
   assert.deepEqual([...h.storage], before);
 });
