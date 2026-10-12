@@ -8,10 +8,29 @@ let saved=read('novelnest.saved',[]); if(!Array.isArray(saved)) saved=[]; saved=
 let progress=read('novelnest.progress',{}); if(!progress||typeof progress!=='object'||Array.isArray(progress))progress={};
 let preferences=read('novelnest.preferences',{}); if(!preferences||typeof preferences!=='object')preferences={};
 let storageWarning=false;
-function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(key!=='novelnest.preferences')window.NovelNestAccounts?.changed()}catch{if(!storageWarning){toast('Storage is unavailable. Changes will last for this visit.');storageWarning=true}}}
+function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(key!=='novelnest.preferences')window.NovelNestAccounts?.changed();return true}catch{if(!storageWarning){toast('Storage is unavailable. Your bookmark was not saved.');storageWarning=true}return false}}
 function toast(text){const el=document.querySelector('#toast');el.textContent=text;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3200)}
 function applySettings(){document.body.dataset.theme=['night','sepia'].includes(preferences.theme)?preferences.theme:'light';document.documentElement.style.setProperty('--reader-size',`${Math.min(28,Math.max(16,Number(preferences.size)||20))}px`)}
-function toggleSave(id){if(!novels.some(n=>n.id===id))throw new Error('Unknown novel');const exists=saved.includes(id);saved=exists?saved.filter(x=>x!==id):[...saved,id];persist('novelnest.saved',saved);document.querySelector('#library-count').textContent=saved.length;document.querySelectorAll('[data-save]').forEach(b=>{if(b.dataset.save===id){b.textContent=saved.includes(id)?'♥ Bookmarked':'♡ Bookmark';b.setAttribute('aria-pressed',String(saved.includes(id)))}});toast(exists?'Bookmark removed':'Bookmarked');return {id,saved:!exists}}
+function toggleSave(id){
+  if(!novels.some(n=>n.id===id))throw new Error('Unknown novel');
+  // Read the latest device state before each tap. Another browser tab or an
+  // account sync may have added books since this page was first opened.
+  const latest=read('novelnest.saved',[]);
+  if(Array.isArray(latest))saved=[...new Set(latest.filter(value=>typeof value==='string'&&/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(value)))];
+  const original=saved.slice(), exists=saved.includes(id);
+  const updated=exists?saved.filter(x=>x!==id):[...saved,id];
+  if(!persist('novelnest.saved',updated)){saved=original;return {id,saved:exists};}
+  saved=updated;
+  const count=document.querySelector('#library-count');if(count)count.textContent=saved.length;
+  document.querySelectorAll('[data-save]').forEach(b=>{
+    if(b.dataset.save===id){
+      b.textContent=saved.includes(id)?'♥ Bookmarked':'♡ Bookmark';
+      b.setAttribute('aria-pressed',String(saved.includes(id)));
+    }
+  });
+  toast(exists?'Bookmark removed':'Bookmarked');
+  return {id,saved:!exists};
+}
 const internalUrl=path=>`./#${path.startsWith('/')?path:'/'+path}`;
 const bookUrl=n=>`/novel/${encodeURIComponent(n.id)}/`;
 const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${i+1}/`;
