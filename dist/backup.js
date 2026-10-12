@@ -4,7 +4,7 @@
   // Never erase a reader's bookmarks/progress just because a novel was absent
   // from the catalogue on *this* page load. Only filter displayed novels.
   const books = new Map((window.NOVELS || []).map(n => [n.id, n.chapters.length]));
-  const validId = id => typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,199}$/i.test(id);
+  const validId = id => typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,199}$/i.test(id) && !['__proto__','constructor','prototype'].includes(id);
   const object = value => value && typeof value === 'object' && !Array.isArray(value);
   const validTime = value => Number.isFinite(value) && value >= 0;
   const check = (condition, message = 'This backup contains invalid reading data.') => { if (!condition) throw Error(message); };
