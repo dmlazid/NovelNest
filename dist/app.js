@@ -4,7 +4,7 @@ const chapterTitle=c=>window.NovelNestChapterLabels?.title(c?.title)||c?.title||
 const main=document.querySelector('#main');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}};
-let saved=read('novelnest.saved',[]); if(!Array.isArray(saved)) saved=[]; saved=[...new Set(saved.filter(id=>typeof id==='string'&&/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(id)))];
+let saved=read('novelnest.saved',[]); if(!Array.isArray(saved)) saved=[]; saved=[...new Set(saved.filter(id=>typeof id==='string'&&/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(id)&&!['__proto__','constructor','prototype'].includes(id)))];
 let progress=read('novelnest.progress',{}); if(!progress||typeof progress!=='object'||Array.isArray(progress))progress={};
 let preferences=read('novelnest.preferences',{}); if(!preferences||typeof preferences!=='object')preferences={};
 let storageWarning=false;
@@ -16,7 +16,7 @@ function toggleSave(id){
   // Read the latest device state before each tap. Another browser tab or an
   // account sync may have added books since this page was first opened.
   const latest=read('novelnest.saved',[]);
-  if(Array.isArray(latest))saved=[...new Set(latest.filter(value=>typeof value==='string'&&/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(value)))];
+  if(Array.isArray(latest))saved=[...new Set(latest.filter(value=>typeof value==='string'&&/^[a-z0-9][a-z0-9_-]{0,199}$/i.test(value)&&!['__proto__','constructor','prototype'].includes(value)))];
   const original=saved.slice(), exists=saved.includes(id);
   const updated=exists?saved.filter(x=>x!==id):[...saved,id];
   if(!persist('novelnest.saved',updated)){saved=original;return {id,saved:exists};}
