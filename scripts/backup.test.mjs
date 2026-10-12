@@ -57,12 +57,33 @@ test('invalid, oversized, and unsupported backups are rejected before any storag
   assert.deepEqual([...h.storage], before);
 });
 
-test('unknown novels and unexpected properties are omitted, without restoring scripts or appearance settings', () => {
+test('temporarily missing catalog titles keep bookmarks and reading data without restoring settings', () => {
   const h = harness(), data = fixture();
   data.saved.push('not-in-catalog'); data.progress.other = { chapter: 1, at: 100 };
   data.positions['other:2'] = position(100); data.chapterStatus.other = { started: [1], finished: [1] };
   data.preferences = { theme: '<script>alert(1)</script>' };
-  assert.deepEqual(plain(h.api.parse(backup(data))), fixture());
+  assert.deepEqual(plain(h.api.parse(backup(data))), {
+    ...fixture(),
+    saved: ['book','not-in-catalog'],
+    progress: { ...fixture().progress, other: { chapter: 1, at: 100 } },
+    positions: { ...fixture().positions, 'other:2': position(100) },
+    chapterStatus: { ...fixture().chapterStatus, other: { started: [1], finished: [1] } }
+  });
+});
+test('catalog outages cannot silently delete an existing bookmark on startup or save', () => {
+  const h = harness(), data = fixture();
+  data.saved.push('catalog-script-temporarily-unavailable');
+  data.progress['catalog-script-temporarily-unavailable'] = {chapter: 42,at: 500};
+  h.api.write(data);
+  assert.deepEqual(plain(h.api.readCurrent().saved), data.saved);
+  h.api.write(h.api.readCurrent());
+  assert.deepEqual(plain(h.api.readCurrent().saved), data.saved);
+  assert.equal(h.api.readCurrent().progress['catalog-script-temporarily-unavailable'].chapter,42);
+});
+test('unsafe bookmark IDs cannot be used to inject markup when restored', () => {
+  const h = harness(), data = fixture();
+  data.saved.push('<img src=x onerror=alert(1)>','', '../other');
+  assert.deepEqual(plain(h.api.parse(backup(data)).saved), ['book']);
 });
 
 test('a failed write rolls back previously written keys and leaves other browser settings alone', () => {
