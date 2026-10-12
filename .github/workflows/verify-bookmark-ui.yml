@@ -1,0 +1,40 @@
+name: Verify live bookmarks
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-bookmark-ui.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check deployed bookmark code and reader page
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://novelhaven.top'
+          for attempt in 1 2 3 4 5 6; do
+            stamp="$(date +%s)"
+            curl -fsSL --connect-timeout 12 --max-time 25 "$origin/?check-bookmarks=$stamp" -o /tmp/nh-bookmarks-index.html || true
+            if grep -Fq 'app.js?v=20261012-bookmarks-1' /tmp/nh-bookmarks-index.html &&
+               grep -Fq 'backup.js?v=20261012-bookmarks-1' /tmp/nh-bookmarks-index.html &&
+               grep -Fq 'accounts.js?v=20261012-bookmarks-1' /tmp/nh-bookmarks-index.html; then
+              curl -fsSL --max-time 25 "$origin/app.js?v=20261012-bookmarks-1" -o /tmp/nh-bookmarks-app.js
+              curl -fsSL --max-time 25 "$origin/backup.js?v=20261012-bookmarks-1" -o /tmp/nh-bookmarks-backup.js
+              if grep -Fq 'Bookmark removed' /tmp/nh-bookmarks-app.js &&
+                 grep -Fq '♥ Bookmarked' /tmp/nh-bookmarks-app.js &&
+                 grep -Fq 'bookmark-pending-list' /tmp/nh-bookmarks-app.js &&
+                 grep -Fq 'result.saved = [...new Set(data.saved.filter(validId))]' /tmp/nh-bookmarks-backup.js; then
+                echo 'VERIFIED LIVE: bookmark save labels, persistent IDs, and unavailable-bookmark placeholders are deployed.'
+                exit 0
+              fi
+            fi
+            echo "Bookmark UI not yet deployed on Cloudflare (attempt $attempt of 6)."
+            sleep 12
+          done
+          echo '::error::NovelHaven is still serving old bookmark scripts; live fix not verified.'
+          exit 1
