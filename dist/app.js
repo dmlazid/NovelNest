@@ -472,7 +472,11 @@ function library(params = new URLSearchParams()) {
   const books = history ? novels.filter(n=>lastRead(n)).sort((a,b)=>lastRead(b).at-lastRead(a).at) : novels.filter(n=>saved.includes(n.id));
   const tabs = `<nav class="library-tabs" aria-label="Your library"><a href="./#/library" ${!history?'aria-current="page"':''}>Bookmarks <span>${saved.length}</span></a><a href="./#/library?tab=history" ${history?'aria-current="page"':''}>History</a></nav>`;
   const items = history ? `<div class="history-list">${books.map(n=>`<a class="history-row" href="${chapterUrl(n,lastRead(n).chapter)}">${image(n)}<div><h2>${esc(n.title)}</h2><p>Continue chapter ${lastRead(n).chapter+1}</p></div><span aria-hidden="true">›</span></a>`).join('')}</div>` : `<div class="catalog-grid">${books.map(card).join('')}</div>`;
-  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${tabs}${!history?continueBox():''}${books.length?items:`<div class="empty"><h2>${history?'Your story starts here.':'A shelf waiting for stories.'}</h2><p>${history?'Chapters you open will appear here.':'Bookmark a novel to find it here and follow new chapters.'}</p><a class="button" href="./#/browse">Explore novels</a></div>`}`;
+  // A book missing from today's catalog must still be visible as bookmarked.
+  // Keep its stored ID untouched; its regular card returns with the catalog.
+  const missingIds=history?[]:saved.filter(id=>!novels.some(n=>n.id===id));
+  const pending=missingIds.length?`<div class="bookmark-pending-list">${missingIds.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\b\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('')}</div>`:'';
+  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${tabs}${!history?continueBox():''}${books.length||missingIds.length?items+pending:`<div class="empty"><h2>${history?'Your story starts here.':'A shelf waiting for stories.'}</h2><p>${history?'Chapters you open will appear here.':'Bookmark a novel to find it here and follow new chapters.'}</p><a class="button" href="./#/browse">Explore novels</a></div>`}`;
 }
 function missing(){return `<div class="empty"><h1>Page not found</h1><p>This story or chapter is not in the catalog.</p><a class="button" href="./#/browse">Browse novels</a></div>`}
 function about(){return `<article class="policy-page">
