@@ -1,6 +1,10 @@
 (() => {
   const keys = { saved: 'novelnest.saved', progress: 'novelnest.progress', positions: 'novelnest.positions', chapterStatus: 'novelnest.chapter-status' };
+  // Catalog scripts can temporarily fail to load or be replaced during import.
+  // Never erase a reader's bookmarks/progress just because a novel was absent
+  // from the catalogue on *this* page load. Only filter displayed novels.
   const books = new Map((window.NOVELS || []).map(n => [n.id, n.chapters.length]));
+  const validId = id => typeof id === 'string' && /^[a-z0-9][a-z0-9_-]{0,199}$/i.test(id);
   const object = value => value && typeof value === 'object' && !Array.isArray(value);
   const validTime = value => Number.isFinite(value) && value >= 0;
   const check = (condition, message = 'This backup contains invalid reading data.') => { if (!condition) throw Error(message); };
@@ -9,23 +13,25 @@
     check(object(data) && Array.isArray(data.saved) && object(data.progress) && object(data.positions) && object(data.chapterStatus));
     const result = { saved: [], progress: {}, positions: {}, chapterStatus: {} };
     check(data.saved.every(id => typeof id === 'string'));
-    result.saved = [...new Set(data.saved.filter(id => books.has(id)))];
+    // Keep even currently unknown IDs so catalog or network issues never turn
+    // into real deletion events during account synchronization.
+    result.saved = [...new Set(data.saved.filter(validId))];
     for (const [id, value] of Object.entries(data.progress)) {
-      if (!books.has(id)) continue;
-      check(object(value) && Number.isInteger(value.chapter) && value.chapter >= 0 && value.chapter < books.get(id) && validTime(value.at));
+      if (!validId(id)) continue;
+      check(object(value) && Number.isInteger(value.chapter) && value.chapter >= 0 && value.chapter <= 1000000 && validTime(value.at));
       result.progress[id] = { chapter: value.chapter, at: value.at };
     }
     for (const [key, value] of Object.entries(data.positions)) {
       const match = key.match(/^([^:]+):(\d+)$/);
-      if (!match || !books.has(match[1])) continue;
-      check(Number(match[2]) > 0 && Number(match[2]) <= books.get(match[1]));
+      if (!match || !validId(match[1])) continue;
+      check(Number(match[2]) > 0 && Number(match[2]) <= 1000000);
       check(object(value) && Number.isInteger(value.paragraph) && value.paragraph >= 0 && value.paragraph <= 1000000 && Number.isFinite(value.fraction) && value.fraction >= 0 && value.fraction <= 1 && Number.isFinite(value.percent) && value.percent >= 0 && value.percent <= 100 && typeof value.start === 'boolean' && validTime(value.at));
       result.positions[`${match[1]}:${Number(match[2])}`] = { paragraph: value.paragraph, fraction: value.fraction, percent: value.percent, start: value.start, at: value.at };
     }
     for (const [id, value] of Object.entries(data.chapterStatus)) {
-      if (!books.has(id)) continue;
+      if (!validId(id)) continue;
       check(object(value) && Array.isArray(value.started) && Array.isArray(value.finished));
-      check([...value.started, ...value.finished].every(n => Number.isInteger(n) && n > 0 && n <= books.get(id)));
+      check([...value.started, ...value.finished].every(n => Number.isInteger(n) && n > 0 && n <= 1000000));
       result.chapterStatus[id] = { started: [...new Set([...value.started, ...value.finished])], finished: [...new Set(value.finished)] };
     }
     result.positions = Object.fromEntries(Object.entries(result.positions).sort((a, b) => b[1].at - a[1].at).slice(0, 200));
