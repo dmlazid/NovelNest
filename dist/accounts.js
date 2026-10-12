@@ -249,7 +249,7 @@
       let section = document.querySelector('#account-panel');
       if (!section) { section = document.createElement('section'); section.id = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
       section.className = user ? 'library-sync' : 'library-signin';
-      section.innerHTML = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your library, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
+      section.innerHTML = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your bookmarks, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
     }
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {
@@ -278,7 +278,7 @@
 
       <section class="catalog-menu-panel" data-catalog-panel="novels">
         <nav class="catalog-menu-list" aria-label="Novel list">
-          ${menuLink('./#/library','Your Library','bookmark')}
+          ${menuLink('./#/library','Bookmarks','bookmark')}
           ${menuLink('./#/latest-novels','Latest Novels','book')}
           ${menuLink('./#/latest-releases','Latest Release','bell')}
           ${menuLink('./#/latest-novels?sort=chapters','Most Chapters','grid')}
