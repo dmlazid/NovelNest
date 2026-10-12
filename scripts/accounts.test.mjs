@@ -8,7 +8,7 @@ const fixture = () => ({data:{saved:['book'],progress:{book:{chapter:1,at:100}},
 const keys = {saved:'novelnest.saved',progress:'novelnest.progress',positions:'novelnest.positions',chapterStatus:'novelnest.chapter-status'};
 function save(storage, value) { for (const [key, name] of Object.entries(keys)) storage.set(name, JSON.stringify(value.data[key])); storage.set('novelnest.update-seen', JSON.stringify(value.seen)); }
 const settle = async () => { for(let i=0;i<20;i++) await Promise.resolve(); };
-function harness({ storage = new Map(), uid = null, cloud = new Map(), error = null } = {}) {
+function harness({ storage = new Map(), uid = null, cloud = new Map(), error = null, catalog = [{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}] } = {}) {
   const handlers = new Map(), timers = new Map(), nodes = new Map();
   let reloads = 0, stopped = 0, timerId = 0, callback, transactions = 0, failure = error, gate = null;
   const uiUpdates={full:0,card:0,lastRefresh:null};
@@ -19,7 +19,7 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
     return nodes.get(name);
   };
   const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
-  const window = {NOVELS:[{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}],addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;}},NovelNestReading:{reload(){}}};
+  const window = {NOVELS:catalog,addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;}},NovelNestReading:{reload(){}}};
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
@@ -126,4 +126,35 @@ test('cloud session with newer timestamp cannot return Continue Reading to older
   const h=harness({storage,uid:'alice',cloud});await h.start();
   assert.equal(h.state().data.progress.book.chapter,2);
   assert.equal(h.uiUpdates.full,0,'Progress synchronization does not flash the entire library');
+});
+
+test('missing catalog during sign-in never removes saved bookmarks on device or cloud', async () => {
+  const storage=new Map(), record=fixture();
+  save(storage,record);
+  storage.set('novelnest.account-owner','"alice"');
+  const h=harness({storage,uid:'alice',catalog:[]});
+  await h.start();
+  assert.deepEqual(h.state().data.saved,['book'],'Existing bookmark survives missing script during initialization');
+  assert.deepEqual(h.state().data.progress.book,{chapter:1,at:100});
+  await h.window.NovelNestAccounts.synchronize(true);
+  assert.deepEqual(h.cloud.get('alice').data.saved,['book'],'Cloud sync may not interpret an unloaded title as deleted');
+  // Simulate the returning catalog on the next visit with the same storage.
+  const returning=harness({storage,uid:'alice',cloud:h.cloud});
+  await returning.start();
+  assert.deepEqual(returning.state().data.saved,['book']);
+});
+test('a real bookmark removal still synchronizes between devices', async () => {
+  const storage=new Map(), existing=fixture();
+  save(storage,existing);
+  storage.set('novelnest.account-owner','"alice"');
+  const cloud=new Map([['alice',{version:1,...fixture()}]]);
+  const h=harness({storage,uid:'alice',cloud});
+  await h.start();
+  const state=h.state();
+  state.data.saved=[];
+  save(storage,state);
+  h.window.NovelNestAccounts.changed();
+  await h.window.NovelNestAccounts.synchronize(true);
+  assert.deepEqual(h.state().data.saved,[]);
+  assert.deepEqual(cloud.get('alice').data.saved,[]);
 });
