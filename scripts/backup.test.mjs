@@ -82,7 +82,7 @@ test('catalog outages cannot silently delete an existing bookmark on startup or 
 });
 test('unsafe bookmark IDs cannot be used to inject markup when restored', () => {
   const h = harness(), data = fixture();
-  data.saved.push('<img src=x onerror=alert(1)>','', '../other');
+  data.saved.push('<img src=x onerror=alert(1)>','', '../other','__proto__','constructor');
   assert.deepEqual(plain(h.api.parse(backup(data)).saved), ['book']);
 });
 
