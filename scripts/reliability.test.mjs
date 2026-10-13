@@ -342,6 +342,26 @@ test('public contact, rights and hosting information is accurate and reachable',
   }
 });
 
+test('archived completed FreeWebNovel series are excluded from public reader and imports',()=>{
+  const archived=JSON.parse(fs.readFileSync('scripts/archived_freewebnovel_keys.json','utf8'));
+  const html=fs.readFileSync('dist/index.html','utf8');
+  const importer=fs.readFileSync('scripts/import_freewebnovel_batch.py','utf8');
+  const checker=fs.readFileSync('scripts/check.mjs','utf8');
+  assert.equal(archived.length,6);
+  assert(archived.every(key=>/^[a-z0-9-]+$/.test(key)));
+  for(const key of archived){
+    assert(!html.includes('src="licensed-fwn-'+key+'.js'),key+' must not load on public site');
+    assert(fs.existsSync('dist/licensed-fwn-'+key+'.js'),key+' must remain recoverable in GitHub');
+    assert(fs.existsSync('dist/data/fwn-'+key+'-chapters-01.js'),key+' archive must retain chapter files');
+  }
+  assert(html.includes('src="licensed-fwn-shadow-slave.js'), 'Ongoing catalog remains unchanged');
+  assert.match(importer,/if key in ARCHIVED_FWN_KEYS:/);
+  assert.match(importer,/if key not in ARCHIVED_FWN_KEYS/);
+  assert.match(checker,/archivedKeys/);
+  assert.match(html,/ca-pub-9356195452195758/);
+  assert.equal(fs.readFileSync('dist/ads.txt','utf8').trim(),'google.com, pub-9356195452195758, DIRECT, f08c47fec0942fa0');
+});
+
 test('real AdSense verification is installed with matching publisher ID and ads.txt', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /pagead2\.googlesyndication\.com/);
