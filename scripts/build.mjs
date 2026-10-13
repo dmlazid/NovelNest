@@ -100,7 +100,7 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // at the next p or enclosing div, preserving every original paragraph.
 const compactChapterFooter = '<footer data-static-footer><a href="/privacy.html">Privacy</a> <a href="/privacy-choices.html">Privacy Choices</a> <a href="/terms.html">Terms</a> <a href="/copyright.html">Copyright</a> <a href="/contact.html">Contact</a></footer><div id="toast" role="status" aria-live="polite"></div></body></html>';
 function chapterPage(title, url, markup, novelRoot, robots = 'index,follow,max-image-preview:large') {
-  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="' + robots + '"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
+  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="' + robots + '"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + (robots.startsWith('noindex') ? '' : publisher) + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
 if (cloudflareMode) {
   write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
@@ -115,6 +115,7 @@ function page(title, url, markup, description, robots = 'index,follow,max-image-
     .replace(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + escape(description || title) + '">')
     .replace(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="https://novelhaven.top' + escape(url) + '">')
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, schema ? '<script type="application/ld+json">' + json(schema) + '</script>' : '');
+  if (robots.startsWith('noindex')) h = h.replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g, '');
   return h + beforeMain + '<main id="main" class="wrap" tabindex="-1">' + markup.replaceAll('href="./#/', 'href="/') + '</main>' + afterMain;
 }
 // Render discovery/editorial routes with the same templates readers see.
