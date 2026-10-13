@@ -13,7 +13,7 @@ const sourceHtml = fs.readFileSync('dist/index.html', 'utf8');
 const scriptNames = [...sourceHtml.matchAll(/<script\b[^>]*src="([^"]+)"/g)].map(m => m[1].split('?')[0]);
 const catalogNames = scriptNames.filter(n => n === 'catalog.js' || n === 'source-activity.js' || /^licensed-(?!ui\.js)/.test(n));
 const context = vm.createContext({ window: {} });
-for (const name of ['chapter-labels.js', ...catalogNames]) vm.runInContext(fs.readFileSync('dist/' + name, 'utf8'), context);
+for (const name of ['chapter-labels.js', ...catalogNames, 'discovery-curation.js']) vm.runInContext(fs.readFileSync('dist/' + name, 'utf8'), context);
 const novels = context.window.NOVELS;
 const label = context.window.NovelNestChapterLabels.title;
 for (const n of novels) for (const c of n.chapters) c.title = label(c.title);
@@ -99,12 +99,12 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // Optional paragraph closing tags are omitted; HTML parsers close each p
 // at the next p or enclosing div, preserving every original paragraph.
 const compactChapterFooter = '<footer data-static-footer><a href="/privacy.html">Privacy</a> <a href="/privacy-choices.html">Privacy Choices</a> <a href="/terms.html">Terms</a> <a href="/copyright.html">Copyright</a> <a href="/contact.html">Contact</a></footer><div id="toast" role="status" aria-live="polite"></div></body></html>';
-function chapterPage(title, url, markup, novelRoot) {
-  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
+function chapterPage(title, url, markup, novelRoot, robots = 'index,follow,max-image-preview:large') {
+  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="' + robots + '"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
 if (cloudflareMode) {
   write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
-  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length}]))));
+  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length, discoveryHidden:n.discoveryHidden===true}]))));
 }
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelHaven</title>')
@@ -140,7 +140,7 @@ for (const [route, title, expression] of [
   ['/reading-desk', 'Reading Desk', 'readingDesk()']
 ]) addRoute(route, title, expression);
 addRoute('/library', 'My library', 'library()', 'noindex,follow');
-for (const genre of [...new Set(novels.flatMap(n => n.tags))]) addRoute('/genre/' + encodeURIComponent(genre), genre + ' novels', `genreDirectory(${json(genre)},new URLSearchParams())`);
+for (const genre of [...new Set(novels.filter(n=>!n.discoveryHidden).flatMap(n => n.tags))]) addRoute('/genre/' + encodeURIComponent(genre), genre + ' novels', `genreDirectory(${json(genre)},new URLSearchParams())`);
 const editorials = render('Object.keys(EDITORIALS)');
 for (const id of editorials) addRoute('/editorial/' + id, render(`EDITORIALS[${json(id)}].title`), `editorial(${json(id)})`);
 // Clean policy URLs serve the same current disclosure as their .html versions.
@@ -161,12 +161,12 @@ for (const n of novels) {
   const root = '/novel/' + encodeURIComponent(n.id) + '/';
   const description = String(n.synopsis || n.title).replace(/\s+/g, ' ').slice(0, 158);
   const schema = { '@context': 'https://schema.org', '@type': 'Book', name: n.title, author: { '@type': 'Person', name: n.author }, url: 'https://novelhaven.top' + root };
-  write(root.slice(1) + 'index.html', page(n.title, root, render(`detail(${json(n.id)})`), description, undefined, schema));
-  links.push(root);
+  write(root.slice(1) + 'index.html', page(n.title, root, render(`detail(${json(n.id)})`), description, n.discoveryHidden?'noindex,follow':undefined, schema));
+  if (!n.discoveryHidden) links.push(root);
   if (cloudflareMode) {
     for (let number=1; number<=n.chapters.length; number++) {
       const url=root+'chapter-'+number+'/';
-      chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
+      if (!n.discoveryHidden) chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
       chapterCount++;
       if (chapterUrls.length===40000) flushChapterMap();
     }
@@ -182,7 +182,7 @@ for (const n of novels) {
       const c = n.chapters[number - 1], url = root + 'chapter-' + number + '/';
       const nav = '<nav class=chapter-nav aria-label="Chapters">' + (number > 1 ? '<a href="chapter-' + (number - 1) + '/">Previous</a>' : '') + '<a href="./">Chapters</a>' + (number < n.chapters.length ? '<a href="chapter-' + (number + 1) + '/">Next</a>' : '') + '</nav>';
       const markup = '<article class=reader-wrap><div class=reader-heading><a href="./">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class=prose data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + textEscape(p)).join('') + '</div>' + nav + '</article>';
-      write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup, root));
+      write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup, root, n.discoveryHidden?'noindex,follow':undefined));
       chapterUrls.push('<url><loc>https://novelhaven.top' + escape(url) + '</loc></url>');
       chapterCount++;
       if (chapterUrls.length === 40000) flushChapterMap();

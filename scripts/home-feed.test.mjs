@@ -214,3 +214,28 @@ test('background Library progress refresh replaces only the Continue Reading car
   })()`);
   assert.equal(prior,'unchanged','History tab must not get a Continue Reading card');
 });
+
+test('curated long novels stay readable and bookmarked but disappear from public discovery',()=>{
+  const hidden=book('curated-long',{discoveryHidden:true,sourceActivityVerified:true,
+    sourceActivityIsOngoing:true,sourceActivityObservedAt:'2026-10-11T09:00:00Z',
+    sourceActivityAgeSeconds:3600,sourceActivityChapter:3});
+  const visible=book('public-story',{sourceActivityVerified:true,
+    sourceActivityIsOngoing:true,sourceActivityObservedAt:'2026-10-11T09:00:00Z',
+    sourceActivityAgeSeconds:3600,sourceActivityChapter:3});
+  const view=harness([hidden,visible]);
+  assert.deepEqual(Array.from(view('publicNovels'),n=>n.id),['public-story']);
+  for(const expression of ['home()',"directoryPage('novels')", "directoryPage('releases')", "browse(new URLSearchParams())", "genreDirectory('Fantasy',new URLSearchParams())"]){
+    const html=view(expression);
+    assert.doesNotMatch(html, /\/novel\/curated-long\//, expression);
+  }
+  assert.match(view("detail('curated-long')"),/curated-long/);
+  assert.match(view("chapterUrl(novels[0],1)"),/\/novel\/curated-long\/chapter-2\//);
+});
+test('curation flags listed long FreeWebNovel imports without deleting the catalog objects',()=>{
+  const sample={window:{NOVELS:[book('martial-god-asura'),book('shadow-slave')]}};
+  vm.runInNewContext(fs.readFileSync('dist/discovery-curation.js','utf8'),sample);
+  assert.equal(sample.window.NOVELS[0].discoveryHidden,true);
+  assert.equal(sample.window.NOVELS[1].discoveryHidden,undefined);
+  assert.equal(sample.window.NOVELS.length,2);
+  assert.equal(sample.window.NOVELNEST_DISCOVERY_EXCLUDED.length,10);
+});
