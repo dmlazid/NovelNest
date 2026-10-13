@@ -44,7 +44,7 @@ jobs:
           assert(base&&new URL(base).hostname.endsWith('.pages.dev'),'Missing isolated Pages preview URL');
           const fetchPage=async p=>{
             const r=await fetch(base+p,{signal:AbortSignal.timeout(25000)});
-            return {status:r.status,body:await r.text()};
+            return {status:r.status,body:await r.text(),cacheControl:r.headers.get('cache-control')||''};
           };
           const files=await Promise.all(['/build-info.json','/sitemaps/catalog.xml',
             '/novel/shadow-slave/','/novel/supreme-harem-god-system/','/app.js','/ads.txt'].map(fetchPage));
@@ -67,6 +67,8 @@ jobs:
           assert.match(freshHome.body,/app\.js\?v=20261014-source-accurate-latest-1/);
           assert.equal(freshSource.status,200);
           assert.match(freshSource.body,/sourceActivityVerified/);
+          assert.match(freshSource.cacheControl,/max-age=60/,
+            'Cloudflare must not cache recent source activity for four hours');
           assert.match(ads.body,/google\.com/);
           const [restrictedChapter,duplicateChapter,regularChapter] = await Promise.all([
             fetchPage('/novel/supreme-harem-god-system/chapter-1/'),
