@@ -10,6 +10,18 @@ on:
       - 'dist/source-activity.js'
       - 'dist/app.js'
       - 'dist/index.html'
+      - 'dist/about.html'
+      - 'dist/contact.html'
+      - 'dist/copyright.html'
+      - 'dist/editorial-policy.html'
+      - 'dist/content-licensing.html'
+      - 'dist/advertising-disclosure.html'
+      - 'dist/privacy.html'
+      - 'dist/privacy-choices.html'
+      - 'dist/terms.html'
+      - 'scripts/policy-compliance.test.mjs'
+      - 'scripts/verify-live-policy-pages.mjs'
+      - 'scripts/check-compatible-pages.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,7 +40,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test real source release ordering and chapter safeguards
-        run: node --test scripts/home-feed.test.mjs scripts/chapter-duplicates.test.mjs
+        run: node --test scripts/home-feed.test.mjs scripts/chapter-duplicates.test.mjs scripts/policy-compliance.test.mjs
       - name: Build existing reader-compatible Pages package
         run: |
           node scripts/build-compatible-pages.mjs
@@ -46,3 +58,5 @@ jobs:
           command: pages deploy dist --project-name novelnest --branch main
       - name: Verify new homepage, source chronology, reader and ads.txt live
         run: node scripts/verify-live-source-feed.mjs
+      - name: Verify published copyright, contact, privacy and policy pages are ad-free
+        run: node scripts/verify-live-policy-pages.mjs

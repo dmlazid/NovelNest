@@ -340,8 +340,9 @@ test('public contact, rights and hosting information is accurate and reachable',
   assert.match(privacy, /Cloudflare Pages/);
   for (const html of [contact, copyright, privacy]) {
     assert.doesNotMatch(html, /github\.com\/dmlazid\/NovelHaven|GitHub Pages currently hosts/);
-    assert.match(html, /pagead2\.googlesyndication\.com/);
-    assert.match(html, /ca-pub-9356195452195758/);
+    assert.doesNotMatch(html, /pagead2\.googlesyndication\.com/,
+      'Legal and privacy utility pages should not request advertising');
+    assert.doesNotMatch(html, /ca-pub-9356195452195758/);
   }
 });
 
@@ -400,20 +401,20 @@ test('privacy and copyright pages disclose service and rights handling clearly',
   assert.match(html, /github\.com\/dmlazid\/NovelNest\/issues\/new/);
 });
 
-test('licensed edition and collapsible summaries appear in novel details', () => {
+test('truthful NovelHaven reader labels and collapsible summaries appear in novel details', () => {
   const h = harness();
   const novel = h.window.NOVELS.find(n => String(n.synopsis || '').length > 340);
   assert(novel, 'At least one novel should have a long synopsis for this test');
   h.go(`#/novel/${novel.id}`);
   const detail = h.node('#main').innerHTML;
-  assert.match(detail, /Licensed edition/);
+  assert.match(detail, /NovelHaven reader/);
   assert.match(detail, /data-synopsis-preview/);
   assert.match(detail, /data-synopsis-full hidden/);
   assert.match(detail, /data-synopsis-toggle[^>]+aria-controls/);
   assert.match(detail, /See more/);
   assert.doesNotMatch(detail, /EPUB edition|Sample story/);
   h.go(`#/read/${novel.id}/1`);
-  assert.match(h.node('#main').innerHTML, /Licensed edition/);
+  assert.match(h.node('#main').innerHTML, /NovelHaven reader/);
   assert.doesNotMatch(h.node('#main').innerHTML, /EPUB edition|Sample story/);
 });
 

@@ -60,10 +60,19 @@ Do not claim AdSense approval until Google has reviewed and marked the site Read
 - The current raw Cloudflare SPA fallback can still load the general homepage script before client routing. Site-wide approval must **not** be assumed until the deployed build/output and adult-content audit are resolved.
 - No license or monetization rights are independently certified by this safeguard; review other potentially explicit books and translated content before requesting approval.
 
-## Confirmed chapter repetition — targeted safeguards
-- A full catalog text audit found **9 exact repeated chapter bodies** (rather than relying on headings or chapter lengths). The repeated copies are in Supreme Magus (#1915, #1916), My Rich Wife (#752, #872), Reborn at Boot Camp (#3670), Necropolis Immortal (#1587, #1765), Martial Peak (#5178) and Martial God Asura (#6012).
-- The generated sitemap and Cloudflare reader omit these repeated copies from indexing/ads, but their chapter text and reader navigation remain available. Three affected long titles already have entire-book noindex curation; six other affected routes receive targeted Cloudflare Pages noindex headers.
-- These are temporary safeguards, **not repaired prose**: source comparison is still required before replacing any chapter body. The raw SPA shell may still include the site-wide publisher script until the hosting mismatch is resolved.
+## October 14 update — nine repeated chapters corrected
+- Nine confirmed repeated chapter bodies have been removed from public chapter data and chapter lists without changing chapter numbers, saved links or reading progress. These deleted chapter slots remain reserved.
+- The live deletion verification passed; the former notes about unreadable/unrepaired repeated prose above are historical.
+- NovelHaven's chapter pages still use the existing reader while Cloudflare D1 receives and verifies content. A green build is not a full D1 content audit.
+
+## October 14 policy and privacy work — pending production verification
+- Policy, contact, privacy, takedown, rights and terms pages are no longer intended to load Google advertising code. The site homepage and useful Reading Desk guides retain the unchanged AdSense publisher verification and ads.txt.
+- Privacy Choices displays NovelHaven branding and distinguishes deleting local browser reading data from signed-in cloud deletion and advertising consent.
+- Generic "Licensed edition" labels in the card, novel detail and reader have been changed to neutral labels. Rights and cover permissions are **not** independently verified by a UI label.
+- Public Contact and Takedown pages emphasize that GitHub Issues are public. A private rights-holder contact option still needs an actual owner-provided email or secure channel, not a made-up contact.
+- `POLICY_RIGHTS_REVIEW.md` lists work-specific rights, translation, artwork and ad-monetization evidence that the owner must keep privately. A public `sourcewide_authorized` flag does not prove an individual license.
+- AdSense resubmission is **not yet recommended**: confirm individual publication and advertising rights, screen content and user-generated links, configure the required Google-certified CMP as appropriate, and verify live pages after deployment.
+- These changes do not remove the existing AdSense site-verification account, publisher ID, or approved reading guides and do not guarantee Google acceptance.
 
 ## Historical D1 rows and accurate copy accounting
 - The D1 migration may contain older novels no longer in the published catalog; its raw `total_stored` can be greater than the 129,000 active source chapters. The migration now reports `active_stored`, `historical_stored` and `remaining_chapters` based only on current novel IDs, without deleting any archived data.
