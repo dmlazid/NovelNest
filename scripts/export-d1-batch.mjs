@@ -39,7 +39,7 @@ export function loadNovelCatalog(root) {
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const scripts = [...html.matchAll(/<script\b[^>]*src="([^"]+)"/g)]
     .map(match => match[1].split('?')[0])
-    .filter(name => name === 'catalog.js' || /^licensed-(?!ui\.js)/.test(name));
+    .filter(name => name === 'catalog.js' || name === 'removed-duplicates.js' || /^licensed-(?!ui\.js)/.test(name));
   assert(scripts.includes('catalog.js'), 'Missing novel catalog script');
   const context = vm.createContext({ window: {} });
   for (const name of scripts) {
@@ -49,7 +49,30 @@ export function loadNovelCatalog(root) {
       { filename: name, timeout: 2000 });
   }
   assert(Array.isArray(context.window.NOVELS), 'Invalid novel catalog');
+  // The deleted chapter manifest is applied after all catalog definitions.
+  // Catalog metadata keeps numbered tombstone slots while their prose is gone.
+  for (const novel of context.window.NOVELS) deletedChapterNumbers(novel);
   return context.window.NOVELS;
+}
+
+// Deletions are numbered placeholders, not chapters to upload or verify.
+// A removed duplicate must never be counted as missing D1 source prose.
+export function deletedChapterNumbers(novel) {
+  assert(Array.isArray(novel?.chapters), 'Invalid novel chapters');
+  const deleted=[];
+  for(let i=0;i<novel.chapters.length;i++){
+    const c=novel.chapters[i];
+    if(c.removedDuplicate !== true)continue;
+    assert(Number(c.number)===i+1 && c.lazy===false &&
+      Array.isArray(c.paragraphs)&&c.paragraphs.length===0,
+      'Invalid deleted chapter tombstone: '+novel.id+' #'+(i+1));
+    deleted.push(i+1);
+  }
+  return deleted;
+}
+
+export function readableChapterCount(novel) {
+  return novel.chapters.length-deletedChapterNumbers(novel).length;
 }
 
 export function selectChapters(root, novel, start, limit) {
@@ -88,10 +111,21 @@ export function selectChapters(root, novel, start, limit) {
       'Chapter numbering mismatch at #' + number);
     assert(source.title === metadata.title,
       'Chapter title mismatch at #' + number);
+    const removed=metadata.removedDuplicate===true;
+    assert((source.removedDuplicate===true)===removed,
+      'Deleted chapter data/metadata mismatch at #'+number);
+    if(removed){
+      assert(Array.isArray(source.paragraphs)&&source.paragraphs.length===0,
+        'Deleted chapter text must be absent at #'+number);
+    } else {
+      assert(Array.isArray(source.paragraphs)&&source.paragraphs.length>0,
+        'Published chapter text missing at #'+number);
+    }
     selected.push({
       number,
       title: source.title,
       paragraphs: source.paragraphs,
+      ...(removed ? {removedDuplicate:true} : {})
     });
   }
   return selected;
@@ -102,7 +136,9 @@ export function prepareBatch({ root = 'dist', novelId, start = 1, limit = 5 }) {
   const novels = loadNovelCatalog(root);
   const novel = novels.find(item => item.id === novelId);
   assert(novel, 'No published novel has ID: ' + novelId);
-  const selected = selectChapters(root, novel, start, limit);
+  const selected = selectChapters(root, novel, start, limit)
+    .filter(chapter=>!chapter.removedDuplicate);
+  assert(selected.length>0,'Requested range contains only deleted duplicate chapters');
   const statements = selected.map(chapter => chapterStatement(novel.id, chapter));
   const sql = '-- NovelHaven D1 pilot import; idempotent and non-destructive.\n' +
     '-- Existing GitHub chapters remain authoritative during testing.\n' +
