@@ -1,5 +1,8 @@
 'use strict';
 const novels=window.NOVELS;
+// Keep curated stories accessible from direct links, history and bookmarks.
+// Only discovery feeds, browse/search and public reading guides exclude them.
+const publicNovels=novels.filter(n=>n.discoveryHidden!==true);
 const chapterTitle=c=>window.NovelNestChapterLabels?.title(c?.title)||c?.title||'';
 const main=document.querySelector('#main');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -51,12 +54,12 @@ function synopsisHtml(n){
   </div>`;
 }
 const image=n=>n.externalUrl?`<div class="cover external-cover" aria-hidden="true"><span>EXTERNAL<br>READ</span><strong>G</strong><span>NovelHaven<br>Reading list</span></div>`:`<img class="cover" src="${esc(n.cover)}" alt="${esc(n.title)} cover" loading="lazy" width="200" height="300">`;
-const genres=[...new Set(novels.flatMap(n=>n.tags))].sort();
+const genres=[...new Set(publicNovels.flatMap(n=>n.tags))].sort();
 function searchForm(value=''){return `<form class="search-form" role="search"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search novels by title or author" placeholder="Search titles, authors, genres…" value="${esc(value)}"><button aria-label="Search" type="submit">Search</button></form>`}
 function chips(selected='All'){return `<div class="chips" aria-label="Filter by genre">${['All',...genres].map(g=>`<a class="chip ${selected===g?'selected':''}" ${selected===g?'aria-current="true"':''} href="./#/browse${g==='All'?'':'?genre='+encodeURIComponent(g)}">${g}</a>`).join('')}</div>`}
 function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<div><span class="tag">${esc(n.genre)}</span><h3>${esc(n.title)}</h3><p>${esc(n.author)}</p><p>${n.externalUrl?"Read on "+esc(n.externalSource):n.chapters.length+" chapters"} · ${esc(n.status)}</p><span class="meta">${n.externalUrl?"External reading link":"Licensed edition"}</span></div></a>`}
 function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
-function latestRows(limit=9){return novels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
+function latestRows(limit=9){return publicNovels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
 // Publication times are only displayed when the source supplies a verified
 // timestamp for the exact chapter. Polling/import times are not publication times.
@@ -215,17 +218,17 @@ function homeTopRow(n){
   </a>`;
 }
 function home(){
-  const sorted=[...novels].sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
+  const sorted=[...publicNovels].sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   const featured=featuredNovels(sorted);
   const topFeatures=featured.slice(0,4);
   const topRows=featured.slice(4,7);
   // Recent releases must remain chronological, unlike the discovery cards.
-  const releases=latestOngoingReleases(novels);
+  const releases=latestOngoingReleases(publicNovels);
   const displayed=new Set([...topFeatures,...topRows].map(n=>n.id));
   // Show genuinely recently updated books first; keep the six cards rotating
   // within the recent pool. Local chapter import and catalog updated times
   // never qualify a book as a new source release.
-  const freshlyUpdated=latestOngoingReleases(novels).filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id));
+  const freshlyUpdated=latestOngoingReleases(publicNovels).filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id));
   const recentPool=shuffledNovels(freshlyUpdated);
   const otherPool=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id)&&!freshlyUpdated.some(f=>f.id===n.id)));
   const latestNovels=[...recentPool,...otherPool].slice(0,6);
@@ -354,11 +357,11 @@ function directoryPage(kind){
   };
   const cfg=settings[kind]||settings.novels;
   const simple=kind==='releases'||kind==='completed';
-  let results=[...novels];
-  if(kind==='releases') results=latestOngoingReleases(novels);
+  let results=[...publicNovels];
+  if(kind==='releases') results=latestOngoingReleases(publicNovels);
   else if(kind==='completed') results=results.filter(n=>n.status==='Completed');
   if(kind==='novels'){
-    const active=latestOngoingReleases(novels), order=new Map(active.map((n,i)=>[n.id,i]));
+    const active=latestOngoingReleases(publicNovels), order=new Map(active.map((n,i)=>[n.id,i]));
     results.sort((a,b)=>{
       const aOrder=order.get(a.id), bOrder=order.get(b.id);
       if(aOrder!==undefined&&bOrder!==undefined)return aOrder-bOrder;
@@ -382,7 +385,7 @@ function genreDirectory(name,params=new URLSearchParams()){
   if(!genre||!genres.includes(genre)) return missing();
   const completed=params.get('status')==='Completed';
   const sort=params.get('sort')||'latest';
-  let results=novels.filter(n=>n.tags.includes(genre)&&(completed?n.status==='Completed':true));
+  let results=publicNovels.filter(n=>n.tags.includes(genre)&&(completed?n.status==='Completed':true));
   if(sort==='title') results.sort((a,b)=>a.title.localeCompare(b.title));
   else if(sort==='chapters') results.sort((a,b)=>b.chapters.length-a.chapters.length||b.updated.localeCompare(a.updated));
   else results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
@@ -415,7 +418,7 @@ function finderPage(params=new URLSearchParams()){
   const sort=params.get('sort')||'latest';
   const q=(params.get('q')||'').trim();
   const threshold=chapters==='100+'?100:chapters==='500+'?500:chapters==='1000+'?1000:chapters==='2000+'?2000:0;
-  let results=novels.filter(n=>{
+  let results=publicNovels.filter(n=>{
     const genreMatch=!selected.length||(match==='all'?selected.every(g=>n.tags.includes(g)):selected.some(g=>n.tags.includes(g)));
     const statusMatch=status==='All'||n.status===status;
     const chapterMatch=!threshold||n.chapters.length>=threshold;
@@ -448,7 +451,7 @@ function finderPage(params=new URLSearchParams()){
   </div>`;
 }
 
-function browse(params){const q=params.get('q')||'',genre=params.get('genre')||'All',status=params.get('status')||'All',sort=params.get('sort')||'latest';let results=novels.filter(n=>(genre==='All'||n.tags.includes(genre))&&(status==='All'||n.status===status)&&`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase()));results.sort(sort==='title'?(a,b)=>a.title.localeCompare(b.title):(a,b)=>b.updated.localeCompare(a.updated));return `<section class="intro"><div><span class="eyebrow">Your next escape</span><h1>Browse novels</h1><p class="muted">Find a story that feels like your kind of world.</p></div>${searchForm(q)}</section>${chips(genre)}<div class="toolbar"><span class="muted">${results.length} ${results.length===1?'story':'stories'}${q?` matching “${esc(q)}”`:''}</span><div><label for="status" class="muted">Status </label><select id="status" data-filter="status"><option ${status==='All'?'selected':''}>All</option><option ${status==='Completed'?'selected':''}>Completed</option><option ${status==='Ongoing'?'selected':''}>Ongoing</option></select> <label for="sort" class="muted">Sort </label><select id="sort" data-filter="sort"><option value="latest" ${sort==='latest'?'selected':''}>Latest added</option><option value="title" ${sort==='title'?'selected':''}>Title A–Z</option></select></div></div>${results.length?`<div class="catalog-grid">${results.map(card).join('')}</div>`:`<div class="empty"><h2>No stories found</h2><p>Try a different title or genre, or clear your filters.</p><a class="button" href="./#/browse">Clear filters</a></div>`}<p class="sample-note">Sample stories can be read here. External reading links open the novel on the named website.</p>`}
+function browse(params){const q=params.get('q')||'',genre=params.get('genre')||'All',status=params.get('status')||'All',sort=params.get('sort')||'latest';let results=publicNovels.filter(n=>(genre==='All'||n.tags.includes(genre))&&(status==='All'||n.status===status)&&`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(q.toLowerCase()));results.sort(sort==='title'?(a,b)=>a.title.localeCompare(b.title):(a,b)=>b.updated.localeCompare(a.updated));return `<section class="intro"><div><span class="eyebrow">Your next escape</span><h1>Browse novels</h1><p class="muted">Find a story that feels like your kind of world.</p></div>${searchForm(q)}</section>${chips(genre)}<div class="toolbar"><span class="muted">${results.length} ${results.length===1?'story':'stories'}${q?` matching “${esc(q)}”`:''}</span><div><label for="status" class="muted">Status </label><select id="status" data-filter="status"><option ${status==='All'?'selected':''}>All</option><option ${status==='Completed'?'selected':''}>Completed</option><option ${status==='Ongoing'?'selected':''}>Ongoing</option></select> <label for="sort" class="muted">Sort </label><select id="sort" data-filter="sort"><option value="latest" ${sort==='latest'?'selected':''}>Latest added</option><option value="title" ${sort==='title'?'selected':''}>Title A–Z</option></select></div></div>${results.length?`<div class="catalog-grid">${results.map(card).join('')}</div>`:`<div class="empty"><h2>No stories found</h2><p>Try a different title or genre, or clear your filters.</p><a class="button" href="./#/browse">Clear filters</a></div>`}<p class="sample-note">Sample stories can be read here. External reading links open the novel on the named website.</p>`}
 function novelBreadcrumb(n,chapterNumber){
   const genre=String(n.genre||n.tags?.[0]||'Fiction');
   const homeIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5H15v-7H9v7H4.5A1.5 1.5 0 0 1 3 19.5Z"/></svg>';
