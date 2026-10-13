@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  MAX_CHAPTERS_PER_BATCH, chapterStatement, prepareBatch, sqlString
+  MAX_CHAPTERS_PER_BATCH, chapterStatement, prepareBatch, sqlString,
+  loadNovelCatalog,selectChapters,deletedChapterNumbers,readableChapterCount
 } from './export-d1-batch.mjs';
 
 function fixture() {
@@ -100,4 +101,31 @@ test('imports title-numbered legacy chunks without accepting reordered chapters'
     fs.writeFileSync(catalogFile, fs.readFileSync(catalogFile, 'utf8').replace(',"numberFromTitle":true', ''));
     assert.throws(() => prepareBatch({root, novelId:'sample-novel'}), /numbering mismatch/);
   } finally { cleanup(); }
+});
+
+test('numbered duplicate tombstones are recognized and skipped by D1 exports',t=>{
+  const {root,cleanup}=fixture();
+  t.after(cleanup);
+  const novelFile=path.join(root,'licensed-sample.js');
+  const book=JSON.parse(fs.readFileSync(novelFile,'utf8').match(/window.NOVELS.push\((\{.*\})\);/)[1]);
+  const original=JSON.parse(fs.readFileSync(path.join(root,'data/sample-01.js'),'utf8')
+    .match(/window.SAMPLE_CHAPTERS = (\[.*\]);/)[1]);
+  const removed={number:2,title:'Chapter 2',paragraphs:[],removedDuplicate:true};
+  original[1]=removed;
+  fs.writeFileSync(path.join(root,'data/sample-01.js'),'window.SAMPLE_CHAPTERS = '+JSON.stringify(original)+';');
+  fs.writeFileSync(path.join(root,'removed-duplicates.js'),\`(() => { const n=window.NOVELS[0];n.chapters[1]={...n.chapters[1],paragraphs:[],lazy:false,removedDuplicate:true};})();\`);
+  fs.writeFileSync(path.join(root,'index.html'),
+    fs.readFileSync(path.join(root,'index.html'),'utf8')+'<script src="removed-duplicates.js"></script>');
+  const novel=loadNovelCatalog(root)[0];
+  assert.deepEqual(deletedChapterNumbers(novel),[2]);
+  assert.equal(readableChapterCount(novel),1);
+  const chapters=selectChapters(root,novel,1,2);
+  assert.equal(chapters[1].removedDuplicate,true);
+  assert.deepEqual(chapters[1].paragraphs,[]);
+  const batch=prepareBatch({root,novelId:novel.id,start:1,limit:2});
+  assert.equal(batch.report.chapter_count,1);
+  assert(!batch.sql.includes("'Chapter 2'"));
+  assert.throws(()=>prepareBatch({root,novelId:novel.id,start:2,limit:1}),
+    /only deleted duplicate chapters/);
+  assert.throws(()=>chapterStatement(novel.id,chapters[1]),/Missing chapter paragraphs/);
 });
