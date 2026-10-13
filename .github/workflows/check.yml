@@ -28,7 +28,15 @@ jobs:
       - run: node scripts/build.mjs
         env:
           NOVELNEST_CLOUDFLARE: '1'
+          CHAPTER_DUPLICATE_REPORT_PATH: chapter-duplicate-audit.json
       - run: node scripts/check-cloudflare-build.mjs
+      - name: Save chapter repetition audit for targeted corrections
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chapter-duplicate-audit
+          path: chapter-duplicate-audit.json
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: NovelNest-website
