@@ -40,3 +40,9 @@
   X-Robots-Tag: noindex, follow
 /novel/fey-evolution-merchant/*
   X-Robots-Tag: noindex, follow
+
+# Explicit sexual-content review: retain existing readers, not public indexing.
+/novel/supreme-harem-god-system/
+  X-Robots-Tag: noindex, follow
+/novel/supreme-harem-god-system/*
+  X-Robots-Tag: noindex, follow
