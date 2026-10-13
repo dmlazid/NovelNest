@@ -326,6 +326,22 @@ test('expanded Reading Desk links all original guides and trust pages', () => {
   }
 });
 
+test('public contact, rights and hosting information is accurate and reachable', () => {
+  const contact = fs.readFileSync('dist/contact.html', 'utf8');
+  const copyright = fs.readFileSync('dist/copyright.html', 'utf8');
+  const privacy = fs.readFileSync('dist/privacy.html', 'utf8');
+  const repository = 'https://github.com/dmlazid/NovelNest';
+  assert(contact.includes('href="' + repository + '/issues/new"'));
+  assert(contact.includes('href="' + repository + '"'));
+  assert(copyright.includes('href="' + repository + '/issues/new"'));
+  assert.match(privacy, /Cloudflare Pages/);
+  for (const html of [contact, copyright, privacy]) {
+    assert.doesNotMatch(html, /github\.com\/dmlazid\/NovelHaven|GitHub Pages currently hosts/);
+    assert.match(html, /pagead2\.googlesyndication\.com/);
+    assert.match(html, /ca-pub-9356195452195758/);
+  }
+});
+
 test('real AdSense verification is installed with matching publisher ID and ads.txt', () => {
   const index = fs.readFileSync('dist/index.html', 'utf8');
   assert.match(index, /pagead2\.googlesyndication\.com/);
