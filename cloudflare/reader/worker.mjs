@@ -26,7 +26,13 @@ export default {
     if(!row)throw Error('Chapter migration incomplete');
     const template=await assets('/_internal/chapter.html');if(!template.ok)throw Error('Missing template');
     const body=renderChapter(await template.text(),{id,title:novel.title,total:novel.total,number,chapter:{title:row.title,paragraphs:JSON.parse(row.paragraphs_json)}});
-    return new Response(request.method==='HEAD'?null:body,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'}});
+    const privateFromDiscovery=novel.discoveryHidden===true;
+    const html=privateFromDiscovery
+      ?body.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">')
+      :body;
+    const headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'};
+    if(privateFromDiscovery)headers['X-Robots-Tag']='noindex, follow';
+    return new Response(request.method==='HEAD'?null:html,{headers});
   }catch{return new Response('This chapter is temporarily unavailable. Please try again shortly.',{status:503,headers:{'Retry-After':'60','Cache-Control':'no-store'}});}
  }
 };
