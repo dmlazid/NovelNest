@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=p=>fs.readFileSync('dist/'+p,'utf8');
+const publisher=read('index.html').match(/<script async src="https:\/\/pagead2[^>]+><\/script>/)?.[0];
+assert(publisher,'Existing AdSense verification must remain on the main site');
+const build=JSON.parse(read('build-info.json'));
+assert.equal(build.mode,'compatible-spa-with-static-details');
+assert.equal(build.serverRenderedChapters,false,'Never misrepresent SPA fallback chapters as prerendered');
+assert(build.novels>70&&build.chapters>100000);
+const catalog=read('sitemaps/catalog.xml');
+const sitemap=read('sitemap.xml');
+assert.match(catalog,/<urlset\b/);
+assert.match(sitemap,/<sitemapindex\b/);
+assert(!catalog.includes('/chapter-'),'SPA fallback chapter URLs must not be submitted for indexing');
+const sample=read('novel/shadow-slave/index.html');
+assert.match(sample,/<meta name="description"/);
+assert.match(sample,/https:\/\/novelhaven\.top\/novel\/shadow-slave\//);
+assert(sample.includes(publisher),'Noncurated pages retain publisher setup');
+assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
+assert(sample.includes('<main id="main" class="wrap" tabindex="-1">'),'Detail page contains real HTML');
+const restricted=read('novel/supreme-harem-god-system/index.html');
+assert.match(restricted,/<meta name="robots" content="noindex,follow"/);
+assert(!restricted.includes(publisher),'Restricted detail must not include ads script');
+const library=read('library/index.html');
+assert.match(library,/name="robots" content="noindex,follow"/);
+assert(!library.includes(publisher));
+assert.equal(read('ads.txt'),fs.readFileSync('dist/ads.txt','utf8'));
+assert(read('index.html').includes(publisher),'Homepage AdSense must be unchanged');
+for(const p of ['catalog.js','app.js','accounts.js','data/fwn-martial-god-asura-chapters-01.js']){
+  assert(fs.existsSync('dist/'+p),'Compatibility build must not remove old reading asset: '+p);
+}
+console.log('Verified compatible Pages build; existing reader and AdSense remain preserved');
