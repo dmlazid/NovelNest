@@ -104,6 +104,19 @@ export function validateSite(root = 'dist') {
   }
   if (root === 'dist') {
     const reviewed = JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8'));
+    assert(Array.isArray(reviewed.known), 'Duplicate baseline must contain an audited known array');
+    const signatures = new Set();
+    for (const entry of reviewed.known) {
+      assert(typeof entry.novel_id === 'string' && ids.has(entry.novel_id),
+        'Duplicate baseline references an unknown novel');
+      assert(Number.isSafeInteger(entry.first_chapter) && entry.first_chapter > 0 &&
+        Number.isSafeInteger(entry.repeated_chapter) && entry.repeated_chapter > entry.first_chapter,
+        'Invalid duplicate baseline chapter pair');
+      assert(/^[a-f0-9]{16}$/.test(entry.digest), 'Invalid duplicate baseline digest');
+      const key = [entry.novel_id, entry.first_chapter, entry.repeated_chapter].join(':');
+      assert(!signatures.has(key), 'Duplicate baseline contains the same chapter pair twice');
+      signatures.add(key);
+    }
     const unexpected = unexpectedRepeatedBodies(repeated, reviewed.known);
     assert.equal(unexpected.length, 0,
       'New or modified repeated chapter body needs review before publishing: ' +
