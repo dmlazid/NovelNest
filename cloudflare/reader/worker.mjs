@@ -29,6 +29,7 @@ export default {
     const privateFromDiscovery=novel.discoveryHidden===true;
     const html=privateFromDiscovery
       ?body.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">')
+        .replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'')
       :body;
     const headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'};
     if(privateFromDiscovery)headers['X-Robots-Tag']='noindex, follow';
