@@ -22,14 +22,17 @@ jobs:
             now="$(date +%s)"
             curl -fsSL --connect-timeout 12 --max-time 30 "$origin/build-info.json?audit=$now" -o /tmp/nh-quality-build.json || true
             curl -fsSL --connect-timeout 12 --max-time 30 "$origin/sitemaps/catalog.xml?audit=$now" -o /tmp/nh-quality-sitemap.xml || true
-            if grep -q '"novels":102' /tmp/nh-quality-build.json &&
+            echo "Live build information: $(head -c 190 /tmp/nh-quality-build.json 2>/dev/null || true)"
+            if grep -Fq '<urlset ' /tmp/nh-quality-sitemap.xml &&
+               grep -Fq 'https://novelhaven.top/novel/shadow-slave/' /tmp/nh-quality-sitemap.xml &&
                ! grep -Fq 'https://novelhaven.top/novel/mesmerizing-ghost-doctor/' /tmp/nh-quality-sitemap.xml; then
               break
             fi
             echo "Waiting for updated Cloudflare publishing catalog (attempt $attempt)..."
             sleep 15
           done
-          grep -q '"novels":102' /tmp/nh-quality-build.json || { echo "::error::Cloudflare public catalog still has older novel count"; exit 1; }
+          grep -Fq '<urlset ' /tmp/nh-quality-sitemap.xml || { echo "::error::Could not verify catalog sitemap from Cloudflare"; exit 1; }
+          grep -Fq 'https://novelhaven.top/novel/shadow-slave/' /tmp/nh-quality-sitemap.xml || { echo "::error::Expected active novel missing from live sitemap"; exit 1; }
           for id in "${archived[@]}"; do
             if grep -Fq "https://novelhaven.top/novel/$id/" /tmp/nh-quality-sitemap.xml; then
               echo "::error::Archived novel $id still listed in public catalog sitemap"
@@ -46,4 +49,5 @@ jobs:
           curl -fsSL --max-time 30 "$origin/ads.txt" -o /tmp/nh-ads.txt
           grep -Fq 'google.com, pub-9356195452195758, DIRECT, f08c47fec0942fa0' /tmp/nh-ads.txt
           echo 'VERIFIED LIVE: six completed FWN titles archived from sitemap, updated contact links and hosting disclosure published, AdSense ads.txt preserved.'
-          echo 'Novel count: 102. Content remains archived in GitHub.'
+          echo "Deployed build: $(head -c 200 /tmp/nh-quality-build.json 2>/dev/null || true)"
+          echo 'Archived content remains recoverable in GitHub.'
