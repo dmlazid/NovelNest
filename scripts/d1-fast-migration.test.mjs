@@ -167,7 +167,7 @@ test('rows-read cap stops after inventory before starting any chapter write',asy
    if(sql==='SELECT novel_id,database_id FROM novel_shards')return {results:[],meta:{rows_read:0,rows_written:0}};
    if(sql.startsWith('INSERT INTO chapters')){inserts++;throw Error('Unexpected chapter insert');}
    throw Error('Unexpected SQL: '+sql);
- }]]));
+ }}]));
  const {clients,usage}=meterClients(raw);
  const r=await migrate({clients,usage,root,maxReadRows:300});
  assert.equal(r.stop_reason,'rows_read_budget_guard');
