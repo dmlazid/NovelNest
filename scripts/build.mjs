@@ -18,7 +18,7 @@ const sourceHtml = fs.readFileSync('dist/index.html', 'utf8');
 const scriptNames = [...sourceHtml.matchAll(/<script\b[^>]*src="([^"]+)"/g)].map(m => m[1].split('?')[0]);
 const catalogNames = scriptNames.filter(n => n === 'catalog.js' || n === 'source-activity.js' || /^licensed-(?!ui\.js)/.test(n));
 const context = vm.createContext({ window: {} });
-for (const name of ['chapter-labels.js', ...catalogNames, 'discovery-curation.js']) vm.runInContext(fs.readFileSync('dist/' + name, 'utf8'), context);
+for (const name of ['chapter-labels.js', ...catalogNames, 'discovery-curation.js', 'removed-duplicates.js']) vm.runInContext(fs.readFileSync('dist/' + name, 'utf8'), context);
 const novels = context.window.NOVELS;
 const label = context.window.NovelNestChapterLabels.title;
 for (const n of novels) for (const c of n.chapters) c.title = label(c.title);
