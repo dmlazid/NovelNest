@@ -1,0 +1,33 @@
+name: Apply verified compatible Pages build to NovelHaven
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/activate-compatible-pages.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-compatible-cloudflare-production
+  cancel-in-progress: false
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          filter: blob:none
+          sparse-checkout: |
+            scripts/activate-compatible-pages.mjs
+            dist/ads.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Safely configure existing Pages output and verify fresh production
+        run: node scripts/activate-compatible-pages.mjs
