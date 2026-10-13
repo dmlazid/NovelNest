@@ -1,0 +1,62 @@
+name: Preview compatible NovelHaven Pages build
+on:
+  push:
+    branches: [fix/cloudflare-compatible-pages-20261013]
+    paths:
+      - '.github/workflows/preview-compatible-pages.yml'
+      - 'scripts/build-compatible-pages.mjs'
+      - 'scripts/check-compatible-pages.mjs'
+      - '.github/workflows/check.yml'
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-compatible-preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate the safe existing-reader-compatible build
+        run: |
+          node scripts/build-compatible-pages.mjs
+          node scripts/check-compatible-pages.mjs
+      - name: Deploy only a temporary Cloudflare preview branch
+        id: pages_preview
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name novelnest --branch=novelhaven-compatible-preview-20261013
+      - name: Verify HTTP preview without production-domain changes
+        env:
+          PREVIEW_URL: ${{ steps.pages_preview.outputs.deployment-url }}
+        run: |
+          node --input-type=module - <<'NODE'
+          import assert from 'node:assert/strict';
+          const base=process.env.PREVIEW_URL?.replace(/\/$/,'');
+          assert(base&&new URL(base).hostname.endsWith('.pages.dev'),'Missing isolated Pages preview URL');
+          const fetchPage=async p=>{
+            const r=await fetch(base+p,{signal:AbortSignal.timeout(25000)});
+            return {status:r.status,body:await r.text()};
+          };
+          const files=await Promise.all(['/build-info.json','/sitemaps/catalog.xml',
+            '/novel/shadow-slave/','/novel/supreme-harem-god-system/','/app.js','/ads.txt'].map(fetchPage));
+          const [info,sitemap,novel,hidden,app,ads]=files;
+          assert.equal(info.status,200);
+          assert.equal(JSON.parse(info.body).mode,'compatible-spa-with-static-details');
+          assert.equal(sitemap.status,200);
+          assert.match(sitemap.body,/<urlset\b/);
+          assert.match(novel.body,/<meta name="description"/);
+          assert.match(novel.body,/<main id="main"/);
+          assert.match(hidden.body,/noindex,follow/);
+          assert.doesNotMatch(hidden.body,/pagead2\.googlesyndication\.com/);
+          assert.equal(app.status,200);
+          assert.match(app.body,/latestOngoingReleases/);
+          assert.match(ads.body,/google\.com/);
+          console.log('Cloudflare compatible preview verified at '+base);
+          NODE
