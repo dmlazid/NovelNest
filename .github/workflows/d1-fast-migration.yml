@@ -9,8 +9,10 @@ on:
       - 'scripts/audit-d1-content.mjs'
       - 'scripts/audit-d1-content.test.mjs'
       - 'scripts/check-cloudflare-preview.mjs'
+  # Space verified migrations across the UTC day instead of retrying every
+  # twenty minutes after Cloudflare has exhausted its free daily D1 quota.
   schedule:
-    - cron: '8,28,48 * * * *'
+    - cron: '8 0,4,8,12,16,20 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,6 +36,15 @@ jobs:
           node-version: '22'
       - name: Verify batching, quota ledger, numbering and shard routing
         run: node --test scripts/d1-fast-migration.test.mjs scripts/audit-d1-content.test.mjs scripts/export-d1-batch.test.mjs scripts/sync-d1-sharded.test.mjs
+      - name: Identify the current UTC quota day
+        id: quota-day
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - name: Restore same-day D1 quota pause
+        id: quota-pause
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/d1-quota-exhausted.txt
+          key: novelhaven-d1-quota-paused-v1-${{ steps.quota-day.outputs.day }}
       - name: Restore completed audit for this exact source
         id: audit-cache
         uses: actions/cache/restore@v4
@@ -42,10 +53,24 @@ jobs:
           key: d1-full-content-v1-${{ hashFiles('dist/**', 'scripts/audit-d1-content.mjs', 'scripts/export-d1-batch.mjs', 'cloudflare/d1/shards.mjs') }}
       - name: Copy and read back batches within daily free limits
         id: copy
-        if: steps.audit-cache.outputs.cache-hit != 'true'
+        if: steps.audit-cache.outputs.cache-hit != 'true' && steps.quota-pause.outputs.cache-hit != 'true'
         env:
           D1_REPORT_PATH: ${{ runner.temp }}/d1-fast-report.json
         run: node scripts/d1-fast-migration.mjs
+      - name: Remember today's D1 quota exhaustion
+        if: steps.copy.outputs.quota_hit == 'true'
+        run: |
+          echo "Cloudflare D1 free daily quota reached. No further database queries until the UTC day changes." > "${{ runner.temp }}/d1-quota-exhausted.txt"
+          cat "${{ runner.temp }}/d1-quota-exhausted.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Save same-day quota pause for subsequent runs
+        if: steps.copy.outputs.quota_hit == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/d1-quota-exhausted.txt
+          key: novelhaven-d1-quota-paused-v1-${{ steps.quota-day.outputs.day }}
+      - name: Explain safely skipped quota-blocked sync
+        if: steps.quota-pause.outputs.cache-hit == 'true'
+        run: echo 'D1 migration skipped: daily quota already reported exhausted in a prior run. Public reader and all existing chapters remain untouched.' >> "$GITHUB_STEP_SUMMARY"
       - name: Compare every chapter once copying is complete
         id: audit
         if: steps.copy.outputs.copy_complete == 'true'
