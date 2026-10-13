@@ -1,0 +1,60 @@
+{
+  "purpose": "Known repeated chapter bodies awaiting manual source-verified repair; do not delete reader data.",
+  "last_audited": "2026-10-13",
+  "known": [
+    {
+      "novel_id": "supreme-magus",
+      "first_chapter": 1913,
+      "repeated_chapter": 1915,
+      "digest": "22456152901ebd3a"
+    },
+    {
+      "novel_id": "supreme-magus",
+      "first_chapter": 1914,
+      "repeated_chapter": 1916,
+      "digest": "3d7b81e058652838"
+    },
+    {
+      "novel_id": "my-rich-wife",
+      "first_chapter": 751,
+      "repeated_chapter": 752,
+      "digest": "21fa5064da2dae40"
+    },
+    {
+      "novel_id": "my-rich-wife",
+      "first_chapter": 871,
+      "repeated_chapter": 872,
+      "digest": "9ffc8b891e7d65be"
+    },
+    {
+      "novel_id": "reborn-at-boot-camp-general-dont-mess-around",
+      "first_chapter": 3669,
+      "repeated_chapter": 3670,
+      "digest": "05e250528d0da8b0"
+    },
+    {
+      "novel_id": "necropolis-immortal",
+      "first_chapter": 1586,
+      "repeated_chapter": 1587,
+      "digest": "6b5f67a34f970355"
+    },
+    {
+      "novel_id": "necropolis-immortal",
+      "first_chapter": 1764,
+      "repeated_chapter": 1765,
+      "digest": "1515349ed8ca9562"
+    },
+    {
+      "novel_id": "martial-peak",
+      "first_chapter": 5177,
+      "repeated_chapter": 5178,
+      "digest": "8c7e8eed87a258b4"
+    },
+    {
+      "novel_id": "martial-god-asura",
+      "first_chapter": 6010,
+      "repeated_chapter": 6012,
+      "digest": "be3311ab42b6e77c"
+    }
+  ]
+}
