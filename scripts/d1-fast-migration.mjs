@@ -162,7 +162,7 @@ export async function main(){
         shard:error.shard,operation:error.operation}};
     console.log('Cloudflare D1 Free quota reached; waiting for reset: '+JSON.stringify(result.diagnostic));
   }
-  if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT,'copy_complete='+(result.stop_reason==='copy_complete_full_audit_required')+'\n');
+  if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT, 'copy_complete='+(result.stop_reason==='copy_complete_full_audit_required')+'\n'+'quota_hit='+(result.stop_reason==='cloudflare_d1_quota_reached'||result.stop_reason==='daily_budget_reached')+'\n');
   console.log('Fast migration result: '+JSON.stringify(result));
   if(process.env.D1_REPORT_PATH)fs.writeFileSync(process.env.D1_REPORT_PATH,JSON.stringify(result,null,2));
   if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'### Cloudflare migration\n\n```json\n'+JSON.stringify(result,null,2)+'\n```\nLive site cutover remains blocked until a full content audit passes.\n');
