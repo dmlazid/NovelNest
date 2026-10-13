@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 // Read-only diagnosis. It never changes Cloudflare, DNS, D1, or the AdSense account.
 export function classifyLiveResponses(items) {
@@ -11,15 +10,15 @@ export function classifyLiveResponses(items) {
   const ads = items['/ads.txt'];
   const expectedAds = items.expectedAds;
   const isBuildInfo = build?.status === 200 &&
-    /^\\s*\\{/.test(build.body) && /"chapters"\\s*:/.test(build.body);
+    /^\s*\{/.test(build.body) && /"chapters"\s*:/.test(build.body);
   const isXmlSitemap = catalog?.status === 200 &&
-    /<urlset\\b/.test(catalog.body) && catalog.body.includes('novelhaven.top');
+    /<urlset\b/.test(catalog.body) && catalog.body.includes('novelhaven.top');
   const realChapter = chapter?.status === 200 &&
     /data-static-chapter=/.test(chapter.body) && /<p[^>]*>[^<]+/.test(chapter.body);
   const hiddenNoindex = hidden?.status === 200 &&
-    /\\bnoindex\\b/i.test(hidden.headers?.['x-robots-tag']||'') ||
+    /\bnoindex\b/i.test(hidden.headers?.['x-robots-tag']||'') ||
     hidden?.status === 200 && /<meta[^>]*name="robots"[^>]*noindex/i.test(hidden.body);
-  const hiddenPublisherScript = /pagead2\\.googlesyndication\\.com\\/pagead\\/js\\/adsbygoogle\\.js/.test(hidden?.body||'');
+  const hiddenPublisherScript = /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/.test(hidden?.body||'');
   const adsUntouched = ads?.status === 200 && ads.body.trim() === expectedAds.trim();
   const output = {
     generated_build_info_is_json:!!isBuildInfo,
@@ -80,7 +79,7 @@ export async function diagnose({
   if(!quality.production_ready)summary.blockers.push('Cloudflare production is not serving fully verified crawlable reader/build files and policy-safe routes.');
   if(pages.status!=='ok')summary.blockers.push('Cloudflare Pages project settings cannot be checked or edited with the current GitHub secret. Verify Pages Read/Edit permissions for this Cloudflare account.');
   if(pages.status==='ok' && (pages.build_command!=='NOVELNEST_CLOUDFLARE=1 node scripts/build.mjs' ||
-    !String(pages.output_directory||'').replace(/^\\.\\//,'').replace(/\\/$/,'').endsWith('_cloudflare')))
+    !String(pages.output_directory||'').replace(/^\.\//,'').replace(/\/$/,'').endsWith('_cloudflare')))
     summary.blockers.push('Pages project build command or output differs from the generated package. Do not switch to the generated package until the D1 chapter audit and isolated preview pass.');
   return summary;
 }
@@ -89,7 +88,7 @@ if(process.argv[1] && new URL('file://'+process.argv[1]).href===import.meta.url)
   diagnose().then(result=>{
     console.log('NovelHaven production readiness (read-only):',JSON.stringify(result,null,2));
     if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-      '### NovelHaven production verification\\n\\n\\x60\\x60\\x60json\\n'+JSON.stringify(result,null,2)+'\\n\\x60\\x60\\x60\\n\\nNo DNS, Pages, D1 or AdSense settings were changed.\\n');
+      '### NovelHaven production verification\n\n\x60\x60\x60json\n'+JSON.stringify(result,null,2)+'\n\x60\x60\x60\n\nNo DNS, Pages, D1 or AdSense settings were changed.\n');
     if(!result.quality.production_ready || result.pages.status!=='ok')process.exitCode=1;
   }).catch(e=>{console.error('Read-only production verification unavailable:',String(e.message));process.exitCode=1;});
 }
