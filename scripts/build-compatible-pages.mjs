@@ -94,6 +94,41 @@ write('build-info.json',JSON.stringify({mode:'compatible-spa-with-static-details
   chapters:novels.reduce((s,n)=>s+n.chapters.length,0),serverRenderedChapters:false,
   catalogRoutes:known.size+routeLinks.length,
   generatedAt:new Date().toISOString()},null,2)+'\n');
+// While chapter prose is still delivered by the existing interactive SPA,
+// block crawlers from treating the generic app shell as an indexed chapter.
+// This one pattern applies only to chapter URLs and must be removed once the
+// audited D1 HTML reader is fully live.
+const currentHeaders=read('_headers');
+const temporaryHeader='\n# SPA chapter fallback: prevent indexing until real server-side chapters are available.\n/novel/:novel/chapter-*\n  X-Robots-Tag: noindex, follow\n';
+assert(!currentHeaders.includes('/novel/:novel/chapter-*'),'Do not repeat temporary noindex rule');
+write('_headers',currentHeaders+temporaryHeader);
+
+// Readers must still be able to open every chapter, but AdSense must not be
+// requested from visibly restricted novels or exact duplicate chapters.
+// A Cloudflare Pages 200 rewrite keeps the requested URL and the working SPA
+// route while serving a publisher-free, noindex copy of the original shell.
+const restricted=source
+  .replace(/<meta name="robots" content="[^"]*">/,'<meta name="robots" content="noindex,follow">')
+  .replace(/<link rel="canonical" href="[^"]*">/,'')
+  .replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'');
+assert(!restricted.includes('pagead2.googlesyndication.com'),'Restricted reader must not load AdSense');
+assert(restricted.includes('app.js?'),'Restricted reader must retain the original SPA');
+write('restricted-reader.html',restricted);
+const noads=new Set();
+for(const book of novels.filter(n=>n.discoveryHidden)) {
+  noads.add('/novel/'+encodeURIComponent(book.id)+'/chapter-:number/ /restricted-reader.html 200');
+}
+const reviewed=JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json','utf8'));
+for(const item of reviewed.known){
+  if(novels.some(n=>n.id===item.novel_id&&!n.discoveryHidden)){
+    noads.add('/novel/'+encodeURIComponent(item.novel_id)+'/chapter-'+item.repeated_chapter+'/ /restricted-reader.html 200');
+  }
+}
+assert(noads.size>=11,'Missing restricted novels');
+write('_redirects','# AdSense-free fallback for the restricted reading routes only.\n'+
+  [...noads].join('\n')+'\n');
+console.log('Kept '+noads.size+' restricted-reader rewrite rules; all original chapter files remain unchanged.');
+
 // Keep the original index, chapter JavaScript chunks, auth, and licensed imports.
 assert.equal(read('index.html'),source,'Original site shell unexpectedly changed');
 console.log('Compatible Pages output ready: '+novels.length+' novel details, '+editorials.length+

@@ -1,0 +1,27 @@
+name: Verify restricted chapter advertising safeguards live
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-compatible-pages.mjs'
+      - '.github/workflows/verify-restricted-chapters.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          filter: blob:none
+          sparse-checkout: |
+            scripts/check-live-restricted-chapters.mjs
+            dist/ads.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/check-live-restricted-chapters.mjs

@@ -24,6 +24,15 @@ assert(!restricted.includes(publisher),'Restricted detail must not include ads s
 const library=read('library/index.html');
 assert.match(library,/name="robots" content="noindex,follow"/);
 assert(!library.includes(publisher));
+const noads=read('restricted-reader.html');
+assert.match(noads,/name="robots" content="noindex,follow"/);
+assert.doesNotMatch(noads,/pagead2\.googlesyndication\.com/);
+assert(noads.includes('app.js?'),'Restricted chapters must keep the working SPA');
+const rewrites=read('_redirects');
+assert(rewrites.includes('/novel/supreme-harem-god-system/chapter-:number/ /restricted-reader.html 200'));
+assert(rewrites.includes('/novel/my-rich-wife/chapter-752/ /restricted-reader.html 200'));
+assert(!rewrites.includes('/novel/shadow-slave/chapter-:number/'),'Do not redirect normal readers');
+assert.match(read('_headers'),/\/novel\/:novel\/chapter-\*\s+X-Robots-Tag: noindex, follow/);
 assert.equal(read('ads.txt'),fs.readFileSync('dist/ads.txt','utf8'));
 assert(read('index.html').includes(publisher),'Homepage AdSense must be unchanged');
 for(const p of ['catalog.js','app.js','accounts.js','data/fwn-martial-god-asura-chapters-01.js']){
