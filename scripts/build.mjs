@@ -140,7 +140,7 @@ for (const [route, title, expression] of [
   ['/reading-desk', 'Reading Desk', 'readingDesk()']
 ]) addRoute(route, title, expression);
 addRoute('/library', 'My library', 'library()', 'noindex,follow');
-for (const genre of [...new Set(novels.flatMap(n => n.tags))]) addRoute('/genre/' + encodeURIComponent(genre), genre + ' novels', `genreDirectory(${json(genre)},new URLSearchParams())`);
+for (const genre of [...new Set(novels.filter(n=>!n.discoveryHidden).flatMap(n => n.tags))]) addRoute('/genre/' + encodeURIComponent(genre), genre + ' novels', `genreDirectory(${json(genre)},new URLSearchParams())`);
 const editorials = render('Object.keys(EDITORIALS)');
 for (const id of editorials) addRoute('/editorial/' + id, render(`EDITORIALS[${json(id)}].title`), `editorial(${json(id)})`);
 // Clean policy URLs serve the same current disclosure as their .html versions.
