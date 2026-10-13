@@ -21,7 +21,10 @@ function harness(hash = '#/', initialStorage = {}) {
   const context = vm.createContext({ window, document, location: { hash }, Event, URLSearchParams, console, setTimeout: callback => timers.push(callback), clearTimeout() {}, localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) } });
   const run = text => vm.runInContext(text, context);
   const load = name => run(fs.readFileSync(`dist/${name}`, 'utf8'));
-  const licensed = fs.readdirSync('dist').filter(name => /^licensed-(?!ui\.js$).+\.js$/.test(name)).sort();
+  // Match actual public page script registrations. Files for archived books
+  // remain in GitHub but must never be loaded into the public catalog.
+  const page = fs.readFileSync('dist/index.html','utf8');
+  const licensed = [...page.matchAll(/<script\b[^>]*src="(licensed-(?!ui\.js)[^"?]+\.js)(?:\?[^"]*)?"[^>]*><\/script>/g)].map(m=>m[1]);
   for (const file of ['chapter-labels.js', 'catalog.js', ...licensed, 'app.js', 'lazy-chapters.js']) load(file);
   const flush = () => { let count = 0; while (timers.length) { assert(++count < 100, 'Unexpected render loop'); timers.shift()(); } };
   const go = next => { context.location.hash = next; window.dispatchEvent(new Event('hashchange')); flush(); };
