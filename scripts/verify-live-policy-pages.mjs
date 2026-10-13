@@ -33,6 +33,13 @@ for(let attempt=1;attempt<=9;attempt++){
       assert(html[i].includes('https://novelhaven.top/'+path),path+': wrong canonical link');
       assert(html[i].includes('<h1>'),path+': policy information missing');
     });
+    for(const page of ['contact.html','copyright.html','content-licensing.html','privacy.html']){
+      const contents=html[legal.indexOf(page)];
+      assert(contents.includes('mailto:novelhaven15@gmail.com'),page+': direct rights contact is missing');
+      assert(contents.includes('>novelhaven15@gmail.com</a>'),page+': published email is not visible');
+    }
+    assert(html[legal.indexOf('copyright.html')].includes('Email a copyright request'),
+      'Copyright page must offer a private email path instead of only a public issue');
     const choices=html[legal.indexOf('privacy-choices.html')];
     assert(choices.includes('Approval not confirmed'),'Privacy Choices is stale');
     assert(choices.includes('does not erase synced Firebase account data'),'Missing privacy disclaimer');
@@ -44,7 +51,7 @@ for(let attempt=1;attempt<=9;attempt++){
     assert.equal(ads.trim(),publisher,'AdSense ads.txt changed on live site');
     console.log('VERIFIED NovelHaven public policy pages:',JSON.stringify({
       origin,utilityPagesWithoutAdCode:legal.length,
-      privacyBrandCorrect:true,localDataDisclosure:true,
+      privacyBrandCorrect:true,localDataDisclosure:true,privateRightsEmailPublished:true,
       originalPublisherVerificationPreserved:true,adsTxtUnchanged:true
     }));
     if(process.env.GITHUB_STEP_SUMMARY)
