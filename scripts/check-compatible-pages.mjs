@@ -17,6 +17,12 @@ assert.match(sample,/<meta name="description"/);
 assert.match(sample,/https:\/\/novelhaven\.top\/novel\/shadow-slave\//);
 assert(sample.includes(publisher),'Noncurated pages retain publisher setup');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
+assert(sample.includes('app.js?v=20261014-source-accurate-latest-1'),
+  'Latest Novels must load the updated reader/discovery script');
+assert(sample.includes('source-activity.js?v=20261014-fresh-source-feed-1'),
+  'Source activity must bypass the previously cached static URL');
+assert.match(read('_headers'),/\/source-activity\.js\s+Cache-Control: public, max-age=60, must-revalidate/,
+  'Source activity reports must not remain cached for four hours');
 assert(sample.includes('removed-duplicates.js'),'Deleted chapter map must load before the reader');
 assert.equal(build.removedChapterBodies,9,'All nine chapter bodies should be deleted');
 const rich=read('novel/my-rich-wife/index.html');
