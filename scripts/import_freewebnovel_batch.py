@@ -24,6 +24,9 @@ BASE = "https://freewebnovel.com/novel"
 CHUNK_CAPACITY = 100
 BATCH_SIZE = max(1, int(os.environ.get("FWN_BATCH_SIZE", "100")))
 REQUEST_DELAY = float(os.environ.get("FWN_REQUEST_DELAY", "0.8"))
+# Deliberately unpublished novels retain original files for future rights and
+# editorial review; automated import jobs must not re-add them to the site.
+ARCHIVED_FWN_KEYS = set(json.loads((Path(__file__).resolve().parent / "archived_freewebnovel_keys.json").read_text(encoding="utf-8")))
 DIST = Path("dist")
 DATA_DIR = DIST / "data"
 ASSET_DIR = DIST / "assets"
@@ -743,6 +746,8 @@ def write_catalog(key: str, cfg: dict, p: dict, chapters: list[dict], status: st
 
 
 def ensure_index_registration(key: str) -> None:
+    if key in ARCHIVED_FWN_KEYS:
+        return
     index_path = DIST / "index.html"
     html = index_path.read_text(encoding="utf-8")
     tag = f'<script defer src="licensed-fwn-{key}.js"></script>'
@@ -755,6 +760,9 @@ def ensure_index_registration(key: str) -> None:
 
 
 def import_series(key: str) -> None:
+    if key in ARCHIVED_FWN_KEYS:
+        print(f"{key}: archived from public site; leaving existing files untouched.", flush=True)
+        return
     cfg = SERIES[key]
     p = paths(key)
     raw = get(source_url(cfg))
@@ -810,10 +818,10 @@ def import_series(key: str) -> None:
 
 def main() -> None:
     if len(sys.argv) == 2 and sys.argv[1] == "--keys":
-        print("\n".join(SERIES))
+        print("\n".join(key for key in SERIES if key not in ARCHIVED_FWN_KEYS))
         return
     if len(sys.argv) == 2 and sys.argv[1] == "--keys":
-        print("\n".join(SERIES))
+        print("\n".join(key for key in SERIES if key not in ARCHIVED_FWN_KEYS))
         return
     if len(sys.argv) != 2 or sys.argv[1] not in SERIES:
         raise SystemExit("Usage: python scripts/import_freewebnovel_batch.py <series-key>|--keys")
