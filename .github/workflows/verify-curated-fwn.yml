@@ -1,0 +1,46 @@
+name: Verify public long-novel curation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-curated-fwn.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check real Cloudflare sitemap, direct novels and AdSense untouched
+        shell: bash
+        run: |
+          set -euo pipefail
+          archived=(martial-god-asura legend-of-swordsman martial-peak infinite-mana-in-the-apocalypse reborn-at-boot-camp-general-dont-mess-around chaotic-sword-god madams-identities-shocks-the-entire-city-again the-long-awaited-mr-han cultivation-chat-group fey-evolution-merchant)
+          ready=0
+          for attempt in 1 2 3 4 5 6 7 8; do
+            stamp="$(date +%s)"
+            curl -fsSL --max-time 30 "https://novelhaven.top/sitemaps/catalog.xml?c=$stamp" -o /tmp/nh-catalog.xml || true
+            if grep -Fq 'https://novelhaven.top/novel/shadow-slave/' /tmp/nh-catalog.xml &&
+              ! grep -Fq 'https://novelhaven.top/novel/martial-god-asura/' /tmp/nh-catalog.xml; then
+              ready=1
+              break
+            fi
+            echo "Waiting for Cloudflare curation deploy (attempt $attempt of 8)"
+            sleep 15
+          done
+          if [ "$ready" != "1" ]; then echo "::error::Curated sitemap not yet deployed."; exit 1; fi
+          for id in "${archived[@]}"; do
+            if grep -Fq "https://novelhaven.top/novel/$id/" /tmp/nh-catalog.xml; then
+              echo "::error::Curated novel $id remains in public sitemap."; exit 1
+            fi
+          done
+          curl -fsSL --max-time 30 "https://novelhaven.top/novel/martial-god-asura/" -o /tmp/nh-curated-detail.html
+          grep -Fq 'name="robots" content="noindex,follow"' /tmp/nh-curated-detail.html ||
+            { echo "::error::Curated title page must be noindex while remaining reachable."; exit 1; }
+          grep -Fq 'chapter-1/' /tmp/nh-curated-detail.html ||
+            { echo "::error::Direct reading links were not preserved."; exit 1; }
+          curl -fsSL --max-time 30 "https://novelhaven.top/ads.txt" -o /tmp/nh-ads-txt
+          grep -Fq 'google.com, pub-9356195452195758, DIRECT, f08c47fec0942fa0' /tmp/nh-ads-txt ||
+            { echo "::error::Existing AdSense ads.txt record changed or missing."; exit 1; }
+          echo "VERIFIED LIVE: all ten long imported novels omitted from public catalog sitemap, direct chapter links preserved, curated page noindex, Shadow Slave public, AdSense unchanged."
