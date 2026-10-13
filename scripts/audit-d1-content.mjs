@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {loadNovelCatalog,selectChapters} from './export-d1-batch.mjs';
+import {loadNovelCatalog,selectChapters,readableChapterCount,deletedChapterNumbers} from './export-d1-batch.mjs';
 import {createClients,indexExistingRows} from './sync-d1-sharded.mjs';
 import {SHARDS} from '../cloudflare/d1/shards.mjs';
 
@@ -29,14 +29,36 @@ export async function auditContent({clients,root='dist',log=console.log}={}) {
     assert([s.stored,s.minimum,s.maximum].every(n=>Number.isSafeInteger(Number(n))), 'Invalid chapter statistics');
     assert(Number(s.minimum)>=1&&Number(s.maximum)<=novel.chapters.length&&Number(s.stored)<=novel.chapters.length,'Unexpected chapter range: '+id);
   }
-  const activeStored=novels.reduce((sum,n)=>sum+Number(existing.get(n.id)?.stats.stored||0),0);
+  const removedByNovel=new Map(novels.map(n=>[n.id,new Set(deletedChapterNumbers(n))]));
+  let retiredStored=0;
+  // Older D1 imports might still hold the nine deleted duplicate bodies.
+  // Detect only those exact numbered rows. They are not readable content and
+  // are deliberately excluded from readiness and paragraph comparisons.
+  for(const novel of novels){
+    const removed=removedByNovel.get(novel.id),entry=existing.get(novel.id);
+    if(!removed.size||!entry)continue;
+    const numbers=[...removed];
+    const query='SELECT chapter_number FROM chapters WHERE novel_id=? AND chapter_number IN ('+
+      numbers.map(()=>'?').join(',')+')';
+    const rows=(await clients.get(entry.shardId).query(query,[novel.id,...numbers])).results;
+    assert(rows.every(row=>removed.has(Number(row.chapter_number)))&&rows.length<=numbers.length,
+      'Unexpected stored tombstone lookup: '+novel.id);
+    retiredStored+=rows.length;
+  }
+  const numberedSlots=novels.reduce((sum,n)=>sum+n.chapters.length,0);
+  const deletedSlots=numberedSlots-novels.reduce((sum,n)=>sum+readableChapterCount(n),0);
+  const sourceChapters=numberedSlots-deletedSlots;
   const totalStored=[...existing.values()].reduce((sum,e)=>sum+Number(e.stats.stored),0);
-  const report={source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),
+  const activeStored=novels.reduce((sum,n)=>sum+Number(existing.get(n.id)?.stats.stored||0),0)-retiredStored;
+  assert(activeStored>=0&&activeStored<=sourceChapters,
+    'Invalid readable D1 chapter count; refuse cutover');
+  const report={source_chapters:sourceChapters,numbered_chapter_slots:numberedSlots,
+    deleted_chapter_slots:deletedSlots,retired_d1_rows:retiredStored,
     total_stored:totalStored,active_stored:activeStored,historical_stored:totalStored-activeStored,
-    historical_novels:historicalIds.length,remaining_chapters:novels.reduce((sum,n)=>sum+n.chapters.length,0)-activeStored,
+    historical_novels:historicalIds.length,remaining_chapters:sourceChapters-activeStored,
     verified_chapters:0,full_audit_passed:false,cutover_ready:false,
     status:'copy_pending',source_commit:process.env.GITHUB_SHA||null};
-  if(novels.some(n=>Number(existing.get(n.id)?.stats.stored||0)!==n.chapters.length))return report;
+  if(report.remaining_chapters!==0)return report;
   const digest=createHash('sha256');
   for(const novel of novels){
     const entry=existing.get(novel.id);
@@ -44,9 +66,13 @@ export async function auditContent({clients,root='dist',log=console.log}={}) {
     const client=clients.get(entry.shardId);
     for(let start=1;start<=novel.chapters.length;start+=100){
       const end=Math.min(start+99,novel.chapters.length),expected=[];
-      for(let n=start;n<=end;n+=25)expected.push(...selectChapters(root,novel,n,Math.min(25,end-n+1)));
-      const stored=(await client.query('SELECT chapter_number,title,paragraphs_json FROM chapters WHERE novel_id=? AND chapter_number>=? AND chapter_number<=? ORDER BY chapter_number',[novel.id,start,end])).results;
-      assert(stored.length===expected.length,'Missing or duplicate chapters: '+novel.id+' #'+start);
+      for(let n=start;n<=end;n+=25)expected.push(...selectChapters(root,novel,n,Math.min(25,end-n+1))
+        .filter(chapter=>!chapter.removedDuplicate));
+      if(!expected.length)continue;
+      const raw=(await client.query('SELECT chapter_number,title,paragraphs_json FROM chapters WHERE novel_id=? AND chapter_number>=? AND chapter_number<=? ORDER BY chapter_number',[novel.id,start,end])).results;
+      const removed=removedByNovel.get(novel.id);
+      const stored=raw.filter(row=>!removed.has(Number(row.chapter_number)));
+      assert(stored.length===expected.length,'Missing or duplicate readable chapters: '+novel.id+' #'+start);
       for(let i=0;i<expected.length;i++){
         const c=expected[i],r=stored[i];
         assert(Array.isArray(c.paragraphs)&&c.paragraphs.length&&c.paragraphs.every(p=>typeof p==='string'&&p.trim()),'Invalid source paragraphs');

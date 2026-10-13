@@ -25,6 +25,9 @@ function fixture(t,count=101){
       const numbers=all.filter(r=>r.novel_id===novel_id).map(r=>r.chapter_number);
       return {novel_id,stored:numbers.length,minimum:Math.min(...numbers),maximum:Math.max(...numbers)};
     })};
+    if(sql.includes('chapter_number IN ('))return {results:all
+      .filter(r=>r.novel_id===params[0]&&params.slice(1).includes(r.chapter_number))
+      .map(r=>({chapter_number:r.chapter_number}))};
     bodyQueries++;
     return {results:all.filter(r=>r.novel_id===params[0]&&r.chapter_number>=params[1]&&r.chapter_number<=params[2]).sort((a,b)=>a.chapter_number-b.chapter_number)};
   }}]));
@@ -66,4 +69,44 @@ test('out-of-range rows and copies on multiple shards are rejected',async t=>{
   f.stored.get(SHARDS[1].id).push({...row});await assert.rejects(()=>auditContent(f),/multiple D1 shards/);
   f.stored.get(SHARDS[1].id).length=0;row.chapter_number=3;
   await assert.rejects(()=>auditContent(f),/Unexpected chapter range/);
+});
+
+function removeFixtureChapterTwo(f){
+  const root=f.root;
+  const file=path.join(root,'chapters-01.js');
+  const contents=fs.readFileSync(file,'utf8');
+  const chapters=JSON.parse(contents.slice('window.CHAPTERS='.length,-1));
+  chapters[1]={number:2,title:'Chapter 2',paragraphs:[],removedDuplicate:true};
+  fs.writeFileSync(file,'window.CHAPTERS='+JSON.stringify(chapters)+';');
+  fs.writeFileSync(path.join(root,'removed-duplicates.js'),
+    'window.NOVELS[0].chapters[1]={number:2,title:"Chapter 2",paragraphs:[],lazy:false,removedDuplicate:true};');
+  fs.appendFileSync(path.join(root,'index.html'),'<script src="removed-duplicates.js"></script>');
+}
+test('old deleted duplicate D1 prose does not block verification of all live chapters',async t=>{
+  const f=fixture(t,3);
+  removeFixtureChapterTwo(f);
+  const result=await auditContent({...f,log:()=>{}});
+  assert.equal(result.numbered_chapter_slots,3);
+  assert.equal(result.source_chapters,2);
+  assert.equal(result.deleted_chapter_slots,1);
+  assert.equal(result.retired_d1_rows,1);
+  assert.equal(result.total_stored,3);
+  assert.equal(result.active_stored,2);
+  assert.equal(result.historical_stored,1);
+  assert.equal(result.remaining_chapters,0);
+  assert.equal(result.verified_chapters,2);
+  assert.equal(result.full_audit_passed,true);
+  assert.equal(f.bodyQueries(),1,'Audit must exclude deleted duplicates from content equality');
+});
+test('retired D1 row must never mask a genuinely missing live chapter',async t=>{
+  const f=fixture(t,3);
+  removeFixtureChapterTwo(f);
+  f.stored.get(SHARDS[0].id).pop(); // Chapter 3 is still missing.
+  const result=await auditContent({...f,log:()=>{}});
+  assert.equal(result.retired_d1_rows,1);
+  assert.equal(result.source_chapters,2);
+  assert.equal(result.active_stored,1);
+  assert.equal(result.remaining_chapters,1);
+  assert.equal(result.full_audit_passed,false);
+  assert.equal(f.bodyQueries(),0,'Pending copy must not audit partial chapter text');
 });
