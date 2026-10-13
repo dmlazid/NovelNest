@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {sourceFeedFilename} from './source-feed-fingerprint.mjs';
+import {extractLiveSourceNovels,renderLiveHomepage} from './live-home-check.mjs';
 const base='https://novelhaven.top';
 const expectedAds=fs.readFileSync('dist/ads.txt','utf8').trim();
 const expectedSource=fs.readFileSync('dist/source-activity.js','utf8');
@@ -41,17 +42,12 @@ for(let attempt=1;attempt<=20;attempt++){
     assert(removed.body.includes('NOVELNEST_REMOVED_DUPLICATES'),
       'Deleted duplicate chapter manifest lost');
     assert(chapter.body.includes('app.js'),'Original chapter reader is missing');
-    const releaseSection=home.body.match(/<section class="home-feed-section home-release-section"[\s\S]*?<\/section>/);
-    assert(releaseSection,'Latest Release Novels is missing');
-    const released=[...releaseSection[0].matchAll(/class="home-release-row" href="\/novel\/([^/]+)\//g)].map(m=>m[1]);
-    const pos=home.body.indexOf('Latest Novels</h2>');
-    assert(pos>=0,'Latest Novels missing from homepage');
-    const next=home.body.indexOf('</section>',pos);
-    const latest=[...home.body.slice(pos,next<0?undefined:next).matchAll(/class="home-novel-tile" href="\/novel\/([^/]+)\//g)].map(m=>m[1]);
-    assert(released.length>0,'No verified source release rows');
-    const expected=released.slice(0,6);
-    assert.deepEqual(latest,expected,
-      'Latest Novels must display only the most recent source releases in order');
+    // Cloudflare serves a lightweight SPA shell for the homepage. Only a real
+    // browser executes the catalog, source feed and app code into Latest Novels.
+    const rendered=renderLiveHomepage(base+'/?live-browser-verify='+Date.now());
+    assert(rendered.includes('src="'+currentFeed+'"'),
+      'Browser received a stale HTML source asset reference');
+    const {released,latest}=extractLiveSourceNovels(rendered);
     console.log('VERIFIED NovelHaven live source updates:',JSON.stringify({
       latestNovels:latest,sourceReleases:released.length,adsTxtUnchanged:true,
       existingChapterReader:true,removedDuplicatesPreserved:true,sourceFeedAsset:currentFeed
