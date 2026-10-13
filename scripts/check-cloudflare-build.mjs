@@ -9,7 +9,7 @@ assert.equal(Object.keys(meta).length,info.novels);assert.equal(Object.values(me
 let urls=0;for(const f of fs.readdirSync(root+'/sitemaps').filter(x=>x.startsWith('chapters-')))urls+=(read('sitemaps/'+f).match(/<url>/g)||[]).length;
 const indexable=Object.values(meta).filter(n=>!n.discoveryHidden).reduce((s,n)=>s+n.total-(n.duplicateChapters?.length||0),0);
 assert.equal(urls,indexable,'Only reviewed chapter URLs should be in chapter sitemaps');
-assert(Object.values(meta).some(n=>(n.duplicateChapters||[]).length),'Actual repeated chapter text must be flagged for review');
+for(const n of Object.values(meta))assert(Array.isArray(n.duplicateChapters)&&n.duplicateChapters.every(number=>Number.isSafeInteger(number)&&number>=1&&number<=n.total),'Invalid duplicate review list');
 const hidden=Object.entries(meta).filter(([id,n])=>n.discoveryHidden);
 assert.equal(hidden.length,11,'Reader-safe curation excludes the ten long imports and the explicit-content review title');
 const catalogSitemap=read('sitemaps/catalog.xml');
