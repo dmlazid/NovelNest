@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {sourceFeedFilename} from './source-feed-fingerprint.mjs';
 const read=p=>fs.readFileSync('dist/'+p,'utf8');
 const publisher=read('index.html').match(/<script async src="https:\/\/pagead2[^>]+><\/script>/)?.[0];
 assert(publisher,'Existing AdSense verification must remain on the main site');
@@ -19,10 +20,15 @@ assert(sample.includes(publisher),'Noncurated pages retain publisher setup');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
 assert(sample.includes('app.js?v=20261014-source-accurate-latest-1'),
   'Latest Novels must load the updated reader/discovery script');
-assert(sample.includes('source-activity.js?v=20261014-fresh-source-feed-1'),
-  'Source activity must bypass the previously cached static URL');
-assert.match(read('_headers'),/\/source-activity\.js\s+Cache-Control: public, max-age=60, must-revalidate/,
-  'Source activity reports must not remain cached for four hours');
+const sourceAsset=sourceFeedFilename(read('source-activity.js'));
+assert(sample.includes('src="'+sourceAsset+'"'),
+  'Source snapshot must use a unique content-addressed URL');
+assert.equal(read(sourceAsset),read('source-activity.js'),
+  'Published fingerprinted source snapshot does not match the latest source report');
+assert.equal(build.sourceFeedAsset,sourceAsset,
+  'Build metadata must identify the exact source snapshot');
+assert(!sample.includes('src="source-activity.js'),
+  'Old long-cached source report URL must not remain in the rendered homepage');
 assert(sample.includes('removed-duplicates.js'),'Deleted chapter map must load before the reader');
 assert.equal(build.removedChapterBodies,9,'All nine chapter bodies should be deleted');
 const rich=read('novel/my-rich-wife/index.html');

@@ -4,6 +4,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-compatible-pages-production.yml'
+      - 'scripts/build-compatible-pages.mjs'
+      - 'scripts/source-feed-fingerprint.mjs'
+      - 'scripts/verify-live-source-feed.mjs'
+      - 'dist/source-activity.js'
+      - 'dist/app.js'
+      - 'dist/index.html'
   workflow_dispatch:
 permissions:
   contents: read
