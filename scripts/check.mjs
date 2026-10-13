@@ -21,6 +21,16 @@ export function repeatedChapterBodies(novelId, chapters, minimumLength = 300) {
   return duplicates;
 }
 
+// Only the specifically audited bad chapter pairs are tolerated temporarily.
+// A new duplicate or a changed duplicate body fails the publishing build.
+// Once a chapter is corrected, its former finding is simply absent.
+export function unexpectedRepeatedBodies(repeated, allowlist) {
+  const known = new Set(allowlist.map(item =>
+    [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':')));
+  return repeated.filter(item => !known.has(
+    [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':')));
+}
+
 export function validateSite(root = 'dist') {
   const read = name => fs.readFileSync(path.join(root, name), 'utf8');
   const context = vm.createContext({ window: {} });
@@ -91,6 +101,13 @@ export function validateSite(root = 'dist') {
     const data = vm.createContext({ window: {} });
     vm.runInContext(read(file), data, { filename: file, timeout: 1000 });
     assert(Object.values(data.window).every(v => Array.isArray(v) && v.length === 0), `Unindexed chapters in ${file}`);
+  }
+  if (root === 'dist') {
+    const reviewed = JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8'));
+    const unexpected = unexpectedRepeatedBodies(repeated, reviewed.known);
+    assert.equal(unexpected.length, 0,
+      'New or modified repeated chapter body needs review before publishing: ' +
+      JSON.stringify(unexpected.slice(0, 12)));
   }
   const report = {novels: novels.length, chapters: chapterCount, duplicate_chapter_bodies: repeated};
   if (process.env.CHAPTER_DUPLICATE_REPORT_PATH) fs.writeFileSync(process.env.CHAPTER_DUPLICATE_REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
