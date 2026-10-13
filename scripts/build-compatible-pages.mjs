@@ -91,7 +91,7 @@ const urls=[...known,...routeLinks].map(url=>'<url><loc>https://novelhaven.top'+
 write('sitemaps/catalog.xml','<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+urls+'</urlset>');
 write('sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>https://novelhaven.top/sitemaps/catalog.xml</loc></sitemap></sitemapindex>');
 write('build-info.json',JSON.stringify({mode:'compatible-spa-with-static-details',novels:novels.length,
-  chapters:novels.reduce((s,n)=>s+n.chapters.length,0),serverRenderedChapters:false,
+  chapters:novels.reduce((s,n)=>s+n.chapters.filter(c=>!c.removedDuplicate).length,0),removedChapterBodies:9,serverRenderedChapters:false,
   catalogRoutes:known.size+routeLinks.length,
   generatedAt:new Date().toISOString()},null,2)+'\n');
 // While chapter prose is still delivered by the existing interactive SPA,
