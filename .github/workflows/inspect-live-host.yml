@@ -202,10 +202,12 @@ jobs:
           const latest=[...html.slice(i,next<0?undefined:next).matchAll(/class="home-novel-tile" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
           console.log('LIVE LATEST NOVELS:',JSON.stringify(latest));
           console.log('LIVE RECENT SOURCE RELEASES:',released.length);
-          if(latest.length!==6)throw new Error('Latest Novels did not render six books');
-          if(released.length>=13 && latest.some(id=>!released.includes(id)))
-            throw new Error('Latest Novels includes old imports despite enough verified recent source updates');
-          console.log('VERIFIED LIVE: Latest Novels prioritizes recently updated source chapters.');
+          const expected=released.slice(0,6);
+          if(latest.length!==expected.length)
+            throw new Error('Latest Novels rendered '+latest.length+' tiles; expected '+expected.length+' verified source updates');
+          if(latest.some((id,index)=>id!==expected[index]))
+            throw new Error('Latest Novels must show the six most recent source updates in chronological order, without imported older chapters');
+          console.log('VERIFIED LIVE: Latest Novels displays source-updated novels only, in release order.');
           NODE
       - name: Verify live Library no-flicker scripts are deployed
         shell: bash

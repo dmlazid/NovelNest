@@ -177,7 +177,7 @@ test('Latest Novels cards prioritize genuine five-day updates without using chap
   assert.doesNotMatch(area,/backfill-/);
   assert.match(area,/fresh-/);
 });
-test('Latest Novels full directory orders real releases ahead of imported older novels',()=>{
+test('Latest Novels full directory orders real releases and omits imported older novels',()=>{
   const v=harness([
     book('a-old-import',{updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'}),
     source('z-first',{sourceReleaseAt:'2026-10-11T08:50:00Z'}),
@@ -187,8 +187,8 @@ test('Latest Novels full directory orders real releases ahead of imported older 
   const newer=html.indexOf('/novel/y-newest/');
   const earlier=html.indexOf('/novel/z-first/');
   const old=html.indexOf('/novel/a-old-import/');
-  assert(newer>=0 && earlier>=0 && old>=0);
-  assert(newer < earlier && earlier < old);
+  assert(newer>=0 && earlier>=0 && old<0,'Old imported books must not appear in Latest Novels');
+  assert(newer < earlier,'Source release order must remain chronological');
 });
 
 test('background Library progress refresh replaces only the Continue Reading card',()=>{
@@ -238,4 +238,35 @@ test('curation flags listed long FreeWebNovel imports without deleting the catal
   assert.equal(sample.window.NOVELS[1].discoveryHidden,undefined);
   assert.equal(sample.window.NOVELS.length,2);
   assert.equal(sample.window.NOVELNEST_DISCOVERY_EXCLUDED.length,11);
+});
+
+
+test('Latest Novels never mixes old imported chapters or excludes featured genuine updates',()=>{
+  const fresh=Array.from({length:8},(_,i)=>source('fresh-'+i,{
+    sourceReleaseAt:'2026-10-11T08:'+String(58-i).padStart(2,'0')+':00Z',
+    updated:'2026-10-11'
+  }));
+  const imported=Array.from({length:25},(_,i)=>book('imported-'+i,{
+    updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'
+  }));
+  const render=harness([...fresh,...imported]);
+  for(let attempt=0;attempt<15;attempt++){
+    const html=render('home()');
+    const section=html.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1].split('</section>')[0];
+    const order=[...section.matchAll(/home-novel-tile" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
+    assert.deepEqual(order,['fresh-0','fresh-1','fresh-2','fresh-3','fresh-4','fresh-5']);
+    assert(!/imported-/.test(section));
+  }
+});
+test('Latest Novels displays only actual releases when fewer than six exist',()=>{
+  const render=harness([book('old-import',{lastChapterAddedAt:'2026-10-11T08:59:00Z'}),
+    source('true-new',{sourceReleaseAt:'2026-10-11T08:55:00Z'})]);
+  const home=render('home()');
+  const section=home.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1].split('</section>')[0];
+  assert.equal((section.match(/class="home-novel-tile"/g)||[]).length,1);
+  assert.match(section,/true-new/);
+  assert.doesNotMatch(section,/old-import/);
+  const listing=render("directoryPage('novels')");
+  assert.match(listing,/\/novel\/true-new\//);
+  assert.doesNotMatch(listing,/\/novel\/old-import\//);
 });

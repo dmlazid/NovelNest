@@ -60,3 +60,7 @@
   X-Robots-Tag: noindex, follow
 /novel/necropolis-immortal/chapter-1765/
   X-Robots-Tag: noindex, follow
+
+# Source release observations change hourly; do not keep old reports for four hours.
+/source-activity.js
+  Cache-Control: public, max-age=60, must-revalidate

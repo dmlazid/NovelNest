@@ -242,15 +242,11 @@ function home(){
   const topRows=featured.slice(4,7);
   // Recent releases must remain chronological, unlike the discovery cards.
   const releases=latestOngoingReleases(publicNovels);
-  const displayed=new Set([...topFeatures,...topRows].map(n=>n.id));
-  // Show genuinely recently updated books first; keep the six cards rotating
-  // within the recent pool. Local chapter import and catalog updated times
-  // never qualify a book as a new source release.
-  const freshlyUpdated=latestOngoingReleases(publicNovels).filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id));
-  const recentPool=shuffledNovels(freshlyUpdated);
-  const otherPool=shuffledNovels(sorted.filter(n=>n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id)&&!freshlyUpdated.some(f=>f.id===n.id)));
-  const latestNovels=[...recentPool,...otherPool].slice(0,6);
-  latestNovels.forEach(n=>displayed.add(n.id));
+  // Latest Novels is a truthful, chronological source-release feed.
+  // Do not hide genuine updates just because Featured already shows that book,
+  // randomly shuffle release dates, or fill empty slots with old imports.
+  const latestNovels=releases.filter(n=>n.chapters?.length&&!n.externalUrl).slice(0,6);
+  const displayed=new Set([...topFeatures,...topRows,...latestNovels].map(n=>n.id));
   const completed=shuffledNovels(sorted.filter(n=>n.status==='Completed'&&n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
   return `<div class="home-feed">
     <section class="home-showcase" aria-label="Featured novels">
@@ -263,7 +259,7 @@ function home(){
     </section>
     <section class="home-feed-section">
       <div class="home-feed-head"><h2><span aria-hidden="true">↻</span> Latest Novels</h2><a href="./#/latest-novels">See more</a></div>
-      <div class="home-cover-grid">${latestNovels.map(homeNovelTile).join('')}</div>
+      ${latestNovels.length?`<div class="home-cover-grid">${latestNovels.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No verified new source chapters yet.</p>'}
     </section>
     <section class="home-feed-section">
       <div class="home-feed-head"><h2><span aria-hidden="true">✓</span> Completed Novels</h2><a href="./#/completed">See more</a></div>
@@ -380,16 +376,7 @@ function directoryPage(kind){
   let results=[...publicNovels];
   if(kind==='releases') results=latestOngoingReleases(publicNovels);
   else if(kind==='completed') results=results.filter(n=>n.status==='Completed');
-  if(kind==='novels'){
-    const active=latestOngoingReleases(publicNovels), order=new Map(active.map((n,i)=>[n.id,i]));
-    results.sort((a,b)=>{
-      const aOrder=order.get(a.id), bOrder=order.get(b.id);
-      if(aOrder!==undefined&&bOrder!==undefined)return aOrder-bOrder;
-      if(aOrder!==undefined)return -1;
-      if(bOrder!==undefined)return 1;
-      return a.title.localeCompare(b.title);
-    });
-  }
+  if(kind==='novels') results=latestOngoingReleases(publicNovels);
   else if(kind!=='releases') results.sort((a,b)=>b.updated.localeCompare(a.updated)||b.chapters.length-a.chapters.length);
   return `<div class="directory-page">
     <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><span aria-current="page">${esc(cfg.title)}</span></nav>
