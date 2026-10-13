@@ -123,6 +123,19 @@ export function validateSite(root = 'dist') {
       JSON.stringify(unexpected.slice(0, 12)));
   }
   const report = {novels: novels.length, chapters: chapterCount, duplicate_chapter_bodies: repeated};
+  if (root === 'dist') {
+    const baseline = JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8')).known;
+    const current = new Set(repeated.map(item =>
+      [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':')));
+    report.duplicate_repair_status = {
+      awaiting_source_verified_repair: repeated.map(item => ({
+        ...item, source_verified: false, correction_applied: false
+      })),
+      previously_known_now_absent: baseline.filter(item => !current.has(
+        [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':'))),
+      requires_authorized_source_text: true
+    };
+  }
   if (process.env.CHAPTER_DUPLICATE_REPORT_PATH) fs.writeFileSync(process.env.CHAPTER_DUPLICATE_REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
   if (repeated.length) console.warn('::warning::Exact repeated chapter bodies detected: ' + JSON.stringify(repeated.slice(0, 30)) + (repeated.length > 30 ? ' (more in saved audit artifact)' : ''));
   console.log(`Validated ${novels.length} novels and ${chapterCount} actual chapters; ${repeated.length} exact repeated chapter bodies to review.`);
