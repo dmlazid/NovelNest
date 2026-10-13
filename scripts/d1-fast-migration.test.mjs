@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {insertBatch,verifyBatch,reserveWrites,DAILY_BUDGET,PRIOR_USAGE_RESERVE} from './d1-fast-migration.mjs';
+import {insertBatch,verifyBatch,reserveWrites,DAILY_BUDGET,PRIOR_USAGE_RESERVE,meterClients,MAX_READ_ROWS_PER_RUN} from './d1-fast-migration.mjs';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 import {migrate} from './d1-fast-migration.mjs';
 import {SHARDS} from '../cloudflare/d1/shards.mjs';
@@ -128,4 +128,51 @@ test('quota-exhausted runs do not claim full audit readiness without verificatio
  assert.equal(report.remaining_chapters,null);
  assert.equal(report.stop_reason,'daily_budget_reached');
  assert.equal(report.cutover_ready,false,'Only a full verified content audit can ever authorize cutover');
+});
+
+test('D1 client usage meter records scanned and written rows without changing query results',async()=>{
+ const client={size:async()=>1000,query:async sql=>({
+   results:[{ok:true}],meta:sql==='first'?{rows_read:111,rows_written:2}:{rows_read:90,rows_written:0}
+ })};
+ const {clients,usage}=meterClients(new Map([['db',client]]));
+ assert.equal(await clients.get('db').size(),1000);
+ assert.deepEqual((await clients.get('db').query('first')).results,[{ok:true}]);
+ await clients.get('db').query('second');
+ assert.deepEqual(usage,{rows_read:201,rows_written:2,metered_queries:2,unmetered_queries:0});
+ assert.equal(MAX_READ_ROWS_PER_RUN,350000);
+});
+test('missing Cloudflare usage metadata remains visible rather than inventing zeros',async()=>{
+ const {clients,usage}=meterClients(new Map([['db',{
+  size:async()=>42,query:async()=>({results:[]})
+ }]]));
+ await clients.get('db').query('ignored');
+ assert.equal(usage.unmetered_queries,1);
+ assert.equal(usage.metered_queries,0);
+});
+test('rows-read cap stops after inventory before starting any chapter write',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-budget-'));
+ t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.mkdirSync(path.join(root,'data'));
+ const chapters=[chapter,{...chapter,number:2,title:'Chapter 2'}];
+ fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
+ fs.writeFileSync(path.join(root,'catalog.js'),'window.NOVELS='+JSON.stringify([{id:'book',title:'Book',chapters,lazyChunks:{prefix:'data/book-chapters-',global:'CHAPTERS',capacity:25}}])+';');
+ fs.writeFileSync(path.join(root,'data/book-chapters-01.js'),'window.CHAPTERS='+JSON.stringify(chapters)+';');
+ let inserts=0;
+ const raw=new Map(SHARDS.map((shard,i)=>[shard.id,{size:async()=>1000,query:async(sql)=>{
+   if(sql.startsWith('CREATE TABLE')||sql.startsWith('INSERT INTO migration_write_budget'))return {results:[],meta:{rows_read:0,rows_written:0}};
+   if(sql.startsWith('SELECT reserved'))return {results:[],meta:{rows_read:0,rows_written:0}};
+   if(sql.startsWith('SELECT novel_id,COUNT'))return {results:[],meta:{rows_read:i===0?400:0,rows_written:0}};
+   if(sql.startsWith('PRAGMA'))return {results:[{name:'pk'}],meta:{rows_read:1,rows_written:0}};
+   if(sql.startsWith('SELECT name FROM sqlite_master'))return {results:[],meta:{rows_read:0,rows_written:0}};
+   if(sql==='SELECT novel_id,database_id FROM novel_shards')return {results:[],meta:{rows_read:0,rows_written:0}};
+   if(sql.startsWith('INSERT INTO chapters')){inserts++;throw Error('Unexpected chapter insert');}
+   throw Error('Unexpected SQL: '+sql);
+ }}]));
+ const {clients,usage}=meterClients(raw);
+ const r=await migrate({clients,usage,root,maxReadRows:300});
+ assert.equal(r.stop_reason,'rows_read_budget_guard');
+ assert.equal(r.verified,0);
+ assert.equal(r.remaining_chapters,2);
+ assert.equal(inserts,0);
+ assert(usage.rows_read>=400);
 });
