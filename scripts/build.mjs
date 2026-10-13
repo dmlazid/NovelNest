@@ -32,7 +32,7 @@ function asset(name, content) {
 // real HTML pages, instead of duplicating every body in JS and HTML.
 fs.cpSync('dist/assets', output + '/assets', { recursive: true });
 for (const name of fs.readdirSync('dist')) {
-  if (name.endsWith('.html') && name !== 'index.html' || ['CNAME', 'ads.txt', 'robots.txt', 'privacy-controls.js'].includes(name)) fs.copyFileSync('dist/' + name, output + '/' + name);
+  if (name.endsWith('.html') && name !== 'index.html' || ['CNAME', 'ads.txt', 'robots.txt', '_headers', 'privacy-controls.js'].includes(name)) fs.copyFileSync('dist/' + name, output + '/' + name);
 }
 const compactCatalog = novels.map(({ chapters, ...n }) => ({ ...n, titles: chapters.map(c => c.title) }));
 const catalogCode = 'window.NOVELS=' + json(compactCatalog) + '.map(({titles,...n})=>({...n,chapters:titles.map((title,i)=>({number:i+1,title,paragraphs:["Loading chapter…"],lazy:true}))}));';

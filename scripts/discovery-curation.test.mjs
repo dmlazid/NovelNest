@@ -43,3 +43,14 @@ test('uncurated novel chapters remain indexable',async()=>{
   assert.equal(result.headers.has('X-Robots-Tag'),false);
   assert.match(await result.text(),/name="robots" content="index,follow,max-image-preview:large"/);
 });
+
+test('Cloudflare static route headers noindex all curated books but leave Shadow Slave visible',()=>{
+  const headers=fs.readFileSync('dist/_headers','utf8');
+  const scope={window:{NOVELS:[...baseNovels]}};
+  vm.runInNewContext(fs.readFileSync('dist/discovery-curation.js','utf8'),scope);
+  for(const id of scope.window.NOVELNEST_DISCOVERY_EXCLUDED){
+    assert(headers.includes('/novel/'+id+'/\n  X-Robots-Tag: noindex, follow'));
+    assert(headers.includes('/novel/'+id+'/*\n  X-Robots-Tag: noindex, follow'));
+  }
+  assert(!headers.includes('/novel/shadow-slave/'));
+});
