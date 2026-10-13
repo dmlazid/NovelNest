@@ -1,0 +1,49 @@
+name: Audit public site quality changes
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-adsense-site-quality.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify trimmed catalog, working contact pages and publisher metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin="https://novelhaven.top"
+          archived=(mesmerizing-ghost-doctor prodigiously-amazing-weaponsmith alchemy-emperor-of-the-divine-dao godly-empress-doctor reincarnation-of-the-strongest-sword-god god-of-fishing)
+          for attempt in 1 2 3 4 5 6; do
+            now="$(date +%s)"
+            curl -fsSL --connect-timeout 12 --max-time 30 "$origin/build-info.json?audit=$now" -o /tmp/nh-quality-build.json || true
+            curl -fsSL --connect-timeout 12 --max-time 30 "$origin/sitemaps/catalog.xml?audit=$now" -o /tmp/nh-quality-sitemap.xml || true
+            if grep -q '"novels":102' /tmp/nh-quality-build.json &&
+               ! grep -Fq 'https://novelhaven.top/novel/mesmerizing-ghost-doctor/' /tmp/nh-quality-sitemap.xml; then
+              break
+            fi
+            echo "Waiting for updated Cloudflare publishing catalog (attempt $attempt)..."
+            sleep 15
+          done
+          grep -q '"novels":102' /tmp/nh-quality-build.json || { echo "::error::Cloudflare public catalog still has older novel count"; exit 1; }
+          for id in "${archived[@]}"; do
+            if grep -Fq "https://novelhaven.top/novel/$id/" /tmp/nh-quality-sitemap.xml; then
+              echo "::error::Archived novel $id still listed in public catalog sitemap"
+              exit 1
+            fi
+          done
+          for path in /contact.html /copyright.html /privacy.html /guide-reading-list.html; do
+            curl -fsSL --max-time 30 "$origin$path" -o "/tmp/nh-$(basename "$path")"
+          done
+          grep -Fq 'github.com/dmlazid/NovelNest/issues/new' /tmp/nh-contact.html
+          grep -Fq 'github.com/dmlazid/NovelNest/issues/new' /tmp/nh-copyright.html
+          grep -Fq 'Cloudflare Pages' /tmp/nh-privacy.html
+          grep -q 'reading' /tmp/nh-guide-reading-list.html
+          curl -fsSL --max-time 30 "$origin/ads.txt" -o /tmp/nh-ads.txt
+          grep -Fq 'google.com, pub-9356195452195758, DIRECT, f08c47fec0942fa0' /tmp/nh-ads.txt
+          echo 'VERIFIED LIVE: six completed FWN titles archived from sitemap, updated contact links and hosting disclosure published, AdSense ads.txt preserved.'
+          echo 'Novel count: 102. Content remains archived in GitHub.'
