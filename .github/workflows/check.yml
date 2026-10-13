@@ -25,6 +25,7 @@ jobs:
           node-version: '22'
       - run: node --test scripts/*.test.mjs
       - run: node --check scripts/check-cloudflare-preview.mjs
+      - run: node --check scripts/activate-compatible-pages.mjs
       - run: node scripts/build.mjs
         env:
           NOVELNEST_CLOUDFLARE: '1'
