@@ -86,7 +86,7 @@
     const number = Number(match[2]);
     const novel = (window.NOVELS || []).find(n => n.id === decodeURIComponent(match[1]));
     const chapter = novel?.chapters[number - 1];
-    return chapter && !chapter.lazy ? { id: novel.id, number } : null;
+    return chapter && !chapter.lazy && !chapter.removedDuplicate ? { id: novel.id, number } : null;
   }
 
   function updateControl(control, current) {
