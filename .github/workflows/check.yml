@@ -37,6 +37,10 @@ jobs:
           name: chapter-duplicate-audit
           path: chapter-duplicate-audit.json
           if-no-files-found: ignore
+      - name: Build compatible Cloudflare Pages preview (no D1 cutover)
+        run: node scripts/build-compatible-pages.mjs
+      - name: Verify original reader and existing AdSense remain intact
+        run: node scripts/check-compatible-pages.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: NovelNest-website
