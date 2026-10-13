@@ -7,8 +7,9 @@ assert(template.includes('CHAPTER_BODY_TOKEN'));assert(template.includes('CHAPTE
 const meta=JSON.parse(read('_internal/novels.json')),info=JSON.parse(read('build-info.json'));
 assert.equal(Object.keys(meta).length,info.novels);assert.equal(Object.values(meta).reduce((s,n)=>s+n.total,0),info.chapters);
 let urls=0;for(const f of fs.readdirSync(root+'/sitemaps').filter(x=>x.startsWith('chapters-')))urls+=(read('sitemaps/'+f).match(/<url>/g)||[]).length;
-const indexable=Object.values(meta).filter(n=>!n.discoveryHidden).reduce((s,n)=>s+n.total-(n.duplicateChapters?.length||0),0);
-assert.equal(urls,indexable,'Only reviewed chapter URLs should be in chapter sitemaps');
+const indexable=Object.values(meta).filter(n=>!n.discoveryHidden).reduce((s,n)=>s+n.total-(n.duplicateChapters?.length||0)-(n.removedChapters?.length||0),0);
+assert.equal(urls,indexable,'Only actual readable chapter URLs should be in chapter sitemaps');
+assert.equal(Object.values(meta).reduce((s,n)=>s+(n.removedChapters?.length||0),0),9,'All nine duplicate chapter bodies must remain deleted');
 for(const n of Object.values(meta))assert(Array.isArray(n.duplicateChapters)&&n.duplicateChapters.every(number=>Number.isSafeInteger(number)&&number>=1&&number<=n.total),'Invalid duplicate review list');
 const hidden=Object.entries(meta).filter(([id,n])=>n.discoveryHidden);
 assert.equal(hidden.length,11,'Reader-safe curation excludes the ten long imports and the explicit-content review title');

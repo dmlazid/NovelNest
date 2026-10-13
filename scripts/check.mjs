@@ -44,6 +44,15 @@ export function validateSite(root = 'dist') {
   }
   for (const name of fs.readdirSync(root).filter(n => n.endsWith('.js'))) new vm.Script(read(name), { filename: name });
   for (const name of scripts.filter(s => s === 'catalog.js' || /^licensed-(?!ui\.js)/.test(s))) vm.runInContext(read(name), context, { filename: name, timeout: 1000 });
+  const removedRecords = root === 'dist'
+    ? JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8')).known
+    : [];
+  if (root === 'dist') {
+    assert(scripts.includes('removed-duplicates.js'), 'Deleted chapter tombstones must load before the app');
+    vm.runInContext(read('removed-duplicates.js'), context, {filename:'removed-duplicates.js',timeout:1000});
+  }
+  const removedMap = new Map(removedRecords.map(item =>
+    [item.novel_id + ':' + item.repeated_chapter, item]));
   const novels = context.window.NOVELS;
   assert(Array.isArray(novels) && novels.length > 0, 'No novels were checked');
   const ids = new Set();
@@ -81,6 +90,24 @@ export function validateSite(root = 'dist') {
       const metadata = novel.chapters[index];
       assert.equal(metadata.number, number, `${novel.id}: catalog number mismatch`);
       assert.equal(metadata.title, chapter.title, `${novel.id}: catalog title mismatch at ${number}`);
+      const deletion = removedMap.get(novel.id + ':' + number);
+      if (deletion) {
+        const source = chapters[deletion.first_chapter - 1];
+        assert(source && source.number === deletion.first_chapter && Array.isArray(source.paragraphs),
+          `${novel.id}: missing retained original chapter for deleted ${number}`);
+        const digest = createHash('sha256').update(source.paragraphs.join(' ')
+          .replace(/\s+/g, ' ').trim().toLowerCase()).digest('hex').slice(0,16);
+        assert.equal(digest, deletion.digest, `${novel.id}: retained original text changed near deleted chapter ${number}`);
+        assert(chapter.removedDuplicate === true && Array.isArray(chapter.paragraphs) &&
+          chapter.paragraphs.length === 0,
+          `${novel.id}: deleted duplicate ${number} must have no chapter text`);
+        assert(metadata.removedDuplicate === true && metadata.lazy === false &&
+          Array.isArray(metadata.paragraphs) && metadata.paragraphs.length === 0,
+          `${novel.id}: removed duplicate ${number} must not load in the public catalog`);
+        continue;
+      }
+      assert(!chapter.removedDuplicate && !metadata.removedDuplicate,
+        `${novel.id}: undocumented chapter removal at ${number}`);
       assert(metadata.lazy === true, `${novel.id}: expected lazy metadata`);
       assert(Array.isArray(chapter.paragraphs) && chapter.paragraphs.length > 0, `${novel.id}: empty chapter ${number}`);
       assert(chapter.paragraphs.every(p => typeof p === 'string' && p.trim() && !/^Loading chapter[….]*$/.test(p)), `${novel.id}: invalid chapter text at ${number}`);
@@ -104,15 +131,43 @@ export function validateSite(root = 'dist') {
   }
   if (root === 'dist') {
     const reviewed = JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8'));
+    assert(Array.isArray(reviewed.known), 'Duplicate baseline must contain an audited known array');
+    const signatures = new Set();
+    for (const entry of reviewed.known) {
+      assert(typeof entry.novel_id === 'string' && ids.has(entry.novel_id),
+        'Duplicate baseline references an unknown novel');
+      assert(Number.isSafeInteger(entry.first_chapter) && entry.first_chapter > 0 &&
+        Number.isSafeInteger(entry.repeated_chapter) && entry.repeated_chapter > entry.first_chapter,
+        'Invalid duplicate baseline chapter pair');
+      assert(/^[a-f0-9]{16}$/.test(entry.digest), 'Invalid duplicate baseline digest');
+      const key = [entry.novel_id, entry.first_chapter, entry.repeated_chapter].join(':');
+      assert(!signatures.has(key), 'Duplicate baseline contains the same chapter pair twice');
+      signatures.add(key);
+    }
     const unexpected = unexpectedRepeatedBodies(repeated, reviewed.known);
     assert.equal(unexpected.length, 0,
       'New or modified repeated chapter body needs review before publishing: ' +
       JSON.stringify(unexpected.slice(0, 12)));
   }
   const report = {novels: novels.length, chapters: chapterCount, duplicate_chapter_bodies: repeated};
+  if (root === 'dist') {
+    const baseline = JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8')).known;
+    const current = new Set(repeated.map(item =>
+      [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':')));
+    report.duplicate_repair_status = {
+      deleted_duplicate_chapters: baseline.map(item => ({
+        novel_id: item.novel_id, deleted_chapter: item.repeated_chapter,
+        retained_original_chapter: item.first_chapter, chapter_text_removed: true
+      })),
+      remaining_duplicated_bodies: repeated,
+      removed_body_count: baseline.length,
+      originally_repeated_bodies_still_present: baseline.filter(item => current.has(
+        [item.novel_id, item.first_chapter, item.repeated_chapter, item.digest].join(':'))).length
+    };
+  }
   if (process.env.CHAPTER_DUPLICATE_REPORT_PATH) fs.writeFileSync(process.env.CHAPTER_DUPLICATE_REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
   if (repeated.length) console.warn('::warning::Exact repeated chapter bodies detected: ' + JSON.stringify(repeated.slice(0, 30)) + (repeated.length > 30 ? ' (more in saved audit artifact)' : ''));
-  console.log(`Validated ${novels.length} novels and ${chapterCount} actual chapters; ${repeated.length} exact repeated chapter bodies to review.`);
+  console.log(`Validated ${novels.length} novels and ${chapterCount} numbered chapter slots; ${removedRecords.length} confirmed duplicates deleted; ${repeated.length} remaining exact repeated chapter bodies.`);
   return report;
 }
 

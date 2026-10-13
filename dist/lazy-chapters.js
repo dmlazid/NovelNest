@@ -87,7 +87,8 @@
     const base = '/' + (window.NOVELNEST_ASSETS?.[file] || file).replace(/^\/+/, '');
     // The latest import marker is a cache identifier ONLY, never a release time.
     // Avoid mixing a new chapter catalog with a cached older text chunk.
-    const revision = String(novel.lastChapterAddedAt || novel.chapters.length);
+    const revision = String(novel.lastChapterAddedAt || novel.chapters.length) +
+      (window.NOVELNEST_REMOVED_DUPLICATES?.[novel.id] ? '-removed-20261013' : '');
     const attempt = attempts.get(key) || 0;
     script.src = base + (base.includes('?') ? '&' : '?') +
       'v=' + encodeURIComponent(revision) +

@@ -36,7 +36,20 @@ function toggleSave(id){
 }
 const internalUrl=path=>`./#${path.startsWith('/')?path:'/'+path}`;
 const bookUrl=n=>`/novel/${encodeURIComponent(n.id)}/`;
-const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${i+1}/`;
+const isRemovedChapter=(n,i)=>n?.chapters?.[i]?.removedDuplicate===true;
+function adjacentChapter(n,i,step=1){
+  for(let index=i+step;index>=0&&index<n.chapters.length;index+=step){
+    if(!isRemovedChapter(n,index))return index;
+  }
+  return -1;
+}
+const availableCount=n=>n.chapters.filter(c=>!c.removedDuplicate).length;
+function readableChapter(n,i){
+  if(!isRemovedChapter(n,i))return i;
+  const next=adjacentChapter(n,i,1);
+  return next>=0?next:adjacentChapter(n,i,-1);
+}
+const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${readableChapter(n,i)+1}/`;
 const chapterPathMatch=pathname=>String(pathname||'').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
 function navigate(url,replace=false){const u=new URL(url,location.href);const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);if(next===current){window.scrollTo(0,0);return}if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',next);route({animate:true});main.focus({preventScroll:true});return}location.href=next}
 const SYNOPSIS_PREVIEW_LENGTH = 340;
@@ -57,9 +70,14 @@ const image=n=>n.externalUrl?`<div class="cover external-cover" aria-hidden="tru
 const genres=[...new Set(publicNovels.flatMap(n=>n.tags))].sort();
 function searchForm(value=''){return `<form class="search-form" role="search"><span aria-hidden="true">⌕</span><input name="q" aria-label="Search novels by title or author" placeholder="Search titles, authors, genres…" value="${esc(value)}"><button aria-label="Search" type="submit">Search</button></form>`}
 function chips(selected='All'){return `<div class="chips" aria-label="Filter by genre">${['All',...genres].map(g=>`<a class="chip ${selected===g?'selected':''}" ${selected===g?'aria-current="true"':''} href="./#/browse${g==='All'?'':'?genre='+encodeURIComponent(g)}">${g}</a>`).join('')}</div>`}
-function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<div><span class="tag">${esc(n.genre)}</span><h3>${esc(n.title)}</h3><p>${esc(n.author)}</p><p>${n.externalUrl?"Read on "+esc(n.externalSource):n.chapters.length+" chapters"} · ${esc(n.status)}</p><span class="meta">${n.externalUrl?"External reading link":"Licensed edition"}</span></div></a>`}
-function lastRead(n){const p=progress[n.id];return p&&Number.isInteger(p.chapter)&&p.chapter>=0&&p.chapter<n.chapters.length?p:null}
-function latestRows(limit=9){return publicNovels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i}))).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
+function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<div><span class="tag">${esc(n.genre)}</span><h3>${esc(n.title)}</h3><p>${esc(n.author)}</p><p>${n.externalUrl?"Read on "+esc(n.externalSource):availableCount(n)+" chapters"} · ${esc(n.status)}</p><span class="meta">${n.externalUrl?"External reading link":"Licensed edition"}</span></div></a>`}
+function lastRead(n){
+  const p=progress[n.id];
+  if(!p||!Number.isInteger(p.chapter)||p.chapter<0||p.chapter>=n.chapters.length)return null;
+  const available=readableChapter(n,p.chapter);
+  return available>=0?{...p,chapter:available}:null;
+}
+function latestRows(limit=9){return publicNovels.flatMap(n=>n.chapters.map((c,i)=>({n,c,i})).filter(({c})=>!c.removedDuplicate)).sort((a,b)=>b.n.updated.localeCompare(a.n.updated)||b.i-a.i).slice(0,limit).map(({n,c,i})=>`<a class="chapter-row" href="${chapterUrl(n,i)}">${image(n)}<div><strong>${esc(n.title)}</strong><p>${esc(chapterTitle(c))}</p></div></a>`).join('')}
 function continueBox(){const recent=novels.filter(n=>lastRead(n)).sort((a,b)=>(lastRead(b).at||0)-(lastRead(a).at||0))[0];return recent?`<section class="continue-box"><div><span class="eyebrow">Continue reading</span><p><strong>${esc(recent.title)}</strong> · Chapter ${lastRead(recent).chapter+1}</p></div><a class="button" href="${chapterUrl(recent,lastRead(recent).chapter)}">Continue</a></section>`:''}
 // Publication times are only displayed when the source supplies a verified
 // timestamp for the exact chapter. Polling/import times are not publication times.
@@ -115,7 +133,7 @@ function releaseTimeLabel(n,now=Date.now()){
 function homeReleaseRow(n){
   const src=sourceActivityTime(n);
   const number=Number.isFinite(src)?Number(n.sourceActivityChapter):Number(n.sourceReleaseNumber)||0;
-  const available=number>0&&number<=n.chapters.length;
+  const available=number>0&&number<=n.chapters.length&&!isRemovedChapter(n,number-1);
   const i=available?number-1:Math.max(0,n.chapters.length-1),c=available?n.chapters[i]:null;
   const newest=(Number.isFinite(src)?String(n.sourceActivityTitle||'').trim():'')||
     String(n.sourceReleaseTitle||'').trim()||chapterTitle(c)||('Chapter '+number);
@@ -147,7 +165,7 @@ function homeNovelTile(n){
     </span>
     <span class="home-tile-badges">
       ${n.status==='Completed'?'<b class="home-full-badge">Full</b>':''}
-      <b class="home-chapter-badge">${n.chapters.length} Chapters</b>
+      <b class="home-chapter-badge">${availableCount(n)} Chapters</b>
     </span>
   </a>`;
 }
@@ -203,7 +221,7 @@ function homeTopFeature(n){
         <small>▤ ${esc(n.tags.slice(0,2).join(' · ')||n.genre)}</small>
       </span>
     </span>
-    <span class="home-top-badge">${n.chapters.length} Chapters</span>
+    <span class="home-top-badge">${availableCount(n)} Chapters</span>
   </a>`;
 }
 function homeTopRow(n){
@@ -213,7 +231,7 @@ function homeTopRow(n){
       <strong>${esc(n.title)}</strong>
       <small>◉ English Novel</small>
       <small>▤ ${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
-      <b>${n.chapters.length} Chapters</b>
+      <b>${availableCount(n)} Chapters</b>
     </span>
   </a>`;
 }
@@ -346,7 +364,7 @@ function directoryRow(n){
       <span class="directory-novel-meta"><span aria-hidden="true">▤</span> ${esc(tags)}</span>
       <span class="directory-novel-badges">
         ${n.status==='Completed'?'<b class="directory-full-badge">Full</b>':''}
-        <b class="directory-chapter-badge">${n.chapters.length} Chapters</b>
+        <b class="directory-chapter-badge">${availableCount(n)} Chapters</b>
       </span>
     </span>
   </a>`;
@@ -459,9 +477,27 @@ function novelBreadcrumb(n,chapterNumber){
   const homeIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5H15v-7H9v7H4.5A1.5 1.5 0 0 1 3 19.5Z"/></svg>';
   return `<nav class="breadcrumb novel-breadcrumb" aria-label="Breadcrumb"><a class="breadcrumb-home" href="./#/">${homeIcon}<span>Home</span></a><span class="breadcrumb-separator" aria-hidden="true">›</span><a href="./#/genre/${encodeURIComponent(genre)}">${esc(genre)} Novels</a><span class="breadcrumb-separator" aria-hidden="true">›</span><a href="${bookUrl(n)}" ${chapterNumber?'':'aria-current="page"'}>${esc(n.title)}</a>${chapterNumber?`<span class="breadcrumb-separator" aria-hidden="true">›</span><span aria-current="page">Chapter ${chapterNumber}</span>`:''}</nav>`;
 }
-function detail(id){const n=novels.find(x=>x.id===id);if(!n)return missing();if(n.externalUrl)return externalDetail(n);const p=lastRead(n);return `${novelBreadcrumb(n)}<article class="detail">${image(n)}<div class="book-info"><span class="eyebrow">${n.tags.map(esc).join(' / ')}</span><h1>${esc(n.title)}</h1><p class="muted">by ${esc(n.author)}</p><span class="status-pill">${esc(n.status)}</span><p class="meta">${n.chapters.length} chapters · English · Licensed edition</p></div><div class="description" style="grid-column:1/-1"><h2>About the story</h2>${synopsisHtml(n)}</div><div class="actions" style="grid-column:1/-1"><a class="button" href="${chapterUrl(n,p?p.chapter:0)}">${p?'Continue reading':'Start reading'}</a><button class="button outline" data-save="${n.id}" aria-pressed="${saved.includes(n.id)}">${saved.includes(n.id)?'♥ Bookmarked':'♡ Bookmark'}</button></div></article><section><div class="section-head"><h2>Chapters <span class="muted">(${n.chapters.length})</span></h2><span class="meta">${n.status==='Completed'?'Complete story':'Ongoing · More chapters to come'}</span></div><div class="toc">${n.chapters.map((c,i)=>`<a href="${chapterUrl(n,i)}"><span>${window.NovelNestChapterLabels?.number(c,i+1)||String(i+1).padStart(2,'0')}</span>${esc(chapterTitle(c))} ${p?.chapter===i?'<span>Last opened</span>':''}</a>`).join('')}</div></section>`}
+function detail(id){
+  const n=novels.find(x=>x.id===id);
+  if(!n)return missing();
+  if(n.externalUrl)return externalDetail(n);
+  const p=lastRead(n),first=readableChapter(n,0),count=availableCount(n);
+  return `${novelBreadcrumb(n)}<article class="detail">${image(n)}<div class="book-info"><span class="eyebrow">${n.tags.map(esc).join(' / ')}</span><h1>${esc(n.title)}</h1><p class="muted">by ${esc(n.author)}</p><span class="status-pill">${esc(n.status)}</span><p class="meta">${count} chapters · English · Licensed edition</p></div><div class="description" style="grid-column:1/-1"><h2>About the story</h2>${synopsisHtml(n)}</div><div class="actions" style="grid-column:1/-1"><a class="button" href="${chapterUrl(n,p?p.chapter:first)}">${p?'Continue reading':'Start reading'}</a><button class="button outline" data-save="${n.id}" aria-pressed="${saved.includes(n.id)}">${saved.includes(n.id)?'♥ Bookmarked':'♡ Bookmark'}</button></div></article><section><div class="section-head"><h2>Chapters <span class="muted">(${count})</span></h2><span class="meta">${n.status==='Completed'?'Complete story':'Ongoing · More chapters to come'}</span></div><div class="toc">${n.chapters.map((c,i)=>c.removedDuplicate?'':`<a href="${chapterUrl(n,i)}"><span>${window.NovelNestChapterLabels?.number(c,i+1)||String(i+1).padStart(2,'0')}</span>${esc(chapterTitle(c))} ${p?.chapter===i?'<span>Last opened</span>':''}</a>`).join('')}</div></section>`;
+}
 function externalDetail(n){return `${novelBreadcrumb(n)}<article class="detail">${image(n)}<div class="book-info"><span class="eyebrow">${n.tags.map(esc).join(' / ')}</span><h1>${esc(n.title)}</h1><p class="muted">Credits on ${esc(n.externalSource)}: ${esc(n.author)}</p><span class="status-pill">${esc(n.status)}</span><p class="meta">External reading link</p></div><div class="description" style="grid-column:1/-1"><h2>About the story</h2>${synopsisHtml(n)}<p class="meta">This is a reading-list entry. Chapters are hosted on ${esc(n.externalSource)}, and opening the reading link takes you to that website.</p></div><div class="actions" style="grid-column:1/-1"><a class="button" href="${esc(n.externalUrl)}" target="_blank" rel="noopener noreferrer">Read on ${esc(n.externalSource)} <span class="meta external-tab-note">(new tab)</span></a><button class="button outline" data-save="${n.id}" aria-pressed="${saved.includes(n.id)}">${saved.includes(n.id)?'♥ Bookmarked':'♡ Bookmark'}</button></div></article>`}
-function reader(id,number){const n=novels.find(x=>x.id===id),i=Number(number)-1;if(!n||!Number.isInteger(i)||i<0||i>=n.chapters.length)return missing();const c=n.chapters[i];progress[n.id]={chapter:i,at:Date.now()};persist('novelnest.progress',progress);return `<div class="reader-wrap">${novelBreadcrumb(n,window.NovelNestChapterLabels?.number(c,i+1)||i+1)}<div class="reader-tools"><div><label for="reader-theme">Appearance</label><select id="reader-theme"><option value="light" ${preferences.theme==='light'?'selected':''}>Light</option><option value="sepia" ${preferences.theme==='sepia'?'selected':''}>Sepia</option><option value="night" ${preferences.theme==='night'?'selected':''}>Night</option></select></div><div><button data-font="-2" aria-label="Decrease text size">A−</button><span id="font-size" class="meta">${preferences.size||20}px</span><button data-font="2" aria-label="Increase text size">A+</button></div><a class="text-link" href="${bookUrl(n)}">Chapters</a></div><article><div class="reader-heading"><span class="eyebrow">Reading position ${i+1} of ${n.chapters.length}</span><h1>${esc(chapterTitle(c))}</h1><span class="meta">${esc(n.title)} · Licensed edition</span></div><div class="prose">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div></article><div class="chapter-nav">${i>0?`<a class="button outline" href="${chapterUrl(n,i-1)}">Previous chapter</a>`:'<button class="button outline" disabled>Previous chapter</button>'}${i<n.chapters.length-1?`<a class="button" href="${chapterUrl(n,i+1)}">Next chapter</a>`:`<a class="button" href="${bookUrl(n)}">Back to novel</a>`}</div><div class="end-note">${i===n.chapters.length-1?(n.status==='Completed'?'The end. Thank you for reading.':'You’re caught up. More chapters will appear here when available.'):'Your last opened chapter is saved on this device.'}</div></div>`}
+function reader(id,number){
+  const n=novels.find(x=>x.id===id),i=Number(number)-1;
+  if(!n||!Number.isInteger(i)||i<0||i>=n.chapters.length)return missing();
+  const c=n.chapters[i],previous=adjacentChapter(n,i,-1),next=adjacentChapter(n,i,1);
+  if(c.removedDuplicate){
+    // Deleted chapter numbers are kept as addressable tombstones so old links
+    // explain the deletion and provide a safe path to the real next chapter.
+    return `<div class="reader-wrap"><article class="empty"><h1>Duplicate chapter removed</h1><p>Chapter ${i+1} was a repeated copy and has been deleted from NovelHaven.</p><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:''}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Continue to Chapter ${next+1}</a>`:`<a class="button" href="${bookUrl(n)}">Back to chapters</a>`}</div></article></div>`;
+  }
+  progress[n.id]={chapter:i,at:Date.now()};
+  persist('novelnest.progress',progress);
+  return `<div class="reader-wrap">${novelBreadcrumb(n,window.NovelNestChapterLabels?.number(c,i+1)||i+1)}<div class="reader-tools"><div><label for="reader-theme">Appearance</label><select id="reader-theme"><option value="light" ${preferences.theme==='light'?'selected':''}>Light</option><option value="sepia" ${preferences.theme==='sepia'?'selected':''}>Sepia</option><option value="night" ${preferences.theme==='night'?'selected':''}>Night</option></select></div><div><button data-font="-2" aria-label="Decrease text size">A−</button><span id="font-size" class="meta">${preferences.size||20}px</span><button data-font="2" aria-label="Increase text size">A+</button></div><a class="text-link" href="${bookUrl(n)}">Chapters</a></div><article><div class="reader-heading"><span class="eyebrow">Chapter ${i+1}</span><h1>${esc(chapterTitle(c))}</h1><span class="meta">${esc(n.title)} · Licensed edition</span></div><div class="prose">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div></article><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:'<button class="button outline" disabled>Previous chapter</button>'}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Next chapter</a>`:`<a class="button" href="${bookUrl(n)}">Back to novel</a>`}</div><div class="end-note">${next<0?(n.status==='Completed'?'The end. Thank you for reading.':'You’re caught up. More chapters will appear here when available.'):'Your last opened chapter is saved on this device.'}</div></div>`;
+}
 // Background account/storage changes must not replace the whole Library page.
 // Update only the Continue Reading card so scroll and open controls stay put.
 function refreshLibraryProgress(){

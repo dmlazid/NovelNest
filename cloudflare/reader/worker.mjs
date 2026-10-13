@@ -19,6 +19,19 @@ export default {
     if(!metadataResponse.ok)throw Error('Missing catalog');
     const metadata=await metadataResponse.json(),novel=Object.hasOwn(metadata,id)?metadata[id]:null;
     if(!novel||!Number.isSafeInteger(number)||number<1||number>novel.total)return new Response('Chapter not found',{status:404});
+    // Removed duplicates never reach D1 or render old row copies. Keep an old
+    // bookmark useful by sending its reader directly to the next real chapter.
+    if(novel.removedChapters?.includes(number)){
+      const deleted=new Set(novel.removedChapters);
+      let next=number+1;
+      while(next<=novel.total&&deleted.has(next))next++;
+      const destination=next<=novel.total
+        ?'/novel/'+encodeURIComponent(id)+'/chapter-'+next+'/'
+        :'/novel/'+encodeURIComponent(id)+'/';
+      return new Response(null,{status:302,headers:{
+        Location:destination,'X-Robots-Tag':'noindex, follow','Cache-Control':'public, max-age=60'
+      }});
+    }
     const route=await env.DB1.prepare('SELECT database_id FROM novel_shards WHERE novel_id=?').bind(id).first();
     const binding=env.SHARD_BINDINGS[route?.database_id];
     if(!binding||!env[binding])throw Error('Missing verified route');

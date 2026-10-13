@@ -1,12 +1,14 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
       - 'scripts/check-compatible-pages.mjs'
       - '.github/workflows/check.yml'
+      - 'dist/**'
+      - 'scripts/check-cloudflare-build.mjs'
 permissions:
   contents: read
 concurrency:
@@ -70,5 +72,20 @@ jobs:
           assert.doesNotMatch(duplicateChapter.body,/pagead2\.googlesyndication\.com/);
           assert.equal(regularChapter.status,200);
           assert.match(regularChapter.body,/app\.js/);
+          const [detail,removedMap,chunk]=await Promise.all([
+            fetchPage('/novel/my-rich-wife/'),
+            fetchPage('/removed-duplicates.js'),
+            fetchPage('/data/fwn-my-rich-wife-chapters-08.js')
+          ]);
+          assert.equal(detail.status,200);
+          assert(!detail.body.includes('href="/novel/my-rich-wife/chapter-752/"'),
+            'Deleted chapter must not appear in TOC');
+          assert(detail.body.includes('href="/novel/my-rich-wife/chapter-753/"'),
+            'Following chapter must stay on its original number');
+          assert.equal(removedMap.status,200);
+          assert.match(removedMap.body,/removedDuplicate/);
+          assert.equal(chunk.status,200);
+          assert.match(chunk.body,/"number":752[^}]*"paragraphs":\[\],"removedDuplicate":true/,
+            'Published chapter chunk must contain no repeated chapter text');
           console.log('Cloudflare compatible preview verified at '+base);
           NODE
