@@ -1,7 +1,7 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014, fix/verify-rendered-source-feed-20261014]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
@@ -104,4 +104,19 @@ jobs:
           assert.match(chunk.body,/"number":752[^}]*"paragraphs":\[\],"removedDuplicate":true/,
             'Published chapter chunk must contain no repeated chapter text');
           console.log('Cloudflare compatible preview verified at '+base);
+          NODE
+      - name: Verify client-rendered source releases in real headless Chrome
+        env:
+          PREVIEW_URL: ${{ steps.pages_preview.outputs.deployment-url }}
+        run: |
+          node --input-type=module - <<'NODE'
+          import assert from 'node:assert/strict';
+          import {extractLiveSourceNovels,renderLiveHomepage} from './scripts/live-home-check.mjs';
+          const base=process.env.PREVIEW_URL?.replace(/\/$/,'');
+          assert(base&&new URL(base).hostname.endsWith('.pages.dev'));
+          const dom=renderLiveHomepage(base+'/?verify-rendered-preview='+Date.now());
+          const {released,latest}=extractLiveSourceNovels(dom);
+          console.log('Preview rendered Latest Novels from real source releases:',JSON.stringify({
+            latest,sourceReleaseCount:released.length
+          }));
           NODE
