@@ -1,7 +1,7 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
@@ -58,5 +58,17 @@ jobs:
           assert.equal(app.status,200);
           assert.match(app.body,/latestOngoingReleases/);
           assert.match(ads.body,/google\.com/);
+          const [restrictedChapter,duplicateChapter,regularChapter] = await Promise.all([
+            fetchPage('/novel/supreme-harem-god-system/chapter-1/'),
+            fetchPage('/novel/my-rich-wife/chapter-752/'),
+            fetchPage('/novel/shadow-slave/chapter-1/')
+          ]);
+          assert.equal(restrictedChapter.status,200);
+          assert.match(restrictedChapter.body,/app\.js/);
+          assert.doesNotMatch(restrictedChapter.body,/pagead2\.googlesyndication\.com/);
+          assert.equal(duplicateChapter.status,200);
+          assert.doesNotMatch(duplicateChapter.body,/pagead2\.googlesyndication\.com/);
+          assert.equal(regularChapter.status,200);
+          assert.match(regularChapter.body,/app\.js/);
           console.log('Cloudflare compatible preview verified at '+base);
           NODE
