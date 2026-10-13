@@ -113,7 +113,8 @@ test('numbered duplicate tombstones are recognized and skipped by D1 exports',t=
   const removed={number:2,title:'Chapter 2',paragraphs:[],removedDuplicate:true};
   original[1]=removed;
   fs.writeFileSync(path.join(root,'data/sample-01.js'),'window.SAMPLE_CHAPTERS = '+JSON.stringify(original)+';');
-  fs.writeFileSync(path.join(root,'removed-duplicates.js'),\`(() => { const n=window.NOVELS[0];n.chapters[1]={...n.chapters[1],paragraphs:[],lazy:false,removedDuplicate:true};})();\`);
+  fs.writeFileSync(path.join(root,'removed-duplicates.js'),
+    'window.NOVELS[0].chapters[1]={...window.NOVELS[0].chapters[1],paragraphs:[],lazy:false,removedDuplicate:true};');
   fs.writeFileSync(path.join(root,'index.html'),
     fs.readFileSync(path.join(root,'index.html'),'utf8')+'<script src="removed-duplicates.js"></script>');
   const novel=loadNovelCatalog(root)[0];
