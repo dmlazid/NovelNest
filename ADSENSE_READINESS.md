@@ -30,7 +30,7 @@ This file tracks what is done and what still requires the site owner or a real A
 
 ## Still required before AdSense activation
 1. In AdSense, verify ownership of novelhaven.top.
-2. Request site review.
+2. Resolve the content and live-deployment blockers below before requesting another review.
 3. Configure Google Privacy & Messaging or another Google-certified CMP before serving personalized ads to EEA, UK, or Switzerland visitors.
 4. Wait for Google to mark the site Ready/approved.
 5. Only finalize ad placements after the site/account status permits serving ads.
@@ -42,3 +42,14 @@ This file tracks what is done and what still requires the site owner or a real A
 - Google-certified CMP requirement: https://support.google.com/adsense/answer/13554116
 
 Do not claim AdSense approval until Google has reviewed and marked the site Ready.
+
+
+## October 13 continuation audit — not ready for resubmission
+- PR #11 is merged. Current main passed Check and package website; Cloudflare Pages reported success, but the live site-quality audit failed.
+- Live `/build-info.json` and `/sitemaps/catalog.xml` returned the SPA homepage, not the generated JSON/XML. Check the Pages production build command and output directory before treating a green deployment as proof of a complete publishing build. Do not switch to the D1 reader until its full-content audit passes.
+- Six previously archived FreeWebNovel keys remain archived; no additional titles were deleted in this change. Length alone does not establish low quality.
+- Existing source-wide owner permission declarations are preserved. This audit has not independently verified title-specific licenses covering translations, artwork and monetization.
+- `Supreme Harem God System` needs priority human review for explicit sexual content; its chapter titles flag adult scenes. A title/keyword flag is not a completed content review. Do not mark the whole catalog policy-safe based on structural tests.
+- Google prohibits monetizing copied content without added value and copyright-infringing or sexually explicit content. General guides do not automatically resolve chapter-page eligibility: https://support.google.com/publisherpolicies/answer/10502938
+- Home Reading Desk links now point to the complete static editorial collection and canonical guides rather than older app copies. The long-novel guide includes reading-time estimation, completion checks and an arc-selection example.
+- AdSense code, verification, ads.txt, affiliate links, accounts, bookmark/progress storage, importers and D1 configuration are untouched.
