@@ -46,3 +46,17 @@
   X-Robots-Tag: noindex, follow
 /novel/supreme-harem-god-system/*
   X-Robots-Tag: noindex, follow
+
+# Duplicate chapter bodies: reversible index/advertising quarantine only.
+/novel/supreme-magus/chapter-1915/
+  X-Robots-Tag: noindex, follow
+/novel/supreme-magus/chapter-1916/
+  X-Robots-Tag: noindex, follow
+/novel/my-rich-wife/chapter-752/
+  X-Robots-Tag: noindex, follow
+/novel/my-rich-wife/chapter-872/
+  X-Robots-Tag: noindex, follow
+/novel/necropolis-immortal/chapter-1587/
+  X-Robots-Tag: noindex, follow
+/novel/necropolis-immortal/chapter-1765/
+  X-Robots-Tag: noindex, follow
