@@ -36,6 +36,19 @@ assert(!rich.includes('href="/novel/my-rich-wife/chapter-752/"'),'Removed chapte
 assert(!rich.includes('href="/novel/my-rich-wife/chapter-872/"'),'Second removed chapter must not appear in the public table of contents');
 assert(rich.includes('href="/novel/my-rich-wife/chapter-753/"'),'Neighboring chapter numbers must be stable');
 assert(sample.includes('<main id="main" class="wrap" tabindex="-1">'),'Detail page contains real HTML');
+
+const legal=['about.html','contact.html','copyright.html','editorial-policy.html',
+  'content-licensing.html','advertising-disclosure.html','privacy.html',
+  'privacy-choices.html','terms.html'];
+for(const page of legal){
+  assert(!read(page).includes(publisher),page+': legal/utility pages must remain ad-free');
+  assert(read(page).includes('Novel<span>Haven</span>'),page+': correct brand required');
+}
+assert(read('privacy-choices.html').includes('Approval not confirmed'),
+  'Privacy Choices must not falsely imply a live AdSense review');
+assert(sample.includes('NovelHaven reader'),
+  'Do not label unreviewed individual novel rights as certified licenses');
+
 const restricted=read('novel/supreme-harem-god-system/index.html');
 assert.match(restricted,/<meta name="robots" content="noindex,follow"/);
 assert(!restricted.includes(publisher),'Restricted detail must not include ads script');
