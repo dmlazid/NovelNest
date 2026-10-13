@@ -122,7 +122,7 @@ test('numbered duplicate tombstones are recognized and skipped by D1 exports',t=
   assert.equal(readableChapterCount(novel),1);
   const chapters=selectChapters(root,novel,1,2);
   assert.equal(chapters[1].removedDuplicate,true);
-  assert.deepEqual(chapters[1].paragraphs,[]);
+  assert.equal(chapters[1].paragraphs.length,0,'Deleted content must be empty across VM realms');
   const batch=prepareBatch({root,novelId:novel.id,start:1,limit:2});
   assert.equal(batch.report.chapter_count,1);
   assert(!batch.sql.includes("'Chapter 2'"));
