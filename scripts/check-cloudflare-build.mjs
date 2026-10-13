@@ -6,6 +6,16 @@ for(const name of ['ads.txt','privacy.html','privacy-choices.html','terms.html',
 assert(template.includes('CHAPTER_BODY_TOKEN'));assert(template.includes('CHAPTER_URL_TOKEN'));
 const meta=JSON.parse(read('_internal/novels.json')),info=JSON.parse(read('build-info.json'));
 assert.equal(Object.keys(meta).length,info.novels);assert.equal(Object.values(meta).reduce((s,n)=>s+n.total,0),info.chapters);
-let urls=0;for(const f of fs.readdirSync(root+'/sitemaps').filter(x=>x.startsWith('chapters-')))urls+=(read('sitemaps/'+f).match(/<url>/g)||[]).length;assert.equal(urls,info.chapters);
+let urls=0;for(const f of fs.readdirSync(root+'/sitemaps').filter(x=>x.startsWith('chapters-')))urls+=(read('sitemaps/'+f).match(/<url>/g)||[]).length;
+const indexable=Object.values(meta).filter(n=>!n.discoveryHidden).reduce((s,n)=>s+n.total,0);
+assert.equal(urls,indexable,'Only discoverable novels should be in chapter sitemaps');
+const hidden=Object.entries(meta).filter(([id,n])=>n.discoveryHidden);
+assert.equal(hidden.length,10,'Reversible FreeWebNovel curation excludes only the chosen ten titles');
+const catalogSitemap=read('sitemaps/catalog.xml');
+for(const [id] of hidden){
+  assert(!catalogSitemap.includes('/novel/'+id+'/'),'Curated book must be absent from discovery sitemap');
+  assert.match(read('novel/'+id+'/index.html'),/meta name="robots" content="noindex,follow"/);
+  assert(read('novel/'+id+'/index.html').includes('href="/novel/'+id+'/chapter-1/"'), 'Curated novel must remain readable');
+}
 let count=0;function walk(p){for(const x of fs.readdirSync(p,{withFileTypes:true})){const f=path.join(p,x.name);if(x.isDirectory())walk(f);else{count++;assert(fs.statSync(f).size<=25*1024*1024,'Asset too large');}}}walk(root);assert(count<=20000,'Free static asset count exceeded');
 assert.doesNotMatch(read('404.html'),/pagead2/);console.log('Verified Cloudflare assets:',JSON.stringify({files:count,novels:info.novels,chapters:info.chapters,bytes:info.siteBytes,publisher:'unchanged',cutover:'not enabled'}));
