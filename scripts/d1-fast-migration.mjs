@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {loadNovelCatalog, selectChapters, MAX_ROW_BYTES} from './export-d1-batch.mjs';
+import {loadNovelCatalog, selectChapters, MAX_ROW_BYTES, readableChapterCount, deletedChapterNumbers} from './export-d1-batch.mjs';
 import {createClients, planAssignments, indexExistingRows} from './sync-d1-sharded.mjs';
 import {estimatePublishedVolumes} from './plan-d1-capacity.mjs';
 import {SHARDS, ROUTING_SCHEMA} from '../cloudflare/d1/shards.mjs';
@@ -65,8 +65,13 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   const today=new Date().toISOString().slice(0,10);
   const budget=(await master.query('SELECT reserved FROM migration_write_budget WHERE day=?',[today])).results;
   const novels=loadNovelCatalog(root);
-  const report={verified:0,source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),total_stored:null,
-    active_stored:null,historical_stored:null,remaining_chapters:null,stop_reason:'run_cap',cutover_ready:false};
+  const deletedByNovel=new Map(novels.map(n=>[n.id,new Set(deletedChapterNumbers(n))]));
+  const numberedSlots=novels.reduce((sum,n)=>sum+n.chapters.length,0);
+  const readableTotal=novels.reduce((sum,n)=>sum+readableChapterCount(n),0);
+  const report={verified:0,source_chapters:readableTotal,
+    numbered_chapter_slots:numberedSlots,deleted_chapter_slots:numberedSlots-readableTotal,
+    retired_d1_rows:null,total_stored:null,active_stored:null,historical_stored:null,
+    remaining_chapters:null,stop_reason:'run_cap',cutover_ready:false};
   // Critical Free-tier guard: DO NOT repeatedly GROUP BY every imported chapter
   // every 20 minutes once the daily write budget is already used. Those scans
   // themselves consume the daily D1 rows-read quota and previously caused 400s.
@@ -98,17 +103,34 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   await master.query(ROUTING_SCHEMA);
   const routes=new Map((await master.query('SELECT novel_id,database_id FROM novel_shards')).results.map(r=>[r.novel_id,r.database_id]));
   const {existing,pinned}=indexExistingRows(stats,routes);
-  report.active_stored=0;
+  const retiredPresent=new Map();
+  report.active_stored=0;report.retired_d1_rows=0;
   for(const novel of novels){
-    const existingStats=existing.get(novel.id)?.stats;
+    const entry=existing.get(novel.id),existingStats=entry?.stats;
     if(!existingStats)continue;
     const count=Number(existingStats.stored);
     assert(Number.isSafeInteger(count)&&count>=0&&count<=novel.chapters.length,
       'Unexpected active chapter count: '+novel.id);
     assert(Number(existingStats.minimum)>=1&&Number(existingStats.maximum)<=novel.chapters.length,
       'Unexpected active chapter range: '+novel.id);
-    report.active_stored+=count;
+    // Already-stored deleted duplicates may remain in historical D1 rows. A
+    // numbered tombstone must not masquerade as a readable chapter.
+    const removed=deletedByNovel.get(novel.id),numbers=[...removed];
+    let retired=0;
+    if(numbers.length){
+      const query='SELECT chapter_number FROM chapters WHERE novel_id=? AND chapter_number IN ('+
+        numbers.map(()=>'?').join(',')+')';
+      const rows=(await clients.get(entry.shardId).query(query,[novel.id,...numbers])).results;
+      assert(rows.length<=numbers.length&&rows.every(row=>removed.has(Number(row.chapter_number))),
+        'Invalid retired D1 chapter scan: '+novel.id);
+      retired=rows.length;
+    }
+    retiredPresent.set(novel.id,retired);
+    report.retired_d1_rows+=retired;
+    report.active_stored+=count-retired;
   }
+  assert(report.active_stored<=report.source_chapters,
+    'More D1 chapters than readable source text; migration paused');
   report.historical_stored=report.total_stored-report.active_stored;
   assert(report.historical_stored>=0,'Inconsistent D1 inventory');
   report.remaining_chapters=report.source_chapters-report.active_stored;
@@ -127,14 +149,18 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
       const checked=(await master.query('SELECT database_id FROM novel_shards WHERE novel_id=?',[novel.id])).results;
       assert(checked.length===1&&checked[0].database_id===shard,'Shard route mismatch');routes.set(novel.id,shard);
     }
-    if(previous&&Number(previous.stored)===novel.chapters.length&&Number(previous.minimum)===1&&Number(previous.maximum)===novel.chapters.length)continue;
+    const expectedReadable=readableChapterCount(novel),deleted=deletedByNovel.get(novel.id);
+    const alreadyReadable=previous?Number(previous.stored)-(retiredPresent.get(novel.id)||0):0;
+    if(previous&&alreadyReadable===expectedReadable)continue;
     const numbers=new Set((await client.query('SELECT chapter_number FROM chapters WHERE novel_id=? ORDER BY chapter_number',[novel.id])).results.map(r=>Number(r.chapter_number)));
     for(let start=1;start<=novel.chapters.length;){
-      if(numbers.has(start)){start++;continue;}
+      if(deleted.has(start)||numbers.has(start)){start++;continue;}
       if(report.verified>=maxChapters)break outer;
       if(usage && usage.rows_read>=maxReadRows){report.stop_reason='rows_read_budget_guard';break outer;}
       const selected=selectChapters(root,novel,start,Math.min(25,maxChapters-report.verified,novel.chapters.length-start+1));
-      const chapters=selected.filter(c=>!numbers.has(c.number));
+      const end=selected[selected.length-1].number;
+      const chapters=selected.filter(c=>!c.removedDuplicate&&!numbers.has(c.number));
+      if(chapters.length===0){start=end+1;continue;}
       const batch=insertBatch(novel.id,chapters);
       const bytes=Buffer.byteLength(JSON.stringify(batch.params));
       const size=await client.size();
@@ -148,7 +174,6 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
       }
       const write=await client.query(batch.sql,batch.params);
       assert(Number.isFinite(Number(write.meta?.rows_written))&&Number(write.meta.rows_written)<=reservation,'Unexpected write accounting');
-      const end=selected[selected.length-1].number;
       const rows=(await client.query('SELECT chapter_number,title,paragraphs_json FROM chapters WHERE novel_id=? AND chapter_number>=? AND chapter_number<=? ORDER BY chapter_number',[novel.id,start,end])).results;
       verifyBatch(chapters,rows);
       for(const c of chapters)numbers.add(c.number);
