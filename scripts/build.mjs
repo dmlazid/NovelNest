@@ -100,14 +100,14 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // at the next p or enclosing div, preserving every original paragraph.
 const compactChapterFooter = '<footer data-static-footer><a href="/privacy.html">Privacy</a> <a href="/privacy-choices.html">Privacy Choices</a> <a href="/terms.html">Terms</a> <a href="/copyright.html">Copyright</a> <a href="/contact.html">Contact</a></footer><div id="toast" role="status" aria-live="polite"></div></body></html>';
 function chapterPage(title, url, markup, novelRoot) {
-  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelNest</title><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelNest</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
+  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="index,follow,max-image-preview:large"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
 if (cloudflareMode) {
   write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
   write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length}]))));
 }
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
-  let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelNest</title>')
+  let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelHaven</title>')
     .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escape(description || title) + '">')
     .replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="' + robots + '">')
     .replace(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="https://novelhaven.top' + escape(url) + '">')
@@ -126,7 +126,7 @@ const render = expression => vm.runInContext(expression, renderContext);
 const links = [];
 function addRoute(route, title, expression, robots) {
   const markup = render(expression);
-  write(route === '/' ? 'index.html' : route.replace(/^\//, '') + '/index.html', page(title, route, markup, title + ' on NovelNest.', robots));
+  write(route === '/' ? 'index.html' : route.replace(/^\//, '') + '/index.html', page(title, route, markup, title + ' on NovelHaven.', robots));
   if (!robots?.startsWith('noindex')) links.push(route);
 }
 addRoute('/', 'Find your next chapter', 'home()');
@@ -192,7 +192,7 @@ for (const n of novels) {
 flushChapterMap();
 function chapterFallbackHtml() {
   // Unknown URLs remain real 404/noindex pages; no ad code on error pages.
-  return page('Page not found', '/', render('missing()'), 'This page is not in the NovelNest catalog.', 'noindex,follow').replace(/<script[^>]+src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g, '').replace(/<link rel="canonical"[^>]*>/, '');
+  return page('Page not found', '/', render('missing()'), 'This page is not in the NovelHaven catalog.', 'noindex,follow').replace(/<script[^>]+src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g, '').replace(/<link rel="canonical"[^>]*>/, '');
 }
 write('404.html', chapterFallbackHtml());
 let catalogMap = fs.readFileSync('dist/sitemap.xml', 'utf8');
