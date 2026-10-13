@@ -249,7 +249,7 @@ function home(){
       ${completed.length?`<div class="home-cover-grid">${completed.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No completed novels yet.</p>'}
     </section>
     <section class="home-feed-section editorial-home-section" aria-labelledby="reading-desk-title">
-      <div class="home-feed-head"><h2 id="reading-desk-title"><span aria-hidden="true">✦</span> NovelHaven Reading Desk</h2><a href="./#/reading-desk">See all</a></div>
+      <div class="home-feed-head"><h2 id="reading-desk-title"><span aria-hidden="true">✦</span> NovelHaven Reading Desk</h2><a href="/reading-desk.html">See all</a></div>
       <p class="editorial-home-intro">Original guides and recommendations written for NovelHaven readers — made to help you choose what to read next, understand popular web-novel genres, and decide between ongoing and completed stories.</p>
       <div class="editorial-card-grid">
         ${editorialCard('choosing-a-long-web-novel','How to choose a long web novel without burning out','A practical guide to chapter counts, pacing, reading goals, and when to take a break.')}
@@ -260,7 +260,9 @@ function home(){
   </div>`;
 }
 function editorialCard(slug,title,summary){
-  return `<a class="editorial-card" href="./#/editorial/${encodeURIComponent(slug)}">
+  const pages = {'choosing-a-long-web-novel':'guide-long-web-novel.html','ongoing-vs-completed':'guide-ongoing-vs-completed.html','genre-guide':'guide-genres.html'};
+  const href = pages[slug] ? '/' + pages[slug] : './#/editorial/' + encodeURIComponent(slug);
+  return `<a class="editorial-card" href="${href}">
     <span class="editorial-kicker">Original NovelHaven guide</span>
     <strong>${esc(title)}</strong>
     <p>${esc(summary)}</p>
@@ -325,7 +327,7 @@ function editorial(slug){
   const item=EDITORIALS[slug];
   if(!item)return missing();
   return `<article class="policy-page editorial-article">
-    <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><a href="./#/reading-desk">Reading Desk</a><span aria-hidden="true">›</span><span aria-current="page">${esc(item.title)}</span></nav>
+    <nav class="directory-breadcrumb" aria-label="Breadcrumb"><a href="./#/">⌂ Home</a><span aria-hidden="true">›</span><a href="/reading-desk.html">Reading Desk</a><span aria-hidden="true">›</span><span aria-current="page">${esc(item.title)}</span></nav>
     <header class="policy-hero"><span class="eyebrow">Original NovelHaven guide</span><h1>${esc(item.title)}</h1><p>${esc(item.dek)}</p></header>
     <div class="policy-copy">${item.body}</div>
   </article>`;
