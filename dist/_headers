@@ -1,0 +1,42 @@
+# Cloudflare Pages static/SPA fallback: prevent public indexing of curated
+# FreeWebNovel imports without blocking direct readers or deleting data.
+/novel/martial-god-asura/
+  X-Robots-Tag: noindex, follow
+/novel/martial-god-asura/*
+  X-Robots-Tag: noindex, follow
+/novel/legend-of-swordsman/
+  X-Robots-Tag: noindex, follow
+/novel/legend-of-swordsman/*
+  X-Robots-Tag: noindex, follow
+/novel/martial-peak/
+  X-Robots-Tag: noindex, follow
+/novel/martial-peak/*
+  X-Robots-Tag: noindex, follow
+/novel/infinite-mana-in-the-apocalypse/
+  X-Robots-Tag: noindex, follow
+/novel/infinite-mana-in-the-apocalypse/*
+  X-Robots-Tag: noindex, follow
+/novel/reborn-at-boot-camp-general-dont-mess-around/
+  X-Robots-Tag: noindex, follow
+/novel/reborn-at-boot-camp-general-dont-mess-around/*
+  X-Robots-Tag: noindex, follow
+/novel/chaotic-sword-god/
+  X-Robots-Tag: noindex, follow
+/novel/chaotic-sword-god/*
+  X-Robots-Tag: noindex, follow
+/novel/madams-identities-shocks-the-entire-city-again/
+  X-Robots-Tag: noindex, follow
+/novel/madams-identities-shocks-the-entire-city-again/*
+  X-Robots-Tag: noindex, follow
+/novel/the-long-awaited-mr-han/
+  X-Robots-Tag: noindex, follow
+/novel/the-long-awaited-mr-han/*
+  X-Robots-Tag: noindex, follow
+/novel/cultivation-chat-group/
+  X-Robots-Tag: noindex, follow
+/novel/cultivation-chat-group/*
+  X-Robots-Tag: noindex, follow
+/novel/fey-evolution-merchant/
+  X-Robots-Tag: noindex, follow
+/novel/fey-evolution-merchant/*
+  X-Robots-Tag: noindex, follow
