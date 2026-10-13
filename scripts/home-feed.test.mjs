@@ -239,3 +239,34 @@ test('curation flags listed long FreeWebNovel imports without deleting the catal
   assert.equal(sample.window.NOVELS.length,2);
   assert.equal(sample.window.NOVELNEST_DISCOVERY_EXCLUDED.length,11);
 });
+
+
+test('Latest Novels never mixes old imported chapters or excludes featured genuine updates',()=>{
+  const fresh=Array.from({length:8},(_,i)=>source('fresh-'+i,{
+    sourceReleaseAt:'2026-10-11T08:'+String(58-i).padStart(2,'0')+':00Z',
+    updated:'2026-10-11'
+  }));
+  const imported=Array.from({length:25},(_,i)=>book('imported-'+i,{
+    updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'
+  }));
+  const render=harness([...fresh,...imported]);
+  for(let attempt=0;attempt<15;attempt++){
+    const html=render('home()');
+    const section=html.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1].split('</section>')[0];
+    const order=[...section.matchAll(/home-novel-tile" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
+    assert.deepEqual(order,['fresh-0','fresh-1','fresh-2','fresh-3','fresh-4','fresh-5']);
+    assert(!/imported-/.test(section));
+  }
+});
+test('Latest Novels displays only actual releases when fewer than six exist',()=>{
+  const render=harness([book('old-import',{lastChapterAddedAt:'2026-10-11T08:59:00Z'}),
+    source('true-new',{sourceReleaseAt:'2026-10-11T08:55:00Z'})]);
+  const home=render('home()');
+  const section=home.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1].split('</section>')[0];
+  assert.equal((section.match(/class="home-novel-tile"/g)||[]).length,1);
+  assert.match(section,/true-new/);
+  assert.doesNotMatch(section,/old-import/);
+  const listing=render("directoryPage('novels')");
+  assert.match(listing,/\/novel\/true-new\//);
+  assert.doesNotMatch(listing,/\/novel\/old-import\//);
+});
