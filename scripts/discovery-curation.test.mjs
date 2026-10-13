@@ -16,8 +16,8 @@ test('reversible curation never removes novels or chapter data',()=>{
   assert.equal(scope.window.NOVELNEST_DISCOVERY_EXCLUDED.length,11);
 });
 
-function fakeEnv(hidden){
-  const book={title:'Reading history test',total:1,discoveryHidden:hidden};
+function fakeEnv(hidden, duplicateChapters = []){
+  const book={title:'Reading history test',total:1,discoveryHidden:hidden,duplicateChapters};
   return {
     ASSETS:{async fetch(req){
       const path=new URL(req.url).pathname;
@@ -39,6 +39,14 @@ test('curated Cloudflare chapter can still be opened but tells search engines no
   assert.match(html,/name="robots" content="noindex,follow"/);
   assert.match(html,/Readable chapter content/);
   assert.doesNotMatch(html,/pagead2\.googlesyndication\.com/,'Hidden chapters must not include publisher ads');
+});
+test('repeated chapter bodies are readable but excluded from advertising and indexing', async()=>{
+  const result=await readerWorker.fetch(new Request('https://novelhaven.top/novel/curated/chapter-1/'),fakeEnv(false,[1]));
+  assert.equal(result.status,200);
+  assert.equal(result.headers.get('X-Robots-Tag'),'noindex, follow');
+  const html=await result.text();
+  assert.match(html,/Readable chapter content/);
+  assert.doesNotMatch(html,/pagead2\.googlesyndication\.com/);
 });
 test('uncurated novel chapters remain indexable',async()=>{
   const result=await readerWorker.fetch(new Request('https://novelhaven.top/novel/curated/chapter-1/'),fakeEnv(false));
