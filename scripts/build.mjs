@@ -10,6 +10,11 @@ for (const item of validated.duplicate_chapter_bodies) {
   if (!duplicateChapters.has(item.novel_id)) duplicateChapters.set(item.novel_id, new Set());
   duplicateChapters.get(item.novel_id).add(item.repeated_chapter);
 }
+const removedChapters = new Map();
+for (const item of validated.duplicate_repair_status?.deleted_duplicate_chapters || []) {
+  if (!removedChapters.has(item.novel_id)) removedChapters.set(item.novel_id, new Set());
+  removedChapters.get(item.novel_id).add(item.deleted_chapter);
+}
 const cloudflareMode = process.env.NOVELNEST_CLOUDFLARE === '1';
 const output = cloudflareMode ? '_cloudflare' : '_site';
 fs.rmSync(output, { recursive: true, force: true });
@@ -109,7 +114,7 @@ function chapterPage(title, url, markup, novelRoot, robots = 'index,follow,max-i
 }
 if (cloudflareMode) {
   write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
-  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length, discoveryHidden:n.discoveryHidden===true, duplicateChapters:[...(duplicateChapters.get(n.id)||[])]}]))));
+  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length, discoveryHidden:n.discoveryHidden===true, duplicateChapters:[...(duplicateChapters.get(n.id)||[])], removedChapters:[...(removedChapters.get(n.id)||[])]}]))));
 }
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelHaven</title>')
@@ -172,7 +177,7 @@ for (const n of novels) {
   if (cloudflareMode) {
     for (let number=1; number<=n.chapters.length; number++) {
       const url=root+'chapter-'+number+'/';
-      if (!n.discoveryHidden && !duplicateChapters.get(n.id)?.has(number)) chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
+      if (!n.discoveryHidden && !duplicateChapters.get(n.id)?.has(number) && !removedChapters.get(n.id)?.has(number)) chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
       chapterCount++;
       if (chapterUrls.length===40000) flushChapterMap();
     }
@@ -186,6 +191,17 @@ for (const n of novels) {
       const raw = chunk.window[config.global][offset];
       const number = (part - 1) * config.capacity + offset + 1;
       const c = n.chapters[number - 1], url = root + 'chapter-' + number + '/';
+      if (removedChapters.get(n.id)?.has(number)) {
+        const next=Array.from({length:n.chapters.length-number},(_,i)=>number+i+1)
+          .find(nextNumber=>!removedChapters.get(n.id)?.has(nextNumber));
+        const fallback=next ? '<a href="'+root+'chapter-'+next+'/">Continue to Chapter '+next+'</a>' :
+          '<a href="'+root+'">Back to chapters</a>';
+        const notice='<article class="reader-wrap"><h1>Duplicate chapter removed</h1><p>Chapter '+number+
+          ' was deleted because it repeated another chapter.</p>'+fallback+'</article>';
+        write(url.slice(1)+'index.html', chapterPage(n.title+' — Chapter removed', url, notice, root, 'noindex,follow'));
+        chapterCount++;
+        continue;
+      }
       const nav = '<nav class=chapter-nav aria-label="Chapters">' + (number > 1 ? '<a href="chapter-' + (number - 1) + '/">Previous</a>' : '') + '<a href="./">Chapters</a>' + (number < n.chapters.length ? '<a href="chapter-' + (number + 1) + '/">Next</a>' : '') + '</nav>';
       const markup = '<article class=reader-wrap><div class=reader-heading><a href="./">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class=prose data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + textEscape(p)).join('') + '</div>' + nav + '</article>';
       const temporarilyExcluded = n.discoveryHidden || duplicateChapters.get(n.id)?.has(number);
@@ -214,5 +230,5 @@ measure(output);
 const sizeBudget = 1000 * 1024 * 1024;
 if (bytes > sizeBudget) throw new Error(`Built site is ${bytes} bytes, exceeding the ${sizeBudget}-byte GitHub Pages size budget. Move to hosting with more capacity before publishing more content.`);
 if (bytes > sizeBudget * 0.9) console.warn('::warning::Published site is above 90% of its size budget. Plan additional hosting capacity as chapter imports grow.');
-write('build-info.json', json({ novels: novels.length, chapters: chapterCount, catalogBytes: Buffer.byteLength(catalogCode), runtimeBytes: Buffer.byteLength(runtimeCode), siteBytes: bytes, generatedAt: new Date().toISOString() }));
+write('build-info.json', json({ novels: novels.length, chapters: chapterCount, removedChapterBodies:[...removedChapters.values()].reduce((n,set)=>n+set.size,0), catalogBytes: Buffer.byteLength(catalogCode), runtimeBytes: Buffer.byteLength(runtimeCode), siteBytes: bytes, generatedAt: new Date().toISOString() }));
 console.log(`Built ${novels.length} novels, ${chapterCount} real chapter pages; catalog ${Buffer.byteLength(catalogCode)} bytes; site ${bytes} bytes.`);
