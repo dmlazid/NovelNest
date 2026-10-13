@@ -6,17 +6,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
+import {fingerprintSourceActivity} from './source-feed-fingerprint.mjs';
 
 const root='dist';
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const write=(p,value)=>{const target=path.join(root,p);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,value);};
+// Build the homepage with the exact source snapshot SHA in its URL.
+// This keeps source updates fresh even if Cloudflare applies a long JS cache.
+const sourceFeed=fingerprintSourceActivity(root);
 const source=read('index.html');
 const marker='<main id="main" class="wrap" tabindex="-1"></main>';
 assert(source.includes(marker),'Original interactive reader shell changed: refuse publishing');
 assert(source.includes('google-site-verification'),'Keep existing Google verification');
 const scriptPaths=[...source.matchAll(/<script\b[^>]*src="([^"]+)"/g)]
   .map(match=>match[1].split('?')[0]);
-const catalogPaths=scriptPaths.filter(p=>p==='catalog.js'||p==='source-activity.js'||/^licensed-(?!ui\.js)/.test(p));
+const catalogPaths=scriptPaths.filter(p=>p==='catalog.js'||/^source-activity(?:\.[0-9a-f]{16})?\.js$/.test(p)||/^licensed-(?!ui\.js)/.test(p));
 const ctx=vm.createContext({window:{}});
 for(const p of ['chapter-labels.js',...catalogPaths,'discovery-curation.js','removed-duplicates.js']){
   assert(fs.existsSync(path.join(root,p)),'Missing original catalog script '+p);
@@ -93,7 +97,7 @@ write('sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="
 write('build-info.json',JSON.stringify({mode:'compatible-spa-with-static-details',novels:novels.length,
   chapters:novels.reduce((s,n)=>s+n.chapters.filter(c=>!c.removedDuplicate).length,0),removedChapterBodies:9,serverRenderedChapters:false,
   catalogRoutes:known.size+routeLinks.length,
-  generatedAt:new Date().toISOString()},null,2)+'\n');
+  sourceFeedAsset:sourceFeed.filename,generatedAt:new Date().toISOString()},null,2)+'\n');
 // While chapter prose is still delivered by the existing interactive SPA,
 // block crawlers from treating the generic app shell as an indexed chapter.
 // This one pattern applies only to chapter URLs and must be removed once the
