@@ -1,0 +1,27 @@
+name: Verify deleted duplicate chapters live
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dist/removed-duplicates.js'
+      - 'scripts/check-live-deleted-duplicates.mjs'
+      - '.github/workflows/verify-deleted-duplicates.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          sparse-checkout: |
+            dist/ads.txt
+            scripts/check-live-deleted-duplicates.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/check-live-deleted-duplicates.mjs
