@@ -176,3 +176,71 @@ test('rows-read cap stops after inventory before starting any chapter write',asy
  assert.equal(inserts,0);
  assert(usage.rows_read>=400);
 });
+
+test('migration preserves deleted duplicate slots and copies only missing real prose',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-deleted-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  fs.mkdirSync(path.join(root,'data'));
+  const chapters=[
+    {number:1,title:'Chapter 1',paragraphs:['Original first']},
+    {number:2,title:'Chapter 2',paragraphs:[],removedDuplicate:true},
+    {number:3,title:'Chapter 3',paragraphs:['Real final chapter']}
+  ];
+  fs.writeFileSync(path.join(root,'index.html'),
+    '<script src="catalog.js"></script><script src="removed-duplicates.js"></script>');
+  fs.writeFileSync(path.join(root,'catalog.js'),
+    'window.NOVELS='+JSON.stringify([{id:'book',title:'Book',chapters:chapters.map(c=>({
+      number:c.number,title:c.title,lazy:true})),lazyChunks:{
+      prefix:'data/book-chapters-',global:'CHAPTERS',capacity:25}}])+';');
+  fs.writeFileSync(path.join(root,'removed-duplicates.js'),
+    'window.NOVELS[0].chapters[1]={number:2,title:"Chapter 2",paragraphs:[],lazy:false,removedDuplicate:true};');
+  fs.writeFileSync(path.join(root,'data/book-chapters-01.js'),
+    'window.CHAPTERS='+JSON.stringify(chapters)+';');
+  let inserted=[],reserved=0;
+  const clients=new Map(SHARDS.map((shard,i)=>[shard.id,{
+    size:async()=>1024,
+    query:async(sql,params=[])=>{
+      if(sql.startsWith('CREATE TABLE'))return {results:[]};
+      if(sql.startsWith('SELECT reserved'))return {results:[]};
+      if(sql.startsWith('SELECT novel_id,COUNT'))return {results:i===0?
+        [{novel_id:'book',stored:2,minimum:1,maximum:2}]:[]};
+      if(sql.startsWith('PRAGMA'))return {results:[{name:'pk'}]};
+      if(sql.startsWith('SELECT name FROM sqlite_master'))return {results:[]};
+      if(sql==='SELECT novel_id,database_id FROM novel_shards')
+        return {results:[{novel_id:'book',database_id:SHARDS[0].id}]};
+      if(sql.includes('chapter_number IN (')){
+        assert.deepEqual(params,['book',2]);
+        return {results:[{chapter_number:2}]};
+      }
+      if(sql.startsWith('SELECT chapter_number FROM chapters'))
+        return {results:[{chapter_number:1},{chapter_number:2}]};
+      if(sql.startsWith('INSERT INTO migration_write_budget'))return {results:[]};
+      if(sql.startsWith('UPDATE migration_write_budget')){
+        reserved+=params[0];return {results:[{reserved}]};
+      }
+      if(sql.startsWith('INSERT INTO chapters')){
+        assert.equal(params[0],'book');
+        assert.equal(params[1],3,'Deleted chapter #2 must never be reimported');
+        inserted.push(params[1]);return {results:[],meta:{rows_written:1}};
+      }
+      if(sql.startsWith('SELECT chapter_number,title,paragraphs_json')){
+        return {results:[{chapter_number:3,title:'Chapter 3',
+          paragraphs_json:JSON.stringify(chapters[2].paragraphs)}]};
+      }
+      throw Error('Unexpected D1 operation: '+sql);
+    }
+  }]));
+  const report=await migrate({clients,root,maxChapters:3,log:()=>{}});
+  assert.deepEqual(inserted,[3]);
+  assert.equal(report.numbered_chapter_slots,3);
+  assert.equal(report.deleted_chapter_slots,1);
+  assert.equal(report.retired_d1_rows,1);
+  assert.equal(report.source_chapters,2);
+  assert.equal(report.total_stored,3);
+  assert.equal(report.active_stored,2);
+  assert.equal(report.historical_stored,1);
+  assert.equal(report.remaining_chapters,0);
+  assert.equal(report.verified,1);
+  assert.equal(report.stop_reason,'copy_complete_full_audit_required');
+  assert.equal(report.cutover_ready,false);
+});
