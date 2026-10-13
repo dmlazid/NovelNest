@@ -1,0 +1,42 @@
+name: Publish verified NovelHaven compatible Pages
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-compatible-pages-production.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-verified-pages-direct-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test real source release ordering and chapter safeguards
+        run: node --test scripts/home-feed.test.mjs scripts/chapter-duplicates.test.mjs
+      - name: Build existing reader-compatible Pages package
+        run: |
+          node scripts/build-compatible-pages.mjs
+          node scripts/check-compatible-pages.mjs
+      - name: Confirm this exact Cloudflare project and original domain (read-only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/guard-compatible-pages-production.mjs
+      - name: Upload only verified dist to existing Pages production branch
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name novelnest --branch main
+      - name: Verify new homepage, source chronology, reader and ads.txt live
+        run: node scripts/verify-live-source-feed.mjs

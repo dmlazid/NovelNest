@@ -26,6 +26,8 @@ jobs:
       - run: node --test scripts/*.test.mjs
       - run: node --check scripts/check-cloudflare-preview.mjs
       - run: node --check scripts/activate-compatible-pages.mjs
+      - run: node --check scripts/guard-compatible-pages-production.mjs
+      - run: node --check scripts/verify-live-source-feed.mjs
       - run: node scripts/build.mjs
         env:
           NOVELNEST_CLOUDFLARE: '1'
