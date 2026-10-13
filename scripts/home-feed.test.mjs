@@ -177,7 +177,7 @@ test('Latest Novels cards prioritize genuine five-day updates without using chap
   assert.doesNotMatch(area,/backfill-/);
   assert.match(area,/fresh-/);
 });
-test('Latest Novels full directory orders real releases ahead of imported older novels',()=>{
+test('Latest Novels full directory orders real releases and omits imported older novels',()=>{
   const v=harness([
     book('a-old-import',{updated:'2026-10-11',lastChapterAddedAt:'2026-10-11T08:59:00Z'}),
     source('z-first',{sourceReleaseAt:'2026-10-11T08:50:00Z'}),
@@ -187,8 +187,8 @@ test('Latest Novels full directory orders real releases ahead of imported older 
   const newer=html.indexOf('/novel/y-newest/');
   const earlier=html.indexOf('/novel/z-first/');
   const old=html.indexOf('/novel/a-old-import/');
-  assert(newer>=0 && earlier>=0 && old>=0);
-  assert(newer < earlier && earlier < old);
+  assert(newer>=0 && earlier>=0 && old<0,'Old imported books must not appear in Latest Novels');
+  assert(newer < earlier,'Source release order must remain chronological');
 });
 
 test('background Library progress refresh replaces only the Continue Reading card',()=>{
