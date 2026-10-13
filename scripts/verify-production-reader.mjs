@@ -45,18 +45,26 @@ async function get(origin, route) {
   } catch(e) {return {status:0,body:'',headers:{},error:String(e.message).slice(0,140)};}
 }
 async function pagesSettings(token,accountId) {
-  if(!token||!accountId) return {status:'credentials_missing'};
-  try {
-    const u='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(accountId)+'/pages/projects/novelnest';
-    const r=await fetch(u,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(16000)});
-    const json=await r.json();
-    if(!r.ok||!json.success) return {status:'access_denied_or_project_not_found',http:r.status,
-      codes:(json.errors||[]).map(e=>e.code).slice(0,4)};
-    return {status:'ok',project:json.result?.name,
-      build_command:json.result?.build_config?.build_command||null,
-      output_directory:json.result?.build_config?.destination_dir||null,
-      git_source:json.result?.source?.type||null};
-  } catch(e){return {status:'unavailable',message:String(e.message).slice(0,120)};}
+  if(!token||!accountId)return {status:'credentials_missing'};
+  // Two Pages projects have historically appeared in the production audit.
+  // Check each read-only; do not mistake a project-name mismatch for proof of
+  // a missing token permission or silently edit the wrong project.
+  const attempts=[];
+  for(const project of ['novelnest','novelnest-ac6']){
+    try {
+      const u='https://api.cloudflare.com/client/v4/accounts/'+
+        encodeURIComponent(accountId)+'/pages/projects/'+encodeURIComponent(project);
+      const r=await fetch(u,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(16000)});
+      const body=await r.json();
+      if(r.ok && body.success) return {status:'ok',project:body.result?.name,
+        build_command:body.result?.build_config?.build_command||null,
+        output_directory:body.result?.build_config?.destination_dir||null,
+        git_source:body.result?.source?.type||null,attempted_projects:attempts.map(x=>x.project)};
+      attempts.push({project,http:r.status,codes:(body.errors||[]).map(e=>e.code).slice(0,3)});
+      if(r.status===401||r.status===403)break; // Missing permission: avoid redundant calls.
+    }catch(e){attempts.push({project,status:'unavailable',reason:String(e.message).slice(0,90)});}
+  }
+  return {status:'access_denied_or_project_not_found',attempts};
 }
 export async function diagnose({
   origin='https://novelhaven.top',
