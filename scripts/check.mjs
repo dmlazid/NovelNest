@@ -59,9 +59,16 @@ export function validateSite(root = 'dist') {
     }
     chapterCount += chapters.length;
   }
+  const archivedKeys = new Set(JSON.parse(fs.readFileSync('scripts/archived_freewebnovel_keys.json','utf8')));
+  for(const key of archivedKeys){
+    assert(!scripts.some(name=>name.split('?')[0]===`licensed-fwn-${key}.js`),`Archived ${key} accidentally reappeared in public catalog`);
+  }
   for (const name of fs.readdirSync(path.join(root, 'data')).filter(n => n.endsWith('.js'))) {
     const file = `data/${name}`;
     if (checkedFiles.has(file)) continue;
+    // Original chapter chunks remain recoverable in git, but should not be
+    // released or indexed while their books are archived.
+    if([...archivedKeys].some(key=>name.startsWith(`fwn-${key}-chapters-`)))continue;
     const data = vm.createContext({ window: {} });
     vm.runInContext(read(file), data, { filename: file, timeout: 1000 });
     assert(Object.values(data.window).every(v => Array.isArray(v) && v.length === 0), `Unindexed chapters in ${file}`);
