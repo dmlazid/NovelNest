@@ -46,6 +46,13 @@ for(const page of legal){
 }
 assert(read('privacy-choices.html').includes('Approval not confirmed'),
   'Privacy Choices must not falsely imply a live AdSense review');
+
+for(const page of ['contact.html','copyright.html','content-licensing.html','privacy.html']){
+  assert(read(page).includes('mailto:novelhaven15@gmail.com'),
+    page+': a direct email contact must exist for nonpublic rights inquiries');
+}
+assert(read('copyright.html').includes('Email a copyright request'),
+  'Copyright takedown must not rely only on public GitHub issues');
 assert(sample.includes('NovelHaven reader'),
   'Do not label unreviewed individual novel rights as certified licenses');
 

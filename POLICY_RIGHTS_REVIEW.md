@@ -30,7 +30,7 @@ These improvements **do not** independently resolve copyright entitlement, unaut
 
 ## Tasks that still need account-owner action
 
-1. Confirm a **private, working rights-holder contact method** (the current GitHub issue form is public and unsuitable for posting confidential agreements).
+1. **Contact method published:** `novelhaven15@gmail.com` is listed on Contact, Copyright and Content Licensing pages for nonpublic rights inquiries. The site owner must confirm they can receive and respond to mail there; this deployment does not verify mailbox access or establish a secure document-upload system.
 2. Review individual novel rights and covers using securely retained evidence, not public repo declarations.
 3. Review Google AdSense Policy center and the rejection email for the exact enforcement item. Only an AdSense reviewer can clear it.
 4. Configure a Google-certified CMP in your real AdSense account before serving personalized ads to EEA, UK and Switzerland visitors when required. NovelHaven's browser-data clear button is not a consent platform.

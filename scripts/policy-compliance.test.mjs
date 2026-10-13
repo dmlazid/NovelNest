@@ -60,3 +60,21 @@ test('copyright, privacy and contact pages are discoverable from site footer',()
   }
   assert(read('copyright.html').includes('github.com/dmlazid/NovelNest/issues/new'));
 });
+
+test('private copyright, rights and privacy inquiry links use the published mailbox',()=>{
+  const address='novelhaven15@gmail.com';
+  const required=['contact.html','copyright.html','content-licensing.html','privacy.html'];
+  for(const page of required){
+    const html=read(page);
+    assert(html.includes('mailto:'+address),page+': missing direct email link');
+    assert(html.includes('>'+address+'</a>'),page+': email not visible to visitors');
+    assert(!html.includes(ad),page+': must not request AdSense on a policy page');
+  }
+  const contact=read('contact.html');
+  const copyright=read('copyright.html');
+  assert(contact.includes('Please use this email rather than a public GitHub issue'));
+  assert(copyright.includes('Email a copyright request'));
+  assert(copyright.includes('GitHub issues are publicly visible'));
+  assert(copyright.includes('reliable reply address'));
+  assert(read('index.html').includes(ad),'Publisher verification must remain on the homepage');
+});

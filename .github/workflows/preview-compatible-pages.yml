@@ -1,7 +1,7 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014, fix/verify-rendered-source-feed-20261014, fix/adsense-policy-pages-20261014]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014, fix/verify-rendered-source-feed-20261014, fix/adsense-policy-pages-20261014, fix/private-rights-email-20261014]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
