@@ -1,7 +1,7 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
@@ -33,7 +33,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name novelnest --branch=novelhaven-compatible-preview-20261013
+          command: pages deploy dist --project-name novelnest --branch=novelhaven-source-latest-preview-20261014
       - name: Verify HTTP preview without production-domain changes
         env:
           PREVIEW_URL: ${{ steps.pages_preview.outputs.deployment-url }}
@@ -59,6 +59,14 @@ jobs:
           assert.doesNotMatch(hidden.body,/pagead2\.googlesyndication\.com/);
           assert.equal(app.status,200);
           assert.match(app.body,/latestOngoingReleases/);
+          assert.match(app.body,/const latestNovels=releases\.filter/,
+            'Homepage must use source releases instead of shuffled old imports');
+          const [freshHome,freshSource] = await Promise.all([
+            fetchPage('/'),fetchPage('/source-activity.js?v=20261014-fresh-source-feed-1')
+          ]);
+          assert.match(freshHome.body,/app\.js\?v=20261014-source-accurate-latest-1/);
+          assert.equal(freshSource.status,200);
+          assert.match(freshSource.body,/sourceActivityVerified/);
           assert.match(ads.body,/google\.com/);
           const [restrictedChapter,duplicateChapter,regularChapter] = await Promise.all([
             fetchPage('/novel/supreme-harem-god-system/chapter-1/'),
