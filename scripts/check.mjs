@@ -9,12 +9,12 @@ import { createHash } from 'node:crypto';
 // grounds to silently discard a user's saved chapter or alter its text.
 export function repeatedChapterBodies(novelId, chapters, minimumLength = 300) {
   const seen = new Map(), duplicates = [];
-  for (const chapter of chapters) {
+  for (const [index, chapter] of chapters.entries()) {
     if (!Array.isArray(chapter.paragraphs)) continue;
     const normalized = chapter.paragraphs.join(' ').replace(/\s+/g, ' ').trim().toLowerCase();
     if (normalized.length < minimumLength) continue;
     const hash = createHash('sha256').update(normalized).digest('hex');
-    const number = Number(chapter.number);
+    const number = index + 1; // validated chapter order also supports title-only source records
     if (seen.has(hash)) duplicates.push({ novel_id: novelId, first_chapter: seen.get(hash), repeated_chapter: number, digest: hash.slice(0, 16) });
     else seen.set(hash, number);
   }
