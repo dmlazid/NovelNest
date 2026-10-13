@@ -9,7 +9,7 @@ const baseNovels=[{id:'martial-god-asura',chapters:[{number:1,title:'First'}]},{
 test('reversible curation never removes novels or chapter data',()=>{
   const scope={window:{NOVELS:structuredClone(baseNovels)}};
   vm.runInNewContext(fs.readFileSync('dist/discovery-curation.js','utf8'),scope);
-  assert.equal(scope.window.NOVELS.length,2);
+  assert.equal(scope.window.NOVELS.length,3);
   assert.equal(scope.window.NOVELS[0].discoveryHidden,true);
   assert.equal(scope.window.NOVELS[1].discoveryHidden,undefined);
   assert.equal(scope.window.NOVELS[2].discoveryHidden,true);
