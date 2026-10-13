@@ -19,15 +19,21 @@ export async function auditContent({clients,root='dist',log=console.log}={}) {
   const routes=new Map(rows.map(r=>[r.novel_id,r.database_id]));
   assert(routes.size===rows.length,'Duplicate novel routes');
   const {existing}=indexExistingRows(stats,routes);
-  for(const id of routes.keys())assert(catalog.has(id),'Route absent from source catalog: '+id);
+  // Preserve and report older archived imports without allowing them to count
+  // as current published chapters. The complete audit still checks every
+  // paragraph of every active title and requires its verified reader route.
+  const historicalIds=[...new Set([...routes.keys(),...existing.keys()])].filter(id=>!catalog.has(id));
   for(const [id,entry] of existing){
     const novel=catalog.get(id),s=entry.stats;
-    assert(novel,'Stored novel absent from source catalog: '+id);
+    if(!novel)continue;
     assert([s.stored,s.minimum,s.maximum].every(n=>Number.isSafeInteger(Number(n))), 'Invalid chapter statistics');
     assert(Number(s.minimum)>=1&&Number(s.maximum)<=novel.chapters.length&&Number(s.stored)<=novel.chapters.length,'Unexpected chapter range: '+id);
   }
+  const activeStored=novels.reduce((sum,n)=>sum+Number(existing.get(n.id)?.stats.stored||0),0);
+  const totalStored=[...existing.values()].reduce((sum,e)=>sum+Number(e.stats.stored),0);
   const report={source_chapters:novels.reduce((s,n)=>s+n.chapters.length,0),
-    total_stored:[...existing.values()].reduce((s,e)=>s+Number(e.stats.stored),0),
+    total_stored:totalStored,active_stored:activeStored,historical_stored:totalStored-activeStored,
+    historical_novels:historicalIds.length,remaining_chapters:novels.reduce((sum,n)=>sum+n.chapters.length,0)-activeStored,
     verified_chapters:0,full_audit_passed:false,cutover_ready:false,
     status:'copy_pending',source_commit:process.env.GITHUB_SHA||null};
   if(novels.some(n=>Number(existing.get(n.id)?.stats.stored||0)!==n.chapters.length))return report;

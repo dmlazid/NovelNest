@@ -32,6 +32,39 @@ test('a fully copied legacy novel gets its route without rereading or rewriting 
  const report=await migrate({clients,root});
  assert(routed);assert.equal(reserved,8);assert.equal(report.verified,0);assert.equal(report.total_stored,1);assert.equal(report.stop_reason,'copy_complete_full_audit_required');
 });
+test('historical D1 rows cannot mask an unfinished active chapter',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'d1-history-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ fs.mkdirSync(path.join(root,'data'));
+ const chapters=[chapter,{...chapter,number:2,title:'Chapter 2'}];
+ fs.writeFileSync(path.join(root,'index.html'),'<script src="catalog.js"></script>');
+ fs.writeFileSync(path.join(root,'catalog.js'),'window.NOVELS='+JSON.stringify([{id:'book',title:'Book',chapters,lazyChunks:{prefix:'data/book-chapters-',global:'CHAPTERS',capacity:25}}])+';');
+ fs.writeFileSync(path.join(root,'data/book-chapters-01.js'),'window.CHAPTERS='+JSON.stringify(chapters)+';');
+ const catalogStats=[{novel_id:'book',stored:1,minimum:1,maximum:1},{novel_id:'archived-only',stored:8,minimum:1,maximum:8}];
+ let reserved=0,added=false,verified=false;
+ const clients=new Map(SHARDS.map((shard,i)=>[shard.id,{size:async()=>1024,query:async(sql,p=[])=>{
+   if(sql.startsWith('CREATE TABLE'))return {results:[]};
+   if(sql.startsWith('SELECT reserved'))return {results:[]};
+   if(sql.startsWith('SELECT novel_id,COUNT'))return {results:i===0?catalogStats:[]};
+   if(sql.startsWith('PRAGMA'))return {results:[{name:'pk'}]};
+   if(sql.startsWith('SELECT name FROM sqlite_master'))return {results:[]};
+   if(sql==='SELECT novel_id,database_id FROM novel_shards')return {results:[{novel_id:'book',database_id:SHARDS[0].id}]};
+   if(sql.startsWith('SELECT chapter_number FROM chapters'))return {results:[{chapter_number:1}]};
+   if(sql.startsWith('UPDATE migration_write_budget')){reserved+=p[0];return {results:[{reserved}]};}
+   if(sql.startsWith('INSERT INTO migration_write_budget'))return {results:[]};
+   if(sql.startsWith('INSERT INTO chapters')){added=true;return {results:[],meta:{rows_written:1}};}
+   if(sql.startsWith('SELECT chapter_number,title,paragraphs_json')){verified=true;return {results:[{chapter_number:2,title:'Chapter 2',paragraphs_json:JSON.stringify(chapter.paragraphs)}]};}
+   throw Error('Unexpected D1 operation '+sql);
+ }}]));
+ const r=await migrate({clients,root,maxChapters:1});
+ assert.equal(r.source_chapters,2);
+ assert.equal(r.total_stored,10,'Historical D1 rows remain counted in global storage');
+ assert.equal(r.historical_stored,8);
+ assert.equal(r.active_stored,2);
+ assert.equal(r.remaining_chapters,0);
+ assert.equal(r.stop_reason,'copy_complete_full_audit_required');
+ assert(added&&verified&&reserved>0);
+ assert.equal(r.cutover_ready,false);
+});
 test('readback detects missing and corrupted paragraphs',()=>{
  const row={chapter_number:1,title:chapter.title,paragraphs_json:JSON.stringify(chapter.paragraphs)};
  verifyBatch([chapter],[row]);assert.throws(()=>verifyBatch([chapter],[]),/mismatch/);

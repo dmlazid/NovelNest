@@ -35,6 +35,21 @@ test('complete audit compares all pages without writing and does not authorize c
   assert.equal(r.full_audit_passed,true);assert.equal(r.verified_chapters,101);
   assert.equal(r.cutover_ready,false);assert.equal(f.bodyQueries(),2);assert.match(r.content_sha256,/^[a-f0-9]{64}$/);
 });
+test('historical archived D1 rows do not inflate active copy readiness and are never deleted',async t=>{
+  const f=fixture(t,2),old={novel_id:'archived-only',chapter_number:1,title:'Archived',paragraphs_json:'["Kept intact"]'};
+  f.stored.get(SHARDS[1].id).push(old);
+  f.routes.push({novel_id:'archived-only',database_id:SHARDS[1].id});
+  const r=await auditContent({...f,log:()=>{}});
+  assert.equal(r.full_audit_passed,true);
+  assert.equal(r.source_chapters,2);
+  assert.equal(r.total_stored,3);
+  assert.equal(r.active_stored,2);
+  assert.equal(r.historical_stored,1);
+  assert.equal(r.historical_novels,1);
+  assert.equal(r.remaining_chapters,0);
+  assert.equal(f.stored.get(SHARDS[1].id).length,1,'Archived rows must remain');
+  assert.equal(r.cutover_ready,false,'Audit alone cannot switch the live domain');
+});
 test('incomplete copy stays pending without downloading chapter bodies',async t=>{
   const f=fixture(t);f.stored.get(SHARDS[0].id).pop();
   const r=await auditContent(f);assert.equal(r.status,'copy_pending');assert.equal(r.full_audit_passed,false);assert.equal(f.bodyQueries(),0);
