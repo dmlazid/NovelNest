@@ -26,9 +26,10 @@ export default {
     if(!row)throw Error('Chapter migration incomplete');
     const template=await assets('/_internal/chapter.html');if(!template.ok)throw Error('Missing template');
     const body=renderChapter(await template.text(),{id,title:novel.title,total:novel.total,number,chapter:{title:row.title,paragraphs:JSON.parse(row.paragraphs_json)}});
-    const privateFromDiscovery=novel.discoveryHidden===true;
+    const privateFromDiscovery=novel.discoveryHidden===true||novel.duplicateChapters?.includes(number)===true;
     const html=privateFromDiscovery
       ?body.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">')
+        .replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'')
       :body;
     const headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'};
     if(privateFromDiscovery)headers['X-Robots-Tag']='noindex, follow';

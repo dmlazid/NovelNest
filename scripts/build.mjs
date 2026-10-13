@@ -4,7 +4,12 @@ import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import { validateSite } from './check.mjs';
 
-validateSite('dist');
+const validated = validateSite('dist');
+const duplicateChapters = new Map();
+for (const item of validated.duplicate_chapter_bodies) {
+  if (!duplicateChapters.has(item.novel_id)) duplicateChapters.set(item.novel_id, new Set());
+  duplicateChapters.get(item.novel_id).add(item.repeated_chapter);
+}
 const cloudflareMode = process.env.NOVELNEST_CLOUDFLARE === '1';
 const output = cloudflareMode ? '_cloudflare' : '_site';
 fs.rmSync(output, { recursive: true, force: true });
@@ -100,11 +105,11 @@ if (!publisher || !verification) throw new Error('Missing publisher verification
 // at the next p or enclosing div, preserving every original paragraph.
 const compactChapterFooter = '<footer data-static-footer><a href="/privacy.html">Privacy</a> <a href="/privacy-choices.html">Privacy Choices</a> <a href="/terms.html">Terms</a> <a href="/copyright.html">Copyright</a> <a href="/contact.html">Contact</a></footer><div id="toast" role="status" aria-live="polite"></div></body></html>';
 function chapterPage(title, url, markup, novelRoot, robots = 'index,follow,max-image-preview:large') {
-  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="' + robots + '"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + publisher + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
+  return '<!doctype html><html lang=en><head><base href="' + escape(novelRoot) + '"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>' + escape(title) + ' — NovelHaven</title><meta name="robots" content="' + robots + '"><link rel="canonical" href="https://novelhaven.top' + escape(url) + '">' + verification + '<link rel=stylesheet href="' + css + '">' + (robots.startsWith('noindex') ? '' : publisher) + '<script defer src="' + runtime + '"></script></head><body><a class=skip href="#main">Skip to content</a><header class="site-header wrap" data-static-header><a href="/">NovelHaven</a></header><main id=main class=wrap tabindex=-1>' + markup + '</main>' + compactChapterFooter;
 }
 if (cloudflareMode) {
   write('_internal/chapter.html', chapterPage('CHAPTER_TITLE_TOKEN', 'CHAPTER_URL_TOKEN', 'CHAPTER_BODY_TOKEN', 'CHAPTER_ROOT_TOKEN'));
-  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length, discoveryHidden:n.discoveryHidden===true}]))));
+  write('_internal/novels.json', json(Object.fromEntries(novels.map(n => [n.id, {title:n.title, total:n.chapters.length, discoveryHidden:n.discoveryHidden===true, duplicateChapters:[...(duplicateChapters.get(n.id)||[])]}]))));
 }
 function page(title, url, markup, description, robots = 'index,follow,max-image-preview:large', schema) {
   let h = head.replace(/<title>[\s\S]*?<\/title>/, '<title>' + escape(title) + ' — NovelHaven</title>')
@@ -115,6 +120,7 @@ function page(title, url, markup, description, robots = 'index,follow,max-image-
     .replace(/<meta property="og:description" content="[^"]*">/, '<meta property="og:description" content="' + escape(description || title) + '">')
     .replace(/<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="https://novelhaven.top' + escape(url) + '">')
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, schema ? '<script type="application/ld+json">' + json(schema) + '</script>' : '');
+  if (robots.startsWith('noindex')) h = h.replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g, '');
   return h + beforeMain + '<main id="main" class="wrap" tabindex="-1">' + markup.replaceAll('href="./#/', 'href="/') + '</main>' + afterMain;
 }
 // Render discovery/editorial routes with the same templates readers see.
@@ -166,7 +172,7 @@ for (const n of novels) {
   if (cloudflareMode) {
     for (let number=1; number<=n.chapters.length; number++) {
       const url=root+'chapter-'+number+'/';
-      if (!n.discoveryHidden) chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
+      if (!n.discoveryHidden && !duplicateChapters.get(n.id)?.has(number)) chapterUrls.push('<url><loc>https://novelhaven.top'+escape(url)+'</loc></url>');
       chapterCount++;
       if (chapterUrls.length===40000) flushChapterMap();
     }
@@ -182,8 +188,9 @@ for (const n of novels) {
       const c = n.chapters[number - 1], url = root + 'chapter-' + number + '/';
       const nav = '<nav class=chapter-nav aria-label="Chapters">' + (number > 1 ? '<a href="chapter-' + (number - 1) + '/">Previous</a>' : '') + '<a href="./">Chapters</a>' + (number < n.chapters.length ? '<a href="chapter-' + (number + 1) + '/">Next</a>' : '') + '</nav>';
       const markup = '<article class=reader-wrap><div class=reader-heading><a href="./">' + escape(n.title) + '</a><h1>' + escape(c.title) + '</h1></div><div class=prose data-static-chapter="' + escape(n.id) + '" data-chapter-number="' + number + '">' + raw.paragraphs.map(p => '<p>' + textEscape(p)).join('') + '</div>' + nav + '</article>';
-      write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup, root, n.discoveryHidden?'noindex,follow':undefined));
-      chapterUrls.push('<url><loc>https://novelhaven.top' + escape(url) + '</loc></url>');
+      const temporarilyExcluded = n.discoveryHidden || duplicateChapters.get(n.id)?.has(number);
+      write(url.slice(1) + 'index.html', chapterPage(n.title + ' — ' + c.title, url, markup, root, temporarilyExcluded?'noindex,follow':undefined));
+      if (!temporarilyExcluded) chapterUrls.push('<url><loc>https://novelhaven.top' + escape(url) + '</loc></url>');
       chapterCount++;
       if (chapterUrls.length === 40000) flushChapterMap();
     }

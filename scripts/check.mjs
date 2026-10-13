@@ -3,6 +3,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+
+// Exact substantial chapter-body duplicates are data quality findings, not
+// grounds to silently discard a user's saved chapter or alter its text.
+export function repeatedChapterBodies(novelId, chapters, minimumLength = 300) {
+  const seen = new Map(), duplicates = [];
+  for (const [index, chapter] of chapters.entries()) {
+    if (!Array.isArray(chapter.paragraphs)) continue;
+    const normalized = chapter.paragraphs.join(' ').replace(/\s+/g, ' ').trim().toLowerCase();
+    if (normalized.length < minimumLength) continue;
+    const hash = createHash('sha256').update(normalized).digest('hex');
+    const number = index + 1; // validated chapter order also supports title-only source records
+    if (seen.has(hash)) duplicates.push({ novel_id: novelId, first_chapter: seen.get(hash), repeated_chapter: number, digest: hash.slice(0, 16) });
+    else seen.set(hash, number);
+  }
+  return duplicates;
+}
 
 export function validateSite(root = 'dist') {
   const read = name => fs.readFileSync(path.join(root, name), 'utf8');
@@ -22,6 +39,7 @@ export function validateSite(root = 'dist') {
   const ids = new Set();
   const checkedFiles = new Set();
   let chapterCount = 0;
+  const repeated = [];
   for (const novel of novels) {
     assert(novel.id && !ids.has(novel.id), `Duplicate or missing novel ID: ${novel.id}`);
     ids.add(novel.id);
@@ -57,6 +75,7 @@ export function validateSite(root = 'dist') {
       assert(Array.isArray(chapter.paragraphs) && chapter.paragraphs.length > 0, `${novel.id}: empty chapter ${number}`);
       assert(chapter.paragraphs.every(p => typeof p === 'string' && p.trim() && !/^Loading chapter[….]*$/.test(p)), `${novel.id}: invalid chapter text at ${number}`);
     }
+    repeated.push(...repeatedChapterBodies(novel.id, chapters));
     chapterCount += chapters.length;
   }
   const archivedKeys = new Set(JSON.parse(fs.readFileSync('scripts/archived_freewebnovel_keys.json','utf8')));
@@ -73,8 +92,11 @@ export function validateSite(root = 'dist') {
     vm.runInContext(read(file), data, { filename: file, timeout: 1000 });
     assert(Object.values(data.window).every(v => Array.isArray(v) && v.length === 0), `Unindexed chapters in ${file}`);
   }
-  console.log(`Validated ${novels.length} novels and ${chapterCount} actual chapters, including metadata, sequence, text and assets.`);
-  return { novels: novels.length, chapters: chapterCount };
+  const report = {novels: novels.length, chapters: chapterCount, duplicate_chapter_bodies: repeated};
+  if (process.env.CHAPTER_DUPLICATE_REPORT_PATH) fs.writeFileSync(process.env.CHAPTER_DUPLICATE_REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
+  if (repeated.length) console.warn('::warning::Exact repeated chapter bodies detected: ' + JSON.stringify(repeated.slice(0, 30)) + (repeated.length > 30 ? ' (more in saved audit artifact)' : ''));
+  console.log(`Validated ${novels.length} novels and ${chapterCount} actual chapters; ${repeated.length} exact repeated chapter bodies to review.`);
+  return report;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) validateSite(process.argv[2] || 'dist');

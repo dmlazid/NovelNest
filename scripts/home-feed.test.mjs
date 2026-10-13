@@ -237,5 +237,5 @@ test('curation flags listed long FreeWebNovel imports without deleting the catal
   assert.equal(sample.window.NOVELS[0].discoveryHidden,true);
   assert.equal(sample.window.NOVELS[1].discoveryHidden,undefined);
   assert.equal(sample.window.NOVELS.length,2);
-  assert.equal(sample.window.NOVELNEST_DISCOVERY_EXCLUDED.length,10);
+  assert.equal(sample.window.NOVELNEST_DISCOVERY_EXCLUDED.length,11);
 });

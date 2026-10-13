@@ -53,3 +53,14 @@ Do not claim AdSense approval until Google has reviewed and marked the site Read
 - Google prohibits monetizing copied content without added value and copyright-infringing or sexually explicit content. General guides do not automatically resolve chapter-page eligibility: https://support.google.com/publisherpolicies/answer/10502938
 - Home Reading Desk links now point to the complete static editorial collection and canonical guides rather than older app copies. The long-novel guide includes reading-time estimation, completion checks and an arc-selection example.
 - AdSense code, verification, ads.txt, affiliate links, accounts, bookmark/progress storage, importers and D1 configuration are untouched.
+
+## October 13 policy safeguard (pending publication verification)
+- The explicitly sexual **Supreme Harem God System** is withheld from public discovery and `noindex`-marked without deleting chapters or breaking bookmarks. Ten previously curated long imports remain hidden.
+- Generated hidden novel detail and chapter pages do not load the AdSense publisher script; the Cloudflare D1 reader strips it from hidden chapter responses. The public homepage and other approved routes retain publisher verification and ads.txt unchanged.
+- The current raw Cloudflare SPA fallback can still load the general homepage script before client routing. Site-wide approval must **not** be assumed until the deployed build/output and adult-content audit are resolved.
+- No license or monetization rights are independently certified by this safeguard; review other potentially explicit books and translated content before requesting approval.
+
+## Confirmed chapter repetition — targeted safeguards
+- A full catalog text audit found **9 exact repeated chapter bodies** (rather than relying on headings or chapter lengths). The repeated copies are in Supreme Magus (#1915, #1916), My Rich Wife (#752, #872), Reborn at Boot Camp (#3670), Necropolis Immortal (#1587, #1765), Martial Peak (#5178) and Martial God Asura (#6012).
+- The generated sitemap and Cloudflare reader omit these repeated copies from indexing/ads, but their chapter text and reader navigation remain available. Three affected long titles already have entire-book noindex curation; six other affected routes receive targeted Cloudflare Pages noindex headers.
+- These are temporary safeguards, **not repaired prose**: source comparison is still required before replacing any chapter body. The raw SPA shell may still include the site-wide publisher script until the hosting mismatch is resolved.
