@@ -10,7 +10,28 @@ import {SOFT_LIMIT_BYTES,D1ApiError} from './sync-d1-chapters.mjs';
 
 export const DAILY_BUDGET=80000; // Leave 20,000 writes for other account activity.
 export const PRIOR_USAGE_RESERVE=10000; // Includes earlier importer activity and DDL.
+export const MAX_READ_ROWS_PER_RUN=350000; // Guard the shared 5m/day free account allowance.
 export const LEDGER_SCHEMA='CREATE TABLE IF NOT EXISTS migration_write_budget (day TEXT PRIMARY KEY, reserved INTEGER NOT NULL)';
+
+// D1 bills by rows scanned (meta.rows_read), not only query results. Meter the
+// existing client responses without logging SQL, source chapters, or tokens.
+export function meterClients(clients) {
+  const usage={rows_read:0,rows_written:0,metered_queries:0,unmetered_queries:0};
+  const metered=new Map([...clients].map(([id,client])=>[id,{
+    size:()=>client.size(),
+    query:async (...args)=>{
+      const reply=await client.query(...args);
+      const read=reply?.meta?.rows_read,written=reply?.meta?.rows_written;
+      if(Number.isSafeInteger(read)&&read>=0&&Number.isSafeInteger(written)&&written>=0){
+        usage.rows_read+=read;usage.rows_written+=written;usage.metered_queries++;
+        assert(Number.isSafeInteger(usage.rows_read)&&Number.isSafeInteger(usage.rows_written),
+          'D1 usage counter overflow');
+      } else usage.unmetered_queries++;
+      return reply;
+    }
+  }]));
+  return {clients:metered,usage};
+}
 export function insertBatch(novelId, chapters) {
   assert(chapters.length>0 && chapters.length<=25,'Batch must contain 1–25 chapters');
   const params=[];
@@ -35,7 +56,9 @@ export async function reserveWrites(master,cost,day=new Date().toISOString().sli
   assert(Array.isArray(r.results),'Invalid quota ledger response');
   return r.results.length===1;
 }
-export async function migrate({clients,root='dist',maxChapters=4000,log=console.log}={}) {
+export async function migrate({clients,root='dist',maxChapters=4000,log=console.log,
+  usage=null,maxReadRows=MAX_READ_ROWS_PER_RUN}={}) {
+  assert(Number.isSafeInteger(maxReadRows)&&maxReadRows>0,'Invalid per-run rows-read cap');
   assert(Number.isSafeInteger(maxChapters)&&maxChapters>0&&maxChapters<=10000,'Invalid run cap');
   const master=clients.get(SHARDS[0].id),sizes=new Map(),stats=new Map(),indexes=new Map();
   await master.query(LEDGER_SCHEMA);
@@ -91,6 +114,8 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
   report.remaining_chapters=report.source_chapters-report.active_stored;
   const forecast=planAssignments(estimatePublishedVolumes(root),pinned,sizes);
   outer: for(const novel of novels){
+    // Pause between verified batches, never halfway through write+readback.
+    if(usage && usage.rows_read>=maxReadRows){report.stop_reason='rows_read_budget_guard';break;}
     const shard=forecast.routes.get(novel.id),client=clients.get(shard);
     assert(client,'Unrecognized shard');
     const previous=existing.get(novel.id)?.stats;
@@ -107,6 +132,7 @@ export async function migrate({clients,root='dist',maxChapters=4000,log=console.
     for(let start=1;start<=novel.chapters.length;){
       if(numbers.has(start)){start++;continue;}
       if(report.verified>=maxChapters)break outer;
+      if(usage && usage.rows_read>=maxReadRows){report.stop_reason='rows_read_budget_guard';break outer;}
       const selected=selectChapters(root,novel,start,Math.min(25,maxChapters-report.verified,novel.chapters.length-start+1));
       const chapters=selected.filter(c=>!numbers.has(c.number));
       const batch=insertBatch(novel.id,chapters);
@@ -148,10 +174,12 @@ export async function accessAudit(token,accountId){
 }
 export async function main(){
   const token=process.env.CLOUDFLARE_API_TOKEN,accountId=process.env.CLOUDFLARE_ACCOUNT_ID;
-  const clients=createClients({token,accountId});
+  const meter=meterClients(createClients({token,accountId}));
   await accessAudit(token,accountId);
   let result;
-  try { result=await migrate({clients,maxChapters:Number(process.env.D1_FAST_LIMIT||4000)}); }
+  try { result=await migrate({clients:meter.clients,usage:meter.usage,
+    maxChapters:Number(process.env.D1_FAST_LIMIT||4000),
+    maxReadRows:Number(process.env.D1_ROWS_READ_LIMIT||MAX_READ_ROWS_PER_RUN)}); }
   catch(error){
     if(!(error instanceof D1ApiError) || error.kind!=='quota')throw error;
     // Cloudflare has exhausted its own daily quota. Stop without more database
@@ -162,6 +190,7 @@ export async function main(){
         shard:error.shard,operation:error.operation}};
     console.log('Cloudflare D1 Free quota reached; waiting for reset: '+JSON.stringify(result.diagnostic));
   }
+  result.usage=meter.usage;
   if(process.env.GITHUB_OUTPUT)fs.appendFileSync(process.env.GITHUB_OUTPUT, 'copy_complete='+(result.stop_reason==='copy_complete_full_audit_required')+'\n'+'quota_hit='+(result.stop_reason==='cloudflare_d1_quota_reached'||result.stop_reason==='daily_budget_reached')+'\n');
   console.log('Fast migration result: '+JSON.stringify(result));
   if(process.env.D1_REPORT_PATH)fs.writeFileSync(process.env.D1_REPORT_PATH,JSON.stringify(result,null,2));
