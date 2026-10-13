@@ -2,8 +2,11 @@
 // Do not equate a queued Git deployment with a successful live publish.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {sourceFeedFilename} from './source-feed-fingerprint.mjs';
 const base='https://novelhaven.top';
 const expectedAds=fs.readFileSync('dist/ads.txt','utf8').trim();
+const expectedSource=fs.readFileSync('dist/source-activity.js','utf8');
+const currentFeed=sourceFeedFilename(expectedSource);
 const get=async path=>{
   const r=await fetch(base+path+(path.includes('?')?'&':'?')+'live-verify='+Date.now(),{
     signal:AbortSignal.timeout(20000),headers:{'Cache-Control':'no-cache'}
@@ -14,7 +17,7 @@ let verified=false,reason='';
 for(let attempt=1;attempt<=20;attempt++){
   try{
     const [home,app,source,ads,hidden,removed,chapter]=await Promise.all([
-      get('/'),get('/app.js'),get('/source-activity.js?v=20261014-fresh-source-feed-1'),
+      get('/'),get('/app.js'),get('/'+currentFeed),
       get('/ads.txt'),get('/novel/supreme-harem-god-system/'),
       get('/removed-duplicates.js'),get('/novel/shadow-slave/chapter-1/')
     ]);
@@ -23,13 +26,14 @@ for(let attempt=1;attempt<=20;attempt++){
       assert.equal(v.status,200,'Live '+name+' returned HTTP '+v.status);
     assert(home.body.includes('app.js?v=20261014-source-accurate-latest-1'),
       'Old app version is still published');
-    assert(home.body.includes('source-activity.js?v=20261014-fresh-source-feed-1'),
-      'Old source activity URL is still published');
+    assert(home.body.includes('src="'+currentFeed+'"'),
+      'Live HTML still points to a previous source-activity snapshot');
     assert(app.body.includes('const latestNovels=releases.filter'),
       'Random imported novels code is still published');
-    assert(source.body.includes('sourceActivityVerified'));
-    assert.match(source.headers.get('cache-control')||'',/max-age=60/,
-      'Source release asset is still long-cached');
+    assert.equal(source.body,expectedSource,
+      'Live fingerprinted source asset differs from the tested GitHub snapshot');
+    // This exact content URL may be cached for hours. The next source update
+    // will generate a different filename, so an old response cannot replace it.
     assert.equal(ads.body.trim(),expectedAds,'AdSense publisher file changed');
     assert(!hidden.body.includes('pagead2.googlesyndication.com'),
       'Restricted detail must not load AdSense');
@@ -50,7 +54,7 @@ for(let attempt=1;attempt<=20;attempt++){
       'Latest Novels must display only the most recent source releases in order');
     console.log('VERIFIED NovelHaven live source updates:',JSON.stringify({
       latestNovels:latest,sourceReleases:released.length,adsTxtUnchanged:true,
-      existingChapterReader:true,removedDuplicatesPreserved:true,sourceCacheSeconds:60
+      existingChapterReader:true,removedDuplicatesPreserved:true,sourceFeedAsset:currentFeed
     }));
     verified=true;break;
   }catch(error){
