@@ -18,7 +18,7 @@ const scriptPaths=[...source.matchAll(/<script\b[^>]*src="([^"]+)"/g)]
   .map(match=>match[1].split('?')[0]);
 const catalogPaths=scriptPaths.filter(p=>p==='catalog.js'||p==='source-activity.js'||/^licensed-(?!ui\.js)/.test(p));
 const ctx=vm.createContext({window:{}});
-for(const p of ['chapter-labels.js',...catalogPaths,'discovery-curation.js']){
+for(const p of ['chapter-labels.js',...catalogPaths,'discovery-curation.js','removed-duplicates.js']){
   assert(fs.existsSync(path.join(root,p)),'Missing original catalog script '+p);
   vm.runInContext(read(p),ctx,{filename:p,timeout:2000});
 }
