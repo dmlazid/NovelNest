@@ -96,7 +96,10 @@ function searchForm(value=''){return `<form class="search-form" role="search"><s
 function chips(selected='All'){return `<div class="chips" aria-label="Filter by genre">${['All',...genres].map(g=>`<a class="chip ${selected===g?'selected':''}" ${selected===g?'aria-current="true"':''} href="./#/browse${g==='All'?'':'?genre='+encodeURIComponent(g)}">${g}</a>`).join('')}</div>`}
 function card(n){return `<a class="book-card" href="${bookUrl(n)}">${image(n)}<div><span class="tag">${esc(n.genre)}</span><h3>${esc(n.title)}</h3><p>${esc(n.author)}</p><p>${n.externalUrl?"Read on "+esc(n.externalSource):availableCount(n)+" chapters"} · ${esc(n.status)}</p><span class="meta">${n.externalUrl?"External reading link":"NovelHaven reader"}</span></div></a>`}
 function lastRead(n){
-  const p=progress[n.id];
+  // A different tab or account sync can update the last-opened chapter.
+  // Never trust a reader tab's old in-memory progress for Continue Reading.
+  const current=read('novelnest.progress',{});
+  const p=current&&typeof current==='object'?current[n.id]:null;
   if(!p||!Number.isInteger(p.chapter)||p.chapter<0||p.chapter>=n.chapters.length)return null;
   const available=readableChapter(n,p.chapter);
   return available>=0?{...p,chapter:available}:null;
@@ -541,6 +544,8 @@ function bookmarkShelf(){
 function refreshLibraryBookmarks(){
   if(!(/^#\/library(?:\?|$)/.test(location.hash||'')||/^\/library\/?$/.test(location.pathname||'')))return;
   if((location.hash||'').includes('tab=history')||(location.search||'').includes('tab=history'))return;
+  const storedBookmarks=read('novelnest.saved',[]);
+  if(Array.isArray(storedBookmarks))saved=[...new Set(storedBookmarks)];
   const tally=main.querySelector?.('.library-tabs span');
   if(tally)tally.textContent=String(saved.length);
   const shelf=main.querySelector?.('[data-library-shelf]');
@@ -548,6 +553,8 @@ function refreshLibraryBookmarks(){
   refreshLibraryProgress();
 }
 function library(params = new URLSearchParams()) {
+  const storedBookmarks=read('novelnest.saved',[]);
+  if(Array.isArray(storedBookmarks))saved=[...new Set(storedBookmarks)];
   const history=params.get('tab')==='history';
   const books=history?novels.filter(n=>lastRead(n)).sort((a,b)=>lastRead(b).at-lastRead(a).at):[];
   const tabs=`<nav class="library-tabs" aria-label="Your library"><a href="./#/library" ${!history?'aria-current="page"':''}>Bookmarks <span>${saved.length}</span></a><a href="./#/library?tab=history" ${history?'aria-current="page"':''}>History</a></nav>`;
@@ -665,6 +672,10 @@ function renderRoute({preserveScroll=false}={}){
   if(!raw&&cleanNovelPath){const match=pathname.match(/^\/novel\/([^/]+)\/?$/);raw=match?`/novel/${decodeURIComponent(match[1])}`:'/'}
   if(!raw&&oldReadPath){const chapter=new URLSearchParams(search).get('chapter')||'1';raw=`/read/${decodeURIComponent(oldReadPath[1])}/${chapter}`}
   if(!raw)raw='/';
+  // Some mobile tabs retain the ad-free restricted-reader shell URL.
+  // When the remembered chapter is unavailable, send readers to Library
+  // rather than showing a misleading missing-novel error.
+  if(/^\\/restricted-reader(?:\\.html)?\\/?$/.test(pathname))raw='/library';
   let [path,query='']=raw.split('?');const parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);
   if(parts[0]!=='read')lastOpenedRoute='';
   applySettings();document.querySelector('#library-count').textContent=saved.length;
