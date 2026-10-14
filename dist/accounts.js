@@ -31,7 +31,9 @@
     };
   }
   function recordIntent(kind, token, removed) {
-    if(!owner || !user || owner!==user.uid) return;
+    // Firebase loads after the page, so preserve intentional clicks made
+    // before the auth SDK finishes restoring this account.
+    if(!owner || (user && owner!==user.uid)) return;
     const key=intentKey(kind,owner);
     const current=new Set(read(key,[]));
     if(removed)current.add(token);else current.delete(token);

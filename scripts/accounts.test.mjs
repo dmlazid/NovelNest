@@ -217,3 +217,11 @@ test('explicit Finished undo survives sync, but a stale tab cannot clear unrelat
  h.window.NovelNestAccounts.changed();await h.window.NovelNestAccounts.synchronize(true);
  assert.deepEqual(cloud.get('alice').data.chapterStatus.book.finished,[2]);
 });
+
+test('removing a bookmark before Firebase restores sign-in records the user action',async()=>{
+ const storage=new Map();save(storage,fixture());storage.set('novelnest.account-owner','"alice"');
+ const h=harness({storage,uid:'alice'}); // auth SDK has not started yet
+ h.window.NovelNestAccounts.bookmarkAction('book',false);
+ assert.deepEqual(JSON.parse(storage.get('novelnest.pending-saved-removals.alice')),['book']);
+ await h.start();
+});

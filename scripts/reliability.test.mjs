@@ -525,3 +525,22 @@ test('My Bookmarks always has a stable shelf container even when no novels are s
   assert.match(h.node('#main').innerHTML,/data-library-shelf/);
   assert.match(h.node('#main').innerHTML,/A shelf waiting for stories/);
 });
+
+test('a direct restricted-reader shell URL safely returns to bookmarks rather than a missing novel',()=>{
+  const h=harness('#/');
+  h.context.location.pathname='/restricted-reader.html';
+  h.context.location.search='';
+  h.window.history={replaceState(_state,_unused,path){
+    h.context.location.pathname=path;
+    h.context.location.hash='';
+  }};
+  h.window.NovelNestApp.refresh();
+  assert.match(h.node('#main').innerHTML,/My Bookmarks/);
+  assert.equal(h.context.location.pathname,'/library/');
+});
+test('mobile reader JavaScript remains parseable and retains the ad-safe chapter path',()=>{
+  const app=fs.readFileSync('dist/app.js','utf8');
+  assert.doesNotThrow(()=>new vm.Script(app));
+  assert.match(app,/restricted-reader/);
+  assert.match(app,/chapter-\\d/);
+});
