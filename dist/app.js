@@ -511,7 +511,8 @@ function reader(id,number){
     return `<div class="reader-wrap"><article class="empty"><h1>Duplicate chapter removed</h1><p>Chapter ${i+1} was a repeated copy and has been deleted from NovelHaven.</p><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:''}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Continue to Chapter ${next+1}</a>`:`<a class="button" href="${bookUrl(n)}">Back to chapters</a>`}</div></article></div>`;
   }
   const readerRoute=n.id+':'+(i+1);
-  if(lastOpenedRoute!==readerRoute){
+  if(!c.lazy && lastOpenedRoute!==readerRoute){
+    // A failed/unfinished lazy load is not proof a chapter was read.
     lastOpenedRoute=readerRoute;
     const latest=read('novelnest.progress',{});
     if(latest&&typeof latest==='object'&&!Array.isArray(latest))progress=latest;

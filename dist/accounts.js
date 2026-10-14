@@ -297,7 +297,13 @@
       if (!section) { section = document.createElement('section'); section.id = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
       section.className = user ? 'library-sync' : 'library-signin';
       const statusMarkup = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your bookmarks, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
-      if(section.innerHTML!==statusMarkup) section.innerHTML=statusMarkup;
+      // Preserve the status node while its text changes; rebuilding it on each
+      // sync used to make the mobile Library jump and reflow its cards.
+      const viewMode=user?'signed':!ready?'connecting':busy?'busy':'guest';
+      if(section.dataset?.viewMode!==viewMode){
+        section.innerHTML=statusMarkup;
+        if(section.dataset)section.dataset.viewMode=viewMode;
+      }
     }
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {

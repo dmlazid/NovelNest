@@ -155,7 +155,16 @@
   }
 
   function chapterOptions(n, current) {
-    return n.chapters.map((c, i) => `<option value="${i + 1}" ${i + 1 === current ? 'selected' : ''}>${esc(window.NovelNestChapterLabels?.title(c.title) || c.title || '')}</option>`).join('');
+    // A huge native selector with thousands of chapters freezes mobile.
+    // Keep nearby choices; the numeric Go field supports every chapter.
+    const start=Math.max(1,current-20),stop=Math.min(n.chapters.length,current+20);
+    const numbers=new Set([1,n.chapters.length]);
+    for(let i=start;i<=stop;i++)numbers.add(i);
+    return [...numbers].sort((a,b)=>a-b).map(number=>{
+      const chapter=n.chapters[number-1];
+      const title=esc(window.NovelNestChapterLabels?.title(chapter.title)||chapter.title||'');
+      return `<option value="${number}" ${number===current?'selected':''}>Chapter ${number} — ${title}</option>`;
+    }).join('');
   }
 
   function settingsPanel(p) {

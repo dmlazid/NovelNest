@@ -7,11 +7,20 @@
   let active = null, generation = 0, saveTimer = 0, scrollFrame = 0;
 
   function persist() {
-    clearTimeout(saveTimer);
-    // Keep storage small even after reading hundreds of chapters.
-    const entries = Object.entries(positions).sort((a, b) => (b[1]?.at || 0) - (a[1]?.at || 0)).slice(0, 200);
-    positions = Object.fromEntries(entries);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(positions)); window.NovelNestAccounts?.changed(); } catch {}
+    clearTimeout(saveTimer);saveTimer=0;
+    // Never overwrite a newer bookmark position from another tab.
+    try {
+      const remote=JSON.parse(localStorage.getItem(STORAGE_KEY))||{};
+      const merged=remote&&typeof remote==='object'&&!Array.isArray(remote)?{...remote}:{};
+      for(const [key,value] of Object.entries(positions)){
+        if(!value||!Number.isFinite(Number(value.at)))continue;
+        if(!merged[key]||Number(value.at)>=Number(merged[key].at||0))merged[key]=value;
+      }
+      positions=Object.fromEntries(Object.entries(merged)
+        .sort((a,b)=>(b[1]?.at||0)-(a[1]?.at||0)).slice(0,200));
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(positions));
+      window.NovelNestAccounts?.changed();
+    }catch{}
   }
 
   function measure() {
@@ -120,8 +129,11 @@
     scrollFrame = 0;
   }
   window.NovelNestPositions = { capture: () => capture(true), stop, reload() {
-    clearTimeout(saveTimer);
-    try { positions = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { positions = {}; }
+    if(saveTimer)persist();
+    try {
+      const latest=JSON.parse(localStorage.getItem(STORAGE_KEY))||{};
+      if(latest&&typeof latest==='object'&&!Array.isArray(latest))positions=latest;
+    }catch{}
   } };
   window.addEventListener('novelnest:before-route', () => { capture(true); stop(); });
   window.addEventListener('novelnest:reader-ready', ready);
