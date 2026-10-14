@@ -84,16 +84,20 @@ assert(library.includes('Loading your bookmarks'),'Library must not pretend book
 assert(!library.includes('A shelf waiting for stories'),'Do not prerender an empty guest bookshelf');
 assert.match(library,/name="robots" content="noindex,follow"/);
 assert(!library.includes(publisher));
-const noads=read('restricted-reader.html');
+const noads=read('restricted-reader/index.html');
 assert.match(noads,/name="robots" content="noindex,follow"/);
 assert.doesNotMatch(noads,/pagead2\.googlesyndication\.com/);
 assert(noads.includes('app.js?'),'Restricted chapters must keep the working SPA');
+assert.equal(read('restricted-reader.html'),noads,
+  'Legacy fallback must also remain ad-free');
+assert(!read('_redirects').includes('/restricted-reader.html 200'),
+  'Never proxy to a plain HTML file: Pages redirects that clean URL');
 const rewrites=read('_redirects');
-assert(rewrites.includes('/novel/:novel/chapter-:number/ /restricted-reader.html 200'),
+assert(rewrites.includes('/novel/:novel/chapter-:number/ /restricted-reader/ 200'),
   'Every chapter must load the ad-free reader shell pending novel monetization review');
 assert(!read('novel/shadow-slave/index.html').includes(publisher),
   'A normally discoverable novel must not gain ads before title-level review');
-assert(rewrites.split('\n').filter(x=>x.includes('/restricted-reader.html 200')).length===1,
+assert(rewrites.split('\n').filter(x=>x.includes('/restricted-reader/ 200')).length===1,
   'Use one safe catchall rather than more than 100 Cloudflare dynamic redirect rules');
 assert.match(read('_headers'),/\/novel\/:novel\/chapter-\*\s+X-Robots-Tag: noindex, follow/);
 assert.equal(read('ads.txt'),fs.readFileSync('dist/ads.txt','utf8'));

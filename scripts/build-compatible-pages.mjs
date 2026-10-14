@@ -130,11 +130,16 @@ const restricted=source
   .replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'');
 assert(!restricted.includes('pagead2.googlesyndication.com'),'Restricted reader must not load AdSense');
 assert(restricted.includes('app.js?'),'Restricted reader must retain the original SPA');
-write('restricted-reader.html',restricted);
+// Pages automatically redirects a plain .html asset to its clean URL.
+ // A proxy rewrite to that .html file therefore sent mobile chapter links
+ // to /restricted-reader instead of keeping /novel/{id}/chapter-{n}/.
+ // Proxy to an already-canonical DIRECTORY URL to preserve the chapter path.
+write('restricted-reader/index.html',restricted);
+write('restricted-reader.html',restricted); // Backward-compatible direct fallback
 // All SPA chapter routes remain ad-free while copied texts and their added
 // editorial value await per-work review. One dynamic rewrite avoids Pages'
  // dynamic-rule limits and preserves chapter URLs, routing and bookmarks.
-const chapterAdHold='/novel/:novel/chapter-:number/ /restricted-reader.html 200';
+const chapterAdHold='/novel/:novel/chapter-:number/ /restricted-reader/ 200';
 write('_redirects','# AdSense-free chapter shell while novel monetization review is incomplete.\n'+
   chapterAdHold+'\n');
 assert(read('_redirects').includes(chapterAdHold),'Novel chapter ad hold missing');

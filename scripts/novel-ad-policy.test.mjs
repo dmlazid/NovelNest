@@ -37,7 +37,7 @@ test('each approval must positively verify text, translation, cover, commercial 
 test('all novel detail pages and SPA chapter routes are ad-free while every title is awaiting review',()=>{
   const builder=fs.readFileSync('scripts/build-compatible-pages.mjs','utf8');
   assert.match(builder,/novelMayHaveGoogleAds\(novel\.id,advertisingReviews\)/);
-  assert.match(builder,/chapterAdHold='\/novel\/:novel\/chapter-:number\/ \/restricted-reader\.html 200'/);
+  assert.match(builder,/chapterAdHold='\/novel\/:novel\/chapter-:number\/ \/restricted-reader\/ 200'/);
   assert.match(builder,/novelAdsHeld:/);
   assert.match(fs.readFileSync('cloudflare/reader/worker.mjs','utf8'),/publisherFree=body\.replace/);
   const script=read('app.js');
