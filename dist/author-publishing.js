@@ -68,17 +68,11 @@ function listingCard(story){
 }
 async function studioHome(){
   if(!state.user){signInPrompt();return;}
+  const currentUid=state.user.uid;
+  const composeMode=new URLSearchParams(location.search).get('compose')==='1';
   state.story=null;state.chapters=[];state.editing=0;
-  wait('Loading your writing desk…');
-  try{
-    const snap=await getDocs(query(collection(db,'authorStories'),where('ownerUid','==',state.user.uid)));
-    const list=snap.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
-    host.innerHTML='<section class="panel"><div class="toolbar"><h2 style="margin:0;flex:1">My novels</h2>'+
-      (state.isAdmin?'<a class="button secondary" href="/author-admin.html">Review submissions</a>':'')+
-      '<a class="button outline" href="/original-novels.html">Browse originals</a></div>'+
-      '<p class="muted">Drafts are private. Submitted stories cannot be edited until an editor returns them. There is no subscription cap on personal drafts; Firebase storage and service limits apply.</p>'+
-      (list.length?list.map(listingCard).join(''):'<p>You have no novels yet. Create your first original story below.</p>')+'</section>'+
-      '<section class="panel"><h2>Start a new novel</h2><form class="form-grid" data-form="create-novel">'+
+  // Paint the composer before the Firestore story query, to avoid an empty mobile screen.
+  const composer=      '<section class="panel" id="new-story"><h2>Start a new novel</h2><form class="form-grid" data-form="create-novel">'+
       '<div class="two-col"><label>Novel title<input name="title" maxlength="120" minlength="3" required placeholder="Your original title"></label>'+
       '<label>Author pen name<input name="penName" maxlength="60" minlength="2" required value="'+esc(state.user.displayName||'')+'"></label></div>'+
       '<label>Genre<select name="genre">'+opts('Fantasy')+'</select></label>'+
@@ -86,7 +80,31 @@ async function studioHome(){
       '<label class="field-check"><input type="checkbox" name="copyright" required><span>I own this story and its characters, or I have written permission to publish it. I grant NovelHaven a non-exclusive license to display it. I may request takedown.</span></label>'+
       '<label class="field-check"><input type="checkbox" name="guidelines" required><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">site rules</a>, content review, and no plagiarism, pirated chapters, explicit sexual content, or hateful material.</span></label>'+
       '<button class="button" type="submit">Create private draft</button></form></section>';
-  }catch(e){fail(e);signInPrompt();}
+  const listing='<section class="panel" id="studio-story-list" aria-live="polite"><h2>My novels</h2><p class="muted">Loading saved manuscripts…</p></section>';
+  host.innerHTML=composeMode?composer+listing:listing+composer;
+  if(composeMode){
+    requestAnimationFrame(()=>{
+      if(state.user?.uid!==currentUid)return;
+      host.querySelector('#new-story')?.scrollIntoView({behavior:'instant',block:'start'});
+    });
+  }
+  try{
+    const snap=await getDocs(query(collection(db,'authorStories'),where('ownerUid','==',state.user.uid)));
+    // A delayed Firebase response must not redraw the page after sign-out or navigation.
+    const target=host.querySelector('#studio-story-list');
+    if(state.user?.uid!==currentUid||!target)return;
+    const list=snap.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
+    target.innerHTML='<div class="toolbar"><h2 style="margin:0;flex:1">My novels</h2>'+
+      '<span data-studio-admin-slot>'+(state.isAdmin?'<a class="button secondary" href="/author-admin.html">Review submissions</a>':'')+'</span>'+
+      '<a class="button outline" href="/original-novels.html">Browse originals</a></div>'+
+      '<p class="muted">Drafts are private. Submitted stories cannot be edited until an editor returns them. There is no subscription cap on personal drafts; Firebase storage and service limits apply.</p>'+
+      (list.length?list.map(listingCard).join(''):'<p>You have no novels yet. Use the form to create your first original story.</p>');
+  }catch(e){
+    if(state.user?.uid!==currentUid)return;
+    const target=host.querySelector('#studio-story-list');
+    if(target)target.innerHTML='<h2>My novels</h2><p class="muted">Your manuscript list is temporarily unavailable. The new draft form stays open so you do not lose what you have typed.</p>';
+    fail(e);
+  }
 }
 async function openStory(id){
   if(!state.user||!safeDocId(id))return;
@@ -375,11 +393,18 @@ onAuthStateChanged(auth,async user=>{
   const ticket=++authGeneration;
   captureChapterRecovery();
   state.user=user;state.isAdmin=false;authUI();
+  // Render the writing form in parallel with slow editor-privilege lookup.
+  const earlyStudio=view==='studio'?runView():null;
   if(user)try{
     const badge=await getDoc(doc(db,'authorAdmins',user.uid));
     if(ticket!==authGeneration||auth.currentUser?.uid!==user.uid)return;
     state.isAdmin=badge.exists()&&badge.data()?.role==='editor';
   }catch(error){if(!forbidden(error))console.warn('Admin membership is not yet configured.');}
   if(ticket!==authGeneration)return;
-  authUI();await runView();
+  authUI();
+  if(view==='studio'){
+    await earlyStudio;
+    const slot=host.querySelector('[data-studio-admin-slot]');
+    if(slot&&state.isAdmin)slot.innerHTML='<a class="button secondary" href="/author-admin.html">Review submissions</a>';
+  }else await runView();
 });
