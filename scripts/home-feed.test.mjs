@@ -10,9 +10,10 @@ function book(id,extra={}){
 function harness(books,now='2026-10-11T09:00:00Z'){
   const source=fs.readFileSync('dist/app.js','utf8');
   const code=source.slice(0,source.indexOf("main.addEventListener('submit'"));
+  const stored=new Map();
   const context=vm.createContext({window:{NOVELS:books,sessionStorage:{getItem:()=>null,setItem:()=>{}}},
     document:{querySelector:()=>({}),body:{},documentElement:{}},
-    localStorage:{getItem:()=>null},URLSearchParams,console,
+    localStorage:{getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)},URLSearchParams,console,
     Date:class FixedDate extends Date{static now(){return Date.parse(now)}}});
   vm.runInContext(code,context);
   return expr=>vm.runInContext(expr,context);
