@@ -7,6 +7,8 @@ import {extractLiveSourceNovels,renderLiveHomepage} from './live-home-check.mjs'
 const base='https://novelhaven.top';
 const expectedAds=fs.readFileSync('dist/ads.txt','utf8').trim();
 const expectedSource=fs.readFileSync('dist/source-activity.js','utf8');
+const expectedApp=fs.readFileSync('dist/index.html','utf8').match(/src="(app\.js\?v=[^"]+)"/)?.[1];
+assert(expectedApp,'Could not read current app.js asset version from published homepage');
 const currentFeed=sourceFeedFilename(expectedSource);
 const get=async path=>{
   const r=await fetch(base+path+(path.includes('?')?'&':'?')+'live-verify='+Date.now(),{
@@ -25,8 +27,8 @@ for(let attempt=1;attempt<=20;attempt++){
     for(const [name,v] of [['home',home],['app',app],['source',source],['ads',ads],
       ['hidden',hidden],['removed',removed],['chapter',chapter]])
       assert.equal(v.status,200,'Live '+name+' returned HTTP '+v.status);
-    assert(home.body.includes('app.js?v=20261014-source-accurate-latest-1'),
-      'Old app version is still published');
+    assert(home.body.includes('src="'+expectedApp+'"'),
+      'Live homepage is still referencing a previous app.js version');
     assert(home.body.includes('src="'+currentFeed+'"'),
       'Live HTML still points to a previous source-activity snapshot');
     assert(app.body.includes('const latestNovels=releases.filter'),
