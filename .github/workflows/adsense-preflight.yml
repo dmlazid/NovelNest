@@ -1,0 +1,42 @@
+name: NovelHaven AdSense source readiness
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/adsense-preflight.yml'
+      - 'scripts/adsense-preflight.mjs'
+      - 'dist/index.html'
+      - 'dist/ads.txt'
+      - 'dist/robots.txt'
+      - 'dist/sitemap.xml'
+      - 'dist/reading-desk.html'
+      - 'dist/guide-*.html'
+      - 'dist/about.html'
+      - 'dist/privacy.html'
+      - 'dist/terms.html'
+      - 'dist/contact.html'
+      - 'dist/author-admin.html'
+      - 'dist/author-studio.html'
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-adsense-source-preflight
+  cancel-in-progress: true
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout NovelHaven
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run offline AdSense source checks
+        run: node scripts/adsense-preflight.mjs
+      - name: Explain remaining approval checks
+        run: |
+          echo "Source checks completed. This is NOT a Google AdSense approval and does not access AdSense account status." >> "$GITHUB_STEP_SUMMARY"
+          echo "Before Request review, confirm live HTTP access, current AdSense issues, permission scope and adequate original added value." >> "$GITHUB_STEP_SUMMARY"
