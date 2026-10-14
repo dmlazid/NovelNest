@@ -92,8 +92,17 @@ shell = shell.replace(/<svg([^>]*)>([\s\S]*?)<\/svg>/g, (_, attributes, shapes) 
 write('assets/site-icons.svg', '<svg xmlns="http://www.w3.org/2000/svg">' + symbols.join('') + '</svg>');
 const head = shell.slice(0, shell.indexOf('</head>') + 7);
 const body = shell.slice(shell.indexOf('<body>'));
-const mainMarker = '<main id="main" class="wrap" tabindex="-1"></main>';
-if (!body.includes(mainMarker)) throw new Error('Missing main template');
+const mainMatch = body.match(/<main id="main" class="wrap" tabindex="-1">([\s\S]*?)<\/main>/);
+if (!mainMatch) throw new Error('Missing main template');
+const homeFallback = mainMatch[1].trim();
+// Do not allow arbitrary or malformed HTML to replace the existing interactive reader.
+if (homeFallback && !(
+  homeFallback.startsWith('<section class="home-loading-intro"') &&
+  homeFallback.includes('href="/reading-desk.html"') &&
+  homeFallback.includes('href="/guide-genres.html"') &&
+  !/<script\b|<iframe\b|<form\b|<main\b/i.test(homeFallback)
+)) throw new Error('Unverified homepage fallback: refusing packaging');
+const mainMarker = mainMatch[0];
 const [beforeMain, afterMain] = body.split(mainMarker);
 const favicon = sourceHtml.match(/<link rel="icon"[^>]+href="data:image\/svg\+xml,([^"]+)"/);
 if (!favicon) throw new Error('Missing site favicon');
