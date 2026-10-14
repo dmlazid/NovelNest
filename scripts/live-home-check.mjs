@@ -13,7 +13,7 @@ export function extractLiveSourceNovels(html) {
   assert(end>=0,'Latest Novels section is incomplete');
   const latest=[...html.slice(start,end).matchAll(/class="home-novel-tile" href="\/novel\/([^/]+)\//g)].map(m=>m[1]);
   assert(released.length>0,'No verified source release rows rendered');
-  assert.deepEqual(latest,released.slice(0,6),
+  assert.deepEqual(latest,released,
     'Latest Novels must show only the most recent source releases, in order');
   return {latest,released};
 }

@@ -57,7 +57,7 @@
     if (isLibrary) {
       // Synchronization is NOT navigation. Never animate a page transition,
       // throw the user to the top, or discard the existing Library DOM.
-      if (savedChanged) window.NovelNestApp?.refresh?.({ preserveScroll: true });
+      if (savedChanged) window.NovelNestApp?.refreshLibraryBookmarks?.();
       else if (progressChanged) window.NovelNestApp?.refreshLibraryProgress?.();
     }
     render();
@@ -93,8 +93,21 @@
   function switchOwner(next) {
     window.dispatchEvent(new Event('novelnest:before-route'));
     cache();
-    const target = normalize(read(scopeKey(next), sync.empty()));
     const previous = current();
+    const accountCache = read(scopeKey(next), null);
+    const target = normalize(accountCache || sync.empty());
+    // A first sign-in must not make guest bookmarks appear to vanish.
+    // Bring this device's guest reads into its FIRST signed-in library only.
+    // Never leak account A's private saved books into account B.
+    if(next && !owner && !accountCache){
+      target.data = backup.combine(target.data, previous.data);
+      for(const [id,count] of Object.entries(previous.seen||{}))
+        target.seen[id]=Math.max(target.seen[id]||0,count);
+    }
+    // If the account's local cache was lost, an old persisted sync baseline
+    // could incorrectly interpret every cloud bookmark as a local deletion.
+    if(next && !accountCache)
+      localStorage.setItem(baseKey(next),JSON.stringify(sync.empty()));
     applying = true;
     try {
       write(target);
@@ -406,7 +419,7 @@
       if (event.key === 'novelnest.progress') window.NovelNestApp?.refreshLibraryProgress?.();
       else if (event.key === 'novelnest.saved' &&
                (location.hash.startsWith('#/library') || /^\/library\/?$/.test(location.pathname || '')))
-        window.NovelNestApp?.refresh?.({ preserveScroll: true });
+        window.NovelNestApp?.refreshLibraryBookmarks?.();
     }
   });
   try {

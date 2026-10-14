@@ -524,6 +524,26 @@ function refreshLibraryProgress(){
   if(card){if(!next)card.remove();else if(card.outerHTML!==next)card.outerHTML=next;}
   else if(next)main.querySelector?.('.library-tabs')?.insertAdjacentHTML('afterend',next);
 }
+// Replace only the shelf when another tab/account sync adds bookmarks.
+ // Rebuilding the entire route changes image heights and jumps the page.
+function refreshLibraryBookmarks(){
+  if(!(/^#\/library(?:\?|$)/.test(location.hash||'')||/^\/library\/?$/.test(location.pathname||'')))return;
+  if((location.hash||'').includes('tab=history')||(location.search||'').includes('tab=history'))return;
+  const shelf=main.querySelector?.('.catalog-grid');
+  const items=novels.filter(n=>saved.includes(n.id));
+  const tally=main.querySelector?.('.library-tabs span');
+  if(tally)tally.textContent=String(saved.length);
+  if(!shelf||!items.length){route({preserveScroll:true});return;}
+  const html=items.map(card).join('');
+  if(shelf.innerHTML!==html)shelf.innerHTML=html;
+  const missing=saved.filter(id=>!novels.some(n=>n.id===id));
+  const pending=main.querySelector?.('.bookmark-pending-list');
+  if(pending){
+    if(!missing.length)pending.remove();
+    else pending.innerHTML=missing.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\\b\\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('');
+  }
+  refreshLibraryProgress();
+}
 function library(params = new URLSearchParams()) {
   const history = params.get('tab') === 'history';
   const books = history ? novels.filter(n=>lastRead(n)).sort((a,b)=>lastRead(b).at-lastRead(a).at) : novels.filter(n=>saved.includes(n.id));
@@ -715,4 +735,4 @@ window.addEventListener('popstate',()=>{route({animate:true});main.focus({preven
 document.querySelector('#year').textContent=new Date().getFullYear();route();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelHaven catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelHaven",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
 
-window.NovelNestApp = { navigate, refresh: route, refreshLibraryProgress, reloadData() { saved=read("novelnest.saved",[]); progress=read("novelnest.progress",{}); document.querySelector("#library-count").textContent=saved.length; document.querySelectorAll("[data-save]").forEach(b=>{b.textContent=saved.includes(b.dataset.save)?"♥ Bookmarked":"♡ Bookmark";b.setAttribute("aria-pressed",String(saved.includes(b.dataset.save)))}); } };
+window.NovelNestApp = { navigate, refresh: route, refreshLibraryProgress, refreshLibraryBookmarks, reloadData() { saved=read("novelnest.saved",[]); progress=read("novelnest.progress",{}); document.querySelector("#library-count").textContent=saved.length; document.querySelectorAll("[data-save]").forEach(b=>{b.textContent=saved.includes(b.dataset.save)?"♥ Bookmarked":"♡ Bookmark";b.setAttribute("aria-pressed",String(saved.includes(b.dataset.save)))}); } };

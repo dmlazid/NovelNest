@@ -254,7 +254,7 @@ test('Latest Novels never mixes old imported chapters or excludes featured genui
     const html=render('home()');
     const section=html.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1].split('</section>')[0];
     const order=[...section.matchAll(/home-novel-tile" href="\/novel\/([^/]+)\//g)].map(x=>x[1]);
-    assert.deepEqual(order,['fresh-0','fresh-1','fresh-2','fresh-3','fresh-4','fresh-5']);
+    assert.deepEqual(order,['fresh-0','fresh-1','fresh-2','fresh-3','fresh-4','fresh-5','fresh-6','fresh-7']);
     assert(!/imported-/.test(section));
   }
 });

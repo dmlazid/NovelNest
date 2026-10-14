@@ -11,7 +11,7 @@ const settle = async () => { for(let i=0;i<20;i++) await Promise.resolve(); };
 function harness({ storage = new Map(), uid = null, cloud = new Map(), error = null, catalog = [{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}] } = {}) {
   const handlers = new Map(), timers = new Map(), nodes = new Map();
   let reloads = 0, stopped = 0, timerId = 0, callback, transactions = 0, failure = error, gate = null;
-  const uiUpdates={full:0,card:0,lastRefresh:null};
+  const uiUpdates={full:0,card:0,shelf:0,lastRefresh:null};
   const on = (name, fn) => handlers.set(name, [...handlers.get(name)||[], fn]);
   const fire = (name, event) => { for(const fn of handlers.get(name)||[]) fn(event); };
   const node = name => {
@@ -19,7 +19,7 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
     return nodes.get(name);
   };
   const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
-  const window = {NOVELS:catalog,addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;}},NovelNestReading:{reload(){}}};
+  const window = {NOVELS:catalog,addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;},refreshLibraryBookmarks(){uiUpdates.shelf++;}},NovelNestReading:{reload(){}}};
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
@@ -44,11 +44,11 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
   };
 }
 
-test('sign-in keeps guest data separate; explicit import syncs it; sign-out restores guest library', async () => {
+test('first sign-in keeps existing guest bookmarks and progress; sign-out restores guest library', async () => {
   const storage = new Map(); save(storage,fixture()); const h=harness({storage}); await h.start();
-  await h.account('alice'); assert.equal(h.reloads,1); assert.deepEqual(h.state().data.saved,[]);
+  await h.account('alice'); assert.equal(h.reloads,1); assert.deepEqual(h.state().data.saved,['book']);
   assert.deepEqual(JSON.parse(storage.get('novelnest.account-cache.guest')).data.saved,['book']);
-  const signed=harness({storage,uid:'alice'});await signed.start();await signed.click('[data-import-guest]');
+  const signed=harness({storage,uid:'alice'});await signed.start();
   assert.deepEqual(signed.cloud.get('alice').data.saved,['book']);
   await signed.click('[data-signout]'); assert.equal(signed.reloads,1);assert.deepEqual(signed.state(),fixture());
 });
@@ -114,8 +114,8 @@ test('background position autosaves never repaint or flicker the Library page',a
   assert.equal(h.uiUpdates.full,before);
   assert.equal(h.uiUpdates.card,1,'Progress edits refresh only the in-place card');
   h.fire('storage',{key:'novelnest.saved'});
-  assert.equal(h.uiUpdates.full,before+1);
-  assert.equal(h.uiUpdates.lastRefresh?.preserveScroll,true);
+  assert.equal(h.uiUpdates.full,before,'Bookmark changes must not remount the Library');
+  assert.equal(h.uiUpdates.shelf,1,'Refresh only the saved bookshelf');
 });
 test('cloud session with newer timestamp cannot return Continue Reading to older chapter',async()=>{
   const storage=new Map();
@@ -157,4 +157,16 @@ test('a real bookmark removal still synchronizes between devices', async () => {
   await h.window.NovelNestAccounts.synchronize(true);
   assert.deepEqual(h.state().data.saved,[]);
   assert.deepEqual(cloud.get('alice').data.saved,[]);
+});
+
+test('a stale local sync baseline cannot remove cloud bookmarks when the account cache is missing',async()=>{
+  const storage=new Map();
+  storage.set('novelnest.account-base.alice',JSON.stringify(fixture()));
+  const cloud=new Map([['alice',{version:1,...fixture()}]]);
+  const h=harness({storage,uid:'alice',cloud});await h.start();
+  assert.equal(h.reloads,1);
+  assert.deepEqual(h.state().data.saved,[]);
+  const next=harness({storage,uid:'alice',cloud});await next.start();
+  assert.deepEqual(next.state().data.saved,['book']);
+  assert.deepEqual(cloud.get('alice').data.saved,['book']);
 });
