@@ -6,7 +6,8 @@ service cloud.firestore {
     // An administrator UID must be added by the owner in Firebase Console.
     // No web client can grant itself admin membership.
     function isEditor() {
-      return signedIn() && exists(/databases/$(database)/documents/authorAdmins/$(request.auth.uid));
+      return signedIn() && exists(/databases/$(database)/documents/authorAdmins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/authorAdmins/$(request.auth.uid)).data.role == 'editor';
     }
     function originalFields() {
       return ['ownerUid','title','penName','genre','summary','copyrightConfirmed',
@@ -43,6 +44,20 @@ service cloud.firestore {
     match /authorAdmins/{adminUid} {
       allow get: if request.auth != null && request.auth.uid == adminUid;
       allow list, create, update, delete: if false;
+    }
+
+    // Only verified editors can read reports of private drafts and chapters.
+    // GitHub's server-side Firebase Admin identity (not a browser) creates these.
+    match /moderationReviews/{storyId} {
+      allow get, list: if isEditor();
+      allow create, update, delete: if false;
+    }
+    match /moderationAudit/{eventId} {
+      allow get, list: if isEditor();
+      allow create, update, delete: if false;
+    }
+    match /moderationBotState/{stateId} {
+      allow read, write: if false;
     }
 
     match /authorStories/{storyId} {
