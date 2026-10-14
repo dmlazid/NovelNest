@@ -272,13 +272,14 @@ test('Latest Novels displays only actual releases when fewer than six exist',()=
   assert.doesNotMatch(listing,/\/novel\/old-import\//);
 });
 
-test('homepage describes the moderated Author Studio pilot without claiming it is activated',()=>{
+test('homepage welcomes new authors but preserves human editorial review',()=>{
   const view=harness([source('home-source-test')]);
   const html=view('home()');
-  assert.match(html,/AUTHOR STUDIO PILOT/);
+  assert.match(html,/THE WRITERS’ CORNER/);
   assert.match(html,/href="\/author-studio\.html"/);
   assert.match(html,/href="\/original-novels\.html"/);
-  assert.match(html,/Nothing publishes automatically/);
+  assert.match(html,/submit it for editorial review/);
+  assert.doesNotMatch(html,/automatically publish/i);
 });
 
 test('homepage makes original-story authorship inviting and keeps review before publication',()=>{
