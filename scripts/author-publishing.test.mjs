@@ -28,7 +28,9 @@ test('all Author Studio routes are ad-free, secure and noindex until reviewed',(
   assert.match(html,/name="robots" content="noindex,follow"/);
   assert.doesNotMatch(html,/adsbygoogle|pagead2\.googlesyndication/);
  }
- for(const name of ['author-studio','author-admin','original-novels','original-story'])
+ for(const name of ['author-studio','author-admin'])
+   assert.match(read('dist/'+name+'.html'),/author-publishing\.js\?v=4/);
+ for(const name of ['original-novels','original-story'])
    assert.match(read('dist/'+name+'.html'),/author-publishing\.js\?v=3/);
  const js=read('dist/author-publishing.js');
  assert.match(js,/onAuthStateChanged/);
@@ -77,4 +79,17 @@ test('empty moderation queues show a private, truthful worker heartbeat',()=>{
  assert.match(html,/moderation-dashboard\.js\?v=2/);
  assert.match(rules,/match \/moderationReviews\/\{storyId\}/);
  assert.doesNotMatch(dashboard,/Activate the scheduled worker using/);
+});
+
+test('author composer appears before private manuscript query and mobile menu stays mounted',()=>{
+ const author=read('dist/author-publishing.js');
+ const accounts=read('dist/accounts.js');
+ const app=read('dist/app.js');
+ const styles=read('dist/accounts.css');
+ assert(author.includes("host.innerHTML=composeMode?composer+listing:listing+composer"));
+ assert(author.includes("const earlyStudio=view==='studio'?runView():null"));
+ assert(accounts.includes("panel.dataset.menuReady==='true'"));
+ assert(accounts.includes('href="/author-studio.html?compose=1"'));
+ assert(app.includes('href="/author-studio.html?compose=1"'));
+ assert(styles.includes('height:100svh'));
 });
