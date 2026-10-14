@@ -44,7 +44,7 @@ function reader({ saved = {}, prefs = {}, mode = 'scroll', blocked = false, lazy
     window.scrollY = 0; layout();
   }
   function positions() { emit('pagehide'); return JSON.parse(storage.get('novelnest.positions')); }
-  return { window, document, ready, scroll, leave, emit, flush, positions, label, meter, bars, get prose() { return prose; }, changeHeight(value) { height = value; emit('resize'); flush(); }, top() { for (const callback of events.get('click') || []) callback({ target: { closest: () => true } }); flush(); } };
+  return { window, document, ready, scroll, leave, emit, flush, positions, label, meter, bars, storage, get prose() { return prose; }, changeHeight(value) { height = value; emit('resize'); flush(); }, top() { for (const callback of events.get('click') || []) callback({ target: { closest: () => true } }); flush(); } };
 }
 
 test('restores paragraph and its offset after reopening, even when text height changes', () => {
@@ -100,4 +100,18 @@ test('position is flushed when a mobile browser hides the page', () => {
   const h = reader(); h.ready(); h.scroll(534);
   h.document.hidden = true; h.emit('visibilitychange');
   assert.equal(h.positions()['story:1'].paragraph, 3);
+});
+
+test('a suspended tab must not overwrite a newer position saved in another tab',()=>{
+  const h=reader();h.ready();h.scroll(534);
+  const first=h.positions()['story:1'];
+  const newer={
+    'story:1':{paragraph:5,fraction:0.25,percent:75,start:false,at:first.at+5000},
+    'story:2':{paragraph:3,fraction:0.5,percent:40,start:false,at:first.at+4000}
+  };
+  h.storage.set('novelnest.positions',JSON.stringify(newer));
+  h.emit('pagehide');
+  const result=JSON.parse(h.storage.get('novelnest.positions'));
+  assert.equal(result['story:1'].paragraph,5);
+  assert.equal(result['story:2'].paragraph,3);
 });
