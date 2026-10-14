@@ -364,3 +364,11 @@
 .reader-account-card h3{margin:0 0 12px;font-size:18px}.reader-account-card .owner-stats{margin:0}
 .profile-summary{padding:20px 18px}.owner-account-card{margin-top:16px}
 @media(max-width:360px){.owner-menu-tools{grid-template-columns:1fr}.profile-summary{gap:12px}.profile-summary h2{font-size:18px}}
+
+/* Account v3.2: steady mobile drawer during browser bar resize and auth refresh. */
+.site-drawer{overflow-anchor:auto;scroll-behavior:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:760px){
+ .site-drawer{height:100svh;max-height:100svh;scrollbar-gutter:auto;overscroll-behavior-y:contain}
+ .site-drawer .drawer-top{position:sticky;top:0}
+ .site-drawer .menu-content{min-height:0}
+}
