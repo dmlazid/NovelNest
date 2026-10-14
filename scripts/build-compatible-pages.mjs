@@ -16,8 +16,19 @@ const write=(p,value)=>{const target=path.join(root,p);fs.mkdirSync(path.dirname
 // This keeps source updates fresh even if Cloudflare applies a long JS cache.
 const sourceFeed=fingerprintSourceActivity(root);
 const source=read('index.html');
-const marker='<main id="main" class="wrap" tabindex="-1"></main>';
-assert(source.includes(marker),'Original interactive reader shell changed: refuse publishing');
+// The homepage can contain a reader-visible editorial fallback while JavaScript loads.
+// Generated novel pages still replace the complete <main> shell with page-specific prose.
+const markerMatch=source.match(/<main id="main" class="wrap" tabindex="-1">([\s\S]*?)<\/main>/);
+assert(markerMatch,'Original interactive reader shell changed: refuse publishing');
+const fallback=markerMatch[1].trim();
+assert(!fallback || (
+  fallback.startsWith('<section class="home-loading-intro"') &&
+  fallback.includes('href="/reading-desk.html"') &&
+  fallback.includes('href="/guide-genres.html"') &&
+  fallback.includes('href="/guide-pacing.html"') &&
+  !/<script\b|<iframe\b|<form\b|<main\b/i.test(fallback)
+), 'Unexpected homepage fallback content: refuse publishing');
+const marker=markerMatch[0];
 assert(source.includes('google-site-verification'),'Keep existing Google verification');
 const scriptPaths=[...source.matchAll(/<script\b[^>]*src="([^"]+)"/g)]
   .map(match=>match[1].split('?')[0]);
