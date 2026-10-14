@@ -37,7 +37,7 @@ assert(read('reading-desk/index.html').includes(publisher),
 assert.equal(build.novelAdsReviewed,0,'No title-specific commercial rights review was recorded');
 assert.equal(build.novelAdsHeld,build.novels,'All unreviewed novel details must stay ad-free');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
-assert(sample.includes('app.js?v=20261014-catalog-ad-hold-1'),
+assert(sample.includes('app.js?v=20261014-library-stability-3'),
   'Latest Novels must load the updated reader/discovery script');
 const sourceAsset=sourceFeedFilename(read('source-activity.js'));
 assert(sample.includes('src="'+sourceAsset+'"'),
