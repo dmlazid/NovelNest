@@ -9,10 +9,10 @@ function rendered(releases,latest){
     latest.map(id=>'<a class="home-novel-tile" href="/novel/'+id+'/">Book</a>').join('')+
     '</div></section></body></html>';
 }
-test('matches top six real source releases from browser-rendered homepage',()=>{
+test('matches every real source release from browser-rendered homepage',()=>{
   const ids=['new-1','new-2','new-3','new-4','new-5','new-6','new-7'];
-  const result=extractLiveSourceNovels(rendered(ids,ids.slice(0,6)));
-  assert.deepEqual(result.latest,ids.slice(0,6));
+  const result=extractLiveSourceNovels(rendered(ids,ids));
+  assert.deepEqual(result.latest,ids);
   assert.equal(result.released.length,7);
 });
 test('rejects imported books, wrong order and missing client-rendered sections',()=>{
