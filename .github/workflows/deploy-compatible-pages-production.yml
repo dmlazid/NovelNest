@@ -28,6 +28,10 @@ on:
       - 'scripts/purge-policy-cache.mjs'
       - 'scripts/audit-novel-ads.mjs'
       - 'cloudflare/reader/worker.mjs'
+  workflow_run:
+    workflows: ['Check source chapter activity']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,6 +40,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
+    # Scheduled scanner commits use GITHUB_TOKEN, so GitHub suppresses
+    # ordinary push workflows. workflow_run publishes the successful scan.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 28
     steps:
