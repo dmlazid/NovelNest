@@ -27,6 +27,7 @@ async function changeStatus(storyDoc,original,to,result){
   const verb=to==='published'?'auto-published':'auto-returned';
   let done=false;
   await db.runTransaction(async tx=>{
+    done=false;
     const latest=await tx.get(target);
     if(!latest.exists)return;
     const current=latest.data();
