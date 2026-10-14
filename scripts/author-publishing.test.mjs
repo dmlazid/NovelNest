@@ -61,3 +61,20 @@ test('Firestore rules protect authors, moderation and existing bookmarks',()=>{
  assert.match(rules,/allow list, create, update, delete: if false/);
  assert.doesNotMatch(rules,/allow (read|write): if true/);
 });
+
+
+test('empty moderation queues show a private, truthful worker heartbeat',()=>{
+ const worker=read('moderation-bot/run.mjs');
+ const dashboard=read('dist/moderation-dashboard.js');
+ const html=read('dist/author-admin.html');
+ const rules=read('firebase/firestore.rules');
+ assert.match(worker,/doc\('__worker_status__'\)/);
+ assert.match(worker,/recordType:'worker-status'/);
+ assert.match(worker,/checkedAt:FieldValue\.serverTimestamp\(\)/);
+ assert.match(worker,/if\(errors\)throw new Error/);
+ assert.match(dashboard,/heartbeat=data/);
+ assert.match(dashboard,/No saved original manuscripts have been screened yet/);
+ assert.match(html,/moderation-dashboard\.js\?v=2/);
+ assert.match(rules,/match \/moderationReviews\/\{storyId\}/);
+ assert.doesNotMatch(dashboard,/Activate the scheduled worker using/);
+});
