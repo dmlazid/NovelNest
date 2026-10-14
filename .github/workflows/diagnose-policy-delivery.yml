@@ -1,0 +1,43 @@
+name: Diagnose NovelHaven delivery (read-only)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnose-policy-delivery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare repository, Pages preview and live domain
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,time,urllib.request,urllib.parse
+          hosts=['novelhaven.top','www.novelhaven.top','novelnest-ac6.pages.dev','6b9f0855.novelnest-ac6.pages.dev']
+          for path in ['contact.html','copyright.html','privacy.html']:
+            original=(pathlib.Path('dist')/path).read_bytes()
+            for host in hosts:
+              for version in ['normal','query']:
+                url='https://'+host+'/'+path+('?probe='+str(int(time.time())) if version=='query' else '')
+                try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'NovelHaven-readonly-probe','Cache-Control':'no-cache'})
+                  with urllib.request.urlopen(req,timeout=18) as response:
+                    data=response.read()
+                    txt=data.decode('utf-8','replace')
+                    h=response.headers
+                    print(json.dumps({'host':host,'page':path,'variant':version,'status':response.status,
+                      'actual_host':urllib.parse.urlparse(response.url).netloc,'bytes':len(data),
+                      'sha':hashlib.sha256(data).hexdigest()[:16],
+                      'repo_sha':hashlib.sha256(original).hexdigest()[:16],
+                      'matches_repo':data==original,
+                      'email_link':'mailto:novelhaven15@gmail.com' in txt,
+                      'email_visible':'>novelhaven15@gmail.com</a>' in txt,
+                      'ad_loader':'pagead2.googlesyndication.com/pagead/js/adsbygoogle.js' in txt,
+                      'title':txt.split('<title>',1)[1].split('</title>',1)[0][:100] if '<title>' in txt else '',
+                      'cf_cache':h.get('CF-Cache-Status'),'age':h.get('Age'),'cache_control':h.get('Cache-Control')}))
+                except Exception as error:
+                  print(json.dumps({'host':host,'page':path,'variant':version,'error':str(error)[:180]}))
+          PY
