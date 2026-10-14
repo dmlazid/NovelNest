@@ -24,7 +24,7 @@ function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new 
   const firebaseMock = {
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
     onAuthStateChanged(_auth,fn){callback=fn;fn(auth.currentUser);},
-    doc(_db,collection,id){assert(['users','authorAdmins'].includes(collection);return collection==='users'?id:'admin:'+id;},
+    doc(_db,collection,id){assert(['users','authorAdmins'].includes(collection));return collection==='users'?id:'admin:'+id;},
     async getDoc(ref){const okay=ref.startsWith('admin:')&&adminUids.includes(ref.slice(6));return {exists:()=>okay,data:()=>okay?{role:'editor'}:null};},
     async runTransaction(_db,fn){transactions++;if(failure)throw Object.assign(Error('failure'),{code:failure});if(gate)await gate;
       return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),set:(id,value)=>cloud.set(id,copy(value))});},
