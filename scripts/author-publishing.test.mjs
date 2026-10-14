@@ -6,7 +6,7 @@ import {GENRES,wordCount,validNovel,validChapter,canSubmit,safeDocId,escapeHTML}
 const read=path=>fs.readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const sample={title:'The Moonlit Orchard',penName:'Writer One',summary:'A farm grows a little stranger with each passing winter.',
   genre:'Fantasy',copyrightConfirmed:true,guidelinesAccepted:true};
-const chapter={number:1,title:'The First Frost',body:'A story of quiet courage. '.repeat(30)};
+const chapter={number:1,title:'The First Frost',body:'A story of quiet courage. '.repeat(80)};
 
 test('author forms enforce complete original novel metadata and chapter drafts',()=>{
  assert(validNovel(sample));

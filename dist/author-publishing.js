@@ -3,6 +3,7 @@ import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signOut} f
 import {getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,query,where,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import {GENRES,cleanText,wordCount,validNovel,validChapter,canSubmit,safeDocId,escapeHTML as esc} from '/author-core.mjs';
 
+if(!window.NOVELNEST_FIREBASE?.projectId)throw new Error('Firebase settings are not available for original-novel publishing.');
 const app=getApps().length?getApp():initializeApp(window.NOVELNEST_FIREBASE);
 const db=getFirestore(app),auth=getAuth(app),view=document.body.dataset.authorPage;
 const host=document.getElementById('author-content'),banner=document.getElementById('author-message'),authBox=document.getElementById('author-auth');

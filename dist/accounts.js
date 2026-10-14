@@ -207,6 +207,12 @@
           if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank') return;
           const destination = new URL(link.href, location.href);
           if (destination.origin !== location.origin) return;
+          // Separate author pages intentionally require a normal page load.
+          // Never feed them to the existing novel SPA router.
+          if (/^\/(?:author-studio|author-guidelines|author-admin|original-novels|original-story)\.html$/.test(destination.pathname)) {
+            try { element.close(); } catch {}
+            return;
+          }
           event.preventDefault();
           event.stopImmediatePropagation();
           try { element.close(); } catch {}
@@ -291,6 +297,8 @@
 
       <section class="catalog-menu-panel" data-catalog-panel="novels">
         <nav class="catalog-menu-list" aria-label="Novel list">
+          ${menuLink('/original-novels.html','Original Novels','book')}
+          ${menuLink('/author-studio.html','Write & Publish','grid')}
           ${menuLink('./#/library','Bookmarks','bookmark')}
           ${menuLink('./#/latest-novels','Latest Novels','book')}
           ${menuLink('./#/latest-releases','Latest Release','bell')}
