@@ -18,9 +18,14 @@ async function get(path){
 let verified=false,reason='';
 for(let attempt=1;attempt<=12;attempt++){
   try {
+    const genre=fs.readdirSync('dist/genre',{withFileTypes:true}).find(item=>item.isDirectory());
+    assert(genre,'Cannot verify an empty genre index');
+    const catalogRoutes=['/browse/','/latest-novels/','/latest-releases/',
+      '/completed/','/finder/','/library/','/genre/'+genre.name+'/'];
     const routes=['/','/reading-desk.html','/ads.txt','/build-info.json',
       '/novel/shadow-slave/','/novel/shadow-slave/chapter-1/',
-      '/novel/supreme-harem-god-system/','/novel/supreme-harem-god-system/chapter-1/'];
+      '/novel/supreme-harem-god-system/','/novel/supreme-harem-god-system/chapter-1/',
+      ...catalogRoutes];
     const responses=await Promise.all(routes.map(get));
     for(let i=0;i<routes.length;i++)assert.equal(responses[i].status,200,
       routes[i]+': failed HTTP status');
@@ -41,6 +46,12 @@ for(let attempt=1;attempt<=12;attempt++){
       assert(!result.body.includes(publisher),path+': publisher tag still on novel pages');
       assert(result.body.includes('app.js'),path+': chapter/book reader missing');
     }
+    for(let i=0;i<catalogRoutes.length;i++){
+      const path=catalogRoutes[i],response=responses[8+i];
+      assert(!response.body.includes(publisher),
+        path+': unreviewed catalog or library page must remain free of Google ads');
+      assert(response.body.includes('app.js'),path+': catalog search/reader interface missing');
+    }
     assert(/noindex/i.test(chapter.robots+' '+chapter.body),
       'Unrendered SPA chapter must remain noindex');
     assert(/noindex/i.test(restricted.robots+' '+restricted.body),
@@ -53,7 +64,7 @@ for(let attempt=1;attempt<=12;attempt++){
     console.log('VERIFIED live NovelHaven novel monetization hold:',JSON.stringify({
       origin,novelsOnAdHold:build.novelAdsHeld,novelsReviewed:build.novelAdsReviewed,
       sampleDiscoverableNovelAdFree:true,normalAndRestrictedChaptersAdFree:true,
-      chapterNoindexPreserved:true,readerPreserved:true,
+      chapterNoindexPreserved:true,catalogDirectoriesAdFree:catalogRoutes.length,readerPreserved:true,
       homepagePublisherPreserved:true,adsTxtUnchanged:true
     }));
     verified=true;break;
@@ -66,4 +77,4 @@ for(let attempt=1;attempt<=12;attempt++){
 if(!verified)throw Error('Novel ad hold not yet verified: '+reason);
 if(process.env.GITHUB_STEP_SUMMARY)
   fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-    '### Novel advertising hold live check\n\nAll unreviewed novel reading routes tested without publisher ads. Homepage/Reading Desk publisher ID and ads.txt preserved. This is not AdSense approval or title rights certification.\n');
+    '### Novel advertising hold live check\n\nUnreviewed novel reading pages, catalog directories and Library tested without publisher ads. Homepage/Reading Desk publisher ID and ads.txt preserved. This is not AdSense approval or title rights certification.\n');
