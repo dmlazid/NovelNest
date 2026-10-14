@@ -28,7 +28,7 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
       const newest=[...reports.values()].map(r=>r.checkedAt?.toMillis?.()||0).reduce((a,b)=>Math.max(a,b),0);
       const recent=[...reports.values()].find(r=>(r.checkedAt?.toMillis?.()||0)===newest);
       const el=document.createElement('section');el.id='bot-console';el.className='panel bot-console';
-      el.innerHTML='<div class="bot-heading"><div><span class="author-eyebrow">AUTOMATIC + OWNER REVIEW</span><h2>Smart Moderation Center</h2></div><button class="button outline" type="button" data-bot-refresh>Refresh checks</button></div>'+
+      el.innerHTML='<div class="bot-heading"><div><span class="author-eyebrow">AUTOMATIC + OWNER REVIEW</span><h2>Smart Moderation Center</h2></div><button class="button outline" type="button" data-bot-refresh>Refresh reports</button></div>'+
         '<div class="bot-stats"><div><strong>'+reports.size+'</strong><span>Manuscripts screened</span></div>'+
         '<div><strong>'+issues+'</strong><span>Reports needing attention</span></div>'+
         '<div><strong>'+escape(recent?friendlyTime(recent.checkedAt):'Pending')+'</strong><span>Most recent scan</span></div></div>'+
