@@ -8,6 +8,7 @@
   const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let owner = '', user = null, sdk = null, auth = null, db = null, ready = false;
   let applying = false, running = false, busy = false, generation = 0, timer = 0, lastSync = 0;
+  let editorAccess = false;
   let requestedSignOut=false;
   let message = 'Connecting account service…', lastSaved = [], lastTracked = '', baseline = sync.empty();
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -201,6 +202,7 @@
       search: '<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',
       close: '<path d="m6 6 12 12M18 6 6 18"/>',
       settings: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/>',
+      shield: '<path d="M12 2 21 6v6c0 6-3.6 9-9 10-5.4-1-9-4-9-10V6Z"/><path d="m8 12 3 3 5-6"/>',
       logout: '<path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4"/>',
       info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>'
     };
@@ -278,20 +280,53 @@
   function googleButton() {
     return `<button class="button google-signin" data-signin ${!ready || busy ? 'disabled' : ''}><span aria-hidden="true">G</span> Continue with Google</button>${!ready ? '<button class="quiet-button" data-account-retry>Retry connection</button>' : ''}`;
   }
+  async function verifyEditor(account,expectedGeneration) {
+    if(!account?.uid||!sdk?.getDoc)return;
+    let allowed=false;
+    try {
+      const badge=await sdk.getDoc(sdk.doc(db,'authorAdmins',account.uid));
+      allowed=badge.exists()&&badge.data()?.role==='editor';
+    }catch(error){console.warn('Editor access unavailable:',error?.code||'offline');}
+    if(expectedGeneration!==generation||user?.uid!==account.uid)return;
+    editorAccess=allowed;render();
+  }
+  function adminCard(which) {
+    if(!editorAccess||!user)return '';
+    return `<section class="owner-priority-card ${which}" aria-label="Administrator tools">
+      <span class="owner-eyebrow">${icon('shield')} VERIFIED NOVELHAVEN ADMIN</span>
+      <h3>Admin Dashboard</h3>
+      <p>Review new submissions, approve stories and manage published originals.</p>
+      <a class="owner-primary-link" data-close-drawer href="/author-admin.html">Open Admin Dashboard <span aria-hidden="true">↗</span></a>
+    </section>`;
+  }
+  function writerCard(which) {
+    return `<section class="writer-invite-card ${which}" aria-label="Become a NovelHaven author">
+      <span class="writer-kicker">✦ YOUR WRITING JOURNEY</span><span class="writer-feather" aria-hidden="true">✒</span>
+      <h3>Your story could be their next favorite.</h3>
+      <p>Turn your imagination into a novel. Save chapters, develop characters and share your original story after editorial review.</p>
+      <div class="writer-actions"><a href="/author-studio.html" class="writer-primary-link" data-close-drawer>Start Writing <span aria-hidden="true">↗</span></a>
+      <a href="/author-guidelines.html" class="writer-help-link" data-close-drawer>How it works</a></div>
+    </section>`;
+  }
   function profileContent() {
     let guest = false;
     try { const data = read(scopeKey(''), null)?.data; guest = !!data && (data.saved.length > 0 || Object.keys(data.progress).length > 0); } catch {}
     return drawerTop('account') + `<section class="profile-summary"><div class="profile-avatar">${avatar()}</div><div><h2>${escape(user?.displayName || (user ? 'Reader' : 'Welcome, reader'))}</h2><p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
+      adminCard('owner-account-card') + writerCard('writer-account-card') +
       (!user ? `<div class="drawer-signin"><p>Sign in to keep your library across devices.</p>${googleButton()}</div>` : '') +
       `<div class="drawer-rows">${row('./#/library','Bookmarks','Your saved novels','bookmark')}${row('./#/library?tab=history','History','Pick up where you left off','history')}
       <details class="account-settings"><summary class="drawer-row"><span class="row-icon">${icon('settings')}</span><span><strong>Settings</strong><small>Your library &amp; account</small></span><span class="row-chevron" aria-hidden="true">›</span></summary><div class="settings-content">${user ? `<button class="button" data-sync-now ${busy ? 'disabled' : ''}>Sync now</button>${guest ? '<button class="button outline" data-import-guest>Add guest reading data</button><p>Copy this device’s guest bookmarks and progress into your account.</p>' : ''}<p>Signing out returns to your guest library.</p>` : '<p>Your guest library is saved on this device. Sign in to sync across devices.</p>'}</div></details></div>
       <div class="profile-bottom"><p data-account-status role="status" aria-live="polite"></p>${user ? `<button class="signout-button" data-signout ${busy ? 'disabled' : ''}>${icon('logout')} Sign out</button>` : ''}</div>`;
   }
   function showProfile() {
-    const panel = drawer('account-drawer', 'My account'); panel.innerHTML = profileContent(); renderStatus(); openDrawer(panel);
+    const panel = drawer('account-drawer', 'My account'); panel.innerHTML = profileContent(); panel.dataset.profileState=(user?.uid||'guest')+':'+String(editorAccess); renderStatus(); openDrawer(panel);
   }
   function render() {
     const main = document.querySelector('#main');
+    const headerAdmin=document.querySelector('[data-admin-shortcut]');
+    if(headerAdmin)headerAdmin.hidden=!(editorAccess&&user);
+    const adminSlot=document.querySelector('#navigation-drawer [data-admin-slot]');
+    if(adminSlot){const markup=adminCard('owner-menu-card');if(adminSlot.innerHTML!==markup)adminSlot.innerHTML=markup;}
     const profile = document.querySelector('[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
     // The Library paints a fixed account-status row itself. Updating auth
@@ -299,9 +334,14 @@
     // This avoids jumping on delayed Firebase sign-in / mobile refresh.
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {
-      const settingsOpen = !!panel.querySelector('details[open]');
-      panel.innerHTML = profileContent();
-      if (settingsOpen) panel.querySelector('details')?.setAttribute('open','');
+      // Background bookmark sync must not remount My Account or jump its scroll.
+      const key=(user?.uid||'guest')+':'+String(editorAccess);
+      if(panel.dataset.profileState!==key){
+        const settingsOpen=!!panel.querySelector('details[open]'),top=panel.scrollTop;
+        panel.innerHTML=profileContent();panel.dataset.profileState=key;
+        if(settingsOpen)panel.querySelector('details')?.setAttribute('open','');
+        panel.scrollTop=top;
+      }
     }
     renderStatus();
   }
@@ -316,6 +356,7 @@
         ${icon('search')}<input id="menu-search" name="q" placeholder="Search novels…" type="search">
         <button type="submit" aria-label="Search">${icon('search')}</button>
       </form>
+      <div data-admin-slot>${adminCard('owner-menu-card')}</div>
 
       <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelHaven">
         <button type="button" role="tab" aria-selected="true" data-catalog-tab="novels">${icon('book')}<span>Novel list</span></button>
@@ -325,7 +366,6 @@
       <section class="catalog-menu-panel" data-catalog-panel="novels">
         <nav class="catalog-menu-list" aria-label="Novel list">
           ${menuLink('/original-novels.html','Original Novels','book')}
-          ${menuLink('/author-studio.html','Write & Publish','grid')}
           ${menuLink('./#/library','Bookmarks','bookmark')}
           ${menuLink('./#/latest-novels','Latest Novels','book')}
           ${menuLink('./#/latest-releases','Latest Release','bell')}
@@ -342,6 +382,7 @@
       <div class="menu-divider">ACCOUNT &amp; UPDATES</div>
       <div class="drawer-rows">
         <button type="button" class="drawer-row drawer-action-row" data-profile><span class="row-icon">${icon('user')}</span><span><strong>My account</strong><small>${user ? 'Profile, sync &amp; settings' : 'Sign in or continue as guest'}</small></span><span class="row-chevron" aria-hidden="true">›</span></button>
+        ${writerCard('writer-menu-card')}
         <button type="button" class="drawer-row drawer-action-row" data-updates><span class="row-icon">${icon('bell')}</span><span><strong>Notifications</strong><small>Chapter updates from saved novels</small></span><span class="menu-update-dot notification-dot" data-notification-dot hidden></span><span class="row-chevron" aria-hidden="true">›</span></button>
       </div>
       <div class="menu-divider">YOUR READING</div>
@@ -370,7 +411,10 @@
       auth = sdk.getAuth(app); db = sdk.getFirestore(app);
       await sdk.setPersistence(auth, sdk.browserLocalPersistence);
       sdk.onAuthStateChanged(auth, next => {
-        generation++; user = next; ready = true;
+        generation++; user = next; ready = true; editorAccess=false;
+        // An editor link appears ONLY after checking this signed-in user's
+        // Firebase authorAdmins document. Firestore rules enforce permissions.
+        if(next?.uid)void verifyEditor(next,generation);
         try {
           // An expired Firebase session must not erase the local shelf merely
           // because a mobile tab was suspended or lost its sign-in state.

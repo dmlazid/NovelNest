@@ -227,3 +227,36 @@
 .library-account-status [data-open-library-account]:focus-visible{
   outline:2px solid var(--green);outline-offset:2px;border-radius:3px;
 }
+
+/* Owner-first admin access and author invitation, mobile-safe. */
+.owner-priority-card,.writer-invite-card{position:relative;isolation:isolate;overflow:hidden;
+ margin:14px 16px;padding:19px 18px;border-radius:17px;line-height:1.45}
+.owner-priority-card{background:linear-gradient(120deg,#244d43,#15332f);border:1px solid #ceac74;color:#f8f6ea;box-shadow:0 7px 22px #071e1a28}
+.owner-priority-card:before{content:"✧";position:absolute;right:12px;top:-18px;font:104px Georgia;color:#ddbb8520;z-index:-1}
+.owner-eyebrow{display:flex;gap:7px;align-items:center;color:#f1d19a;font-size:10px;font-weight:850;letter-spacing:1.2px}
+.owner-eyebrow svg{width:20px;height:20px}
+.owner-priority-card h3{font-size:23px;line-height:1.22;color:#fff;margin:12px 0 8px;font-weight:800}
+.owner-priority-card p{font-size:13px;line-height:1.6;margin:0 0 17px;color:#cce0d7}
+.site-drawer .owner-primary-link{display:flex;justify-content:space-between;align-items:center;min-height:44px;
+ padding:10px 14px;background:#e9ca8d;color:#294137;border-radius:9px;text-decoration:none;font-weight:850;font-size:14px}
+.writer-invite-card{background:linear-gradient(122deg,#e4f2eb,#f8f4e8);border:1px solid #a4c9bd;
+ box-shadow:0 6px 22px #081e1726;color:#183e36}
+.writer-invite-card:before{content:"✧";position:absolute;right:8px;top:14px;font:94px/1 Georgia;color:#90c7b33a;z-index:-1}
+.writer-kicker{font-size:10px;font-weight:850;letter-spacing:1.1px;color:#226d60}
+.writer-feather{float:right;color:#ae8246;font:30px Georgia;line-height:1}
+.writer-invite-card h3{clear:both;font-size:21px;line-height:1.26;color:#164f4a;max-width:290px;margin:12px 0 10px}
+.writer-invite-card p{font-size:13px;line-height:1.65;color:#4c6259;margin:0 0 15px}
+.writer-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.site-drawer .writer-primary-link{display:inline-flex;gap:13px;align-items:center;min-height:43px;
+ padding:10px 14px;background:#164f4a;color:#fff;border-radius:9px;font-size:13px;font-weight:800;text-decoration:none}
+.site-drawer .writer-help-link{color:#16574e;font-size:12px;font-weight:750;padding:10px 2px;text-underline-offset:3px}
+.owner-account-card,.writer-account-card{margin-inline:18px}
+.owner-menu-card{margin:0 0 18px}
+.writer-menu-card{margin:13px 0 12px}
+.compact-admin-shortcut[hidden]{display:none}
+.compact-admin-shortcut{display:inline-flex;align-items:center;gap:5px;justify-content:center;min-height:34px;
+ padding:7px 9px;border-radius:9px;background:#f5e9ce;border:1px solid #dfc58e;color:#4a3d28;
+ font:800 12px 'DM Sans',system-ui,sans-serif;text-decoration:none}
+.compact-admin-shortcut svg{width:16px;height:16px}
+@media(max-width:420px){.compact-admin-shortcut span{display:none}.compact-admin-shortcut{padding:7px}
+.owner-priority-card,.writer-invite-card{margin-inline:12px;padding:17px 15px}.owner-menu-card,.writer-menu-card{margin-inline:0}}
