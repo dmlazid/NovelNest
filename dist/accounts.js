@@ -1,6 +1,7 @@
 (() => {
   const backup = window.NovelNestBackup, sync = window.NovelNestSync;
   const OWNER = 'novelnest.account-owner', SEEN = 'novelnest.update-seen';
+  const intentKey = (kind, uid) => 'novelnest.pending-'+kind+'.'+encodeURIComponent(uid || 'guest');
   const scopeKey = uid => 'novelnest.account-cache.' + encodeURIComponent(uid || 'guest');
   const baseKey = uid => 'novelnest.account-base.' + encodeURIComponent(uid);
   const books = window.NOVELS || [];
@@ -22,6 +23,33 @@
   }
   function current() { return normalize({ data: backup.readCurrent(), seen: read(SEEN, {}) }); }
   function cache() { localStorage.setItem(scopeKey(owner), JSON.stringify(current())); }
+  function pendingIntents(uid) {
+    const safeList = value => Array.isArray(value) ? value.filter(x=>typeof x==='string') : [];
+    return {
+      savedRemovals: safeList(read(intentKey('saved-removals',uid),[])),
+      unfinishedChapters: safeList(read(intentKey('chapter-unfinish',uid),[]))
+    };
+  }
+  function recordIntent(kind, token, removed) {
+    if(!owner || !user || owner!==user.uid) return;
+    const key=intentKey(kind,owner);
+    const current=new Set(read(key,[]));
+    if(removed)current.add(token);else current.delete(token);
+    localStorage.setItem(key,JSON.stringify([...current]));
+  }
+  function bookmarkAction(id,isSaved) { recordIntent('saved-removals',id,!isSaved); }
+  function chapterFinishAction(id,number,isFinished) {
+    recordIntent('chapter-unfinish',id+':'+number,!isFinished);
+  }
+  function acknowledgeIntents(uid,cloud) {
+    const savedKey=intentKey('saved-removals',uid),finishedKey=intentKey('chapter-unfinish',uid);
+    const pending=pendingIntents(uid);
+    localStorage.setItem(savedKey,JSON.stringify(pending.savedRemovals.filter(id=>cloud.data.saved.includes(id))));
+    localStorage.setItem(finishedKey,JSON.stringify(pending.unfinishedChapters.filter(token=>{
+      const index=token.lastIndexOf(':'),id=token.slice(0,index),num=Number(token.slice(index+1));
+      return cloud.data.chapterStatus[id]?.finished?.includes(num);
+    })));
+  }
   function initializeSeen(state) {
     for (const n of books) if (state.data.saved.includes(n.id) && state.seen[n.id] === undefined) state.seen[n.id] = n.chapters.length;
     return state;
@@ -138,7 +166,7 @@
         const raw = snapshot.exists() ? snapshot.data() : null;
         if (raw && raw.version !== 1) throw Error('Unsupported cloud data.');
         const remote = raw ? normalize(raw) : sync.empty();
-        const merged = normalize(initializeSeen(sync.merge(base, sent, remote)));
+        const merged = normalize(initializeSeen(sync.merge(base, sent, remote, pendingIntents(uid))));
         if (!raw || JSON.stringify(merged) !== JSON.stringify(remote)) transaction.set(ref, { version: 1, ...merged });
         return merged;
       });
@@ -146,9 +174,10 @@
       // Include edits made while the request was in flight.
       window.NovelNestPositions?.capture();
       const latest = current();
-      const combined = normalize(sync.merge(sent, latest, result));
+      const combined = normalize(sync.merge(sent, latest, result, pendingIntents(uid)));
       localStorage.setItem(baseKey(uid), JSON.stringify(result));
       baseline = result;
+      acknowledgeIntents(uid,result);
       if (JSON.stringify(latest) !== JSON.stringify(combined)) apply(combined);
       else cache();
       lastSync = Date.now();
@@ -263,11 +292,12 @@
     const main = document.querySelector('#main');
     const profile = document.querySelector('[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
-    if (location.hash.split('?')[0] === '#/library') {
+    if (location.hash.split('?')[0] === '#/library' || /^\/library\/?$/.test(location.pathname||'')) {
       let section = document.querySelector('#account-panel');
       if (!section) { section = document.createElement('section'); section.id = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
       section.className = user ? 'library-sync' : 'library-signin';
-      section.innerHTML = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your bookmarks, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
+      const statusMarkup = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your bookmarks, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
+      if(section.innerHTML!==statusMarkup) section.innerHTML=statusMarkup;
     }
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {
@@ -418,7 +448,7 @@
     if (window.NovelNestApp?.navigate) window.NovelNestApp.navigate(destination);
     else location.assign(destination);
   });
-  window.NovelNestAccounts = { changed, synchronize };
+  window.NovelNestAccounts = { changed, synchronize, bookmarkAction, chapterFinishAction };
   window.addEventListener('novelnest:view-ready', render);
   window.addEventListener('online', () => synchronize(true));
   window.addEventListener('focus', () => { if (Date.now() - lastSync > 60000) synchronize(true); });

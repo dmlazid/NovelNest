@@ -75,7 +75,7 @@ test('local bookmark removal during an in-flight cloud read is preserved', async
   const h=harness({storage,uid:'alice'});await h.start();
   let release;h.hold(new Promise(r=>release=r));
   const pending=h.window.NovelNestAccounts.synchronize(true);await settle();
-  const value=h.state();value.data.saved=[];save(storage,value);h.window.NovelNestAccounts.changed();
+  const value=h.state();value.data.saved=[];save(storage,value);h.window.NovelNestAccounts.bookmarkAction('book',false);h.window.NovelNestAccounts.changed();
   release();await pending;
   assert.deepEqual(h.state().data.saved,[]);
   h.hold(null);await h.window.NovelNestAccounts.synchronize(true);
@@ -153,6 +153,7 @@ test('a real bookmark removal still synchronizes between devices', async () => {
   const state=h.state();
   state.data.saved=[];
   save(storage,state);
+  h.window.NovelNestAccounts.bookmarkAction('book',false);
   h.window.NovelNestAccounts.changed();
   await h.window.NovelNestAccounts.synchronize(true);
   assert.deepEqual(h.state().data.saved,[]);
@@ -186,4 +187,33 @@ test('opening a new tab does not overwrite any saved bookmark, progress or Finis
   const h=harness({storage});
   await h.start();
   for(const [k,value] of before)assert.equal(storage.get(k),value);
+});
+
+test('an unexplained blank local shelf cannot erase a synced cloud library',async()=>{
+ const storage=new Map(), data=fixture();save(storage,data);
+ storage.set('novelnest.account-owner','"alice"');
+ storage.set('novelnest.account-base.alice',JSON.stringify(data));
+ const cloud=new Map([['alice',{version:1,...fixture()}]]);
+ const h=harness({storage,uid:'alice',cloud});await h.start();
+ const blank=h.state();blank.data.saved=[];save(storage,blank);
+ h.window.NovelNestAccounts.changed();await h.window.NovelNestAccounts.synchronize(true);
+ assert.deepEqual(h.state().data.saved,['book']);
+ assert.deepEqual(cloud.get('alice').data.saved,['book']);
+});
+test('explicit Finished undo survives sync, but a stale tab cannot clear unrelated Finished chapters',async()=>{
+ const storage=new Map(),data=fixture();
+ data.data.chapterStatus.book={started:[1,2],finished:[1,2]};
+ save(storage,data);storage.set('novelnest.account-owner','"alice"');
+ storage.set('novelnest.account-base.alice',JSON.stringify(data));
+ const cloud=new Map([['alice',{version:1,...copy(data)}]]);
+ const h=harness({storage,uid:'alice',cloud});await h.start();
+ const stale=h.state();stale.data.chapterStatus.book={started:[1],finished:[]};
+ save(storage,stale);
+ h.window.NovelNestAccounts.changed();
+ await h.window.NovelNestAccounts.synchronize(true);
+ assert.deepEqual(h.state().data.chapterStatus.book.finished,[1,2]);
+ const edited=h.state();edited.data.chapterStatus.book={started:[1,2],finished:[2]};
+ save(storage,edited);h.window.NovelNestAccounts.chapterFinishAction('book',1,false);
+ h.window.NovelNestAccounts.changed();await h.window.NovelNestAccounts.synchronize(true);
+ assert.deepEqual(cloud.get('alice').data.chapterStatus.book.finished,[2]);
 });

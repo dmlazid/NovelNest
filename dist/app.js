@@ -13,7 +13,7 @@ let preferences=read('novelnest.preferences',{}); if(!preferences||typeof prefer
 let storageWarning=false;
 let lastOpenedRoute='';
 const LAST_READER_ROUTE='novelhaven.last-reader-route';
-function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(key!=='novelnest.preferences')window.NovelNestAccounts?.changed();return true}catch{if(!storageWarning){toast('Storage is unavailable. Your bookmark was not saved.');storageWarning=true}return false}}
+function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(key!=='novelnest.preferences'&&key!=='novelnest.saved')window.NovelNestAccounts?.changed();return true}catch{if(!storageWarning){toast('Storage is unavailable. Your bookmark was not saved.');storageWarning=true}return false}}
 function toast(text){const el=document.querySelector('#toast');el.textContent=text;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3200)}
 function applySettings(){document.body.dataset.theme=['night','sepia'].includes(preferences.theme)?preferences.theme:'light';document.documentElement.style.setProperty('--reader-size',`${Math.min(28,Math.max(16,Number(preferences.size)||20))}px`)}
 function toggleSave(id){
@@ -26,6 +26,8 @@ function toggleSave(id){
   const updated=exists?saved.filter(x=>x!==id):[...saved,id];
   if(!persist('novelnest.saved',updated)){saved=original;return {id,saved:exists};}
   saved=updated;
+  window.NovelNestAccounts?.bookmarkAction?.(id,!exists);
+  window.NovelNestAccounts?.changed?.();
   const count=document.querySelector('#library-count');if(count)count.textContent=saved.length;
   document.querySelectorAll('[data-save]').forEach(b=>{
     if(b.dataset.save===id){

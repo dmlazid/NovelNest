@@ -71,3 +71,26 @@ test('last deliberately opened chapter wins by time, including moving backwards'
   local.data.progress.story={chapter:26,at:220};
   assert.equal(merge(base,local,remote).data.progress.story.chapter,26);
 });
+
+test('a temporarily empty tab cannot silently delete remote bookmarks or Finished records',()=>{
+ const base=empty(),local=empty(),remote=empty();
+ base.data.saved=['saved-book'];remote.data.saved=['saved-book'];
+ base.data.chapterStatus.story={started:[1,2],finished:[1,2]};
+ local.data.chapterStatus.story={started:[1],finished:[]};
+ remote.data.chapterStatus.story={started:[1,2],finished:[1,2]};
+ const safe={savedRemovals:[],unfinishedChapters:[]};
+ const result=merge(base,local,remote,safe);
+ assert.deepEqual(plain(result.data.saved),['saved-book']);
+ assert.deepEqual(plain(result.data.chapterStatus.story.finished),[1,2]);
+ assert.deepEqual(plain(result.data.chapterStatus.story.started),[1,2]);
+});
+test('explicit bookmark removal and Finished undo still synchronize',()=>{
+ const base=empty(),local=empty(),remote=empty();
+ base.data.saved=['a','b']; local.data.saved=['b']; remote.data.saved=['a','b'];
+ base.data.chapterStatus.story={started:[1,2],finished:[1,2]};
+ local.data.chapterStatus.story={started:[1,2],finished:[2]};
+ remote.data.chapterStatus.story={started:[1,2],finished:[1,2]};
+ const result=merge(base,local,remote,{savedRemovals:['a'],unfinishedChapters:['story:1']});
+ assert.deepEqual(plain(result.data.saved),['b']);
+ assert.deepEqual(plain(result.data.chapterStatus.story.finished),[2]);
+});

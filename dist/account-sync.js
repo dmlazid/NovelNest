@@ -3,15 +3,21 @@
   const copy = value => JSON.parse(JSON.stringify(value));
   // Apply only this device's changes to the latest server state. Unchanged stale
   // bookmarks must not resurrect a bookmark removed on another device.
-  function membership(base, local, remote) {
+  function membership(base, local, remote, confirmedRemovals = null) {
     const result = new Set(remote), before = new Set(base), after = new Set(local);
-    for (const value of before) if (!after.has(value)) result.delete(value);
+    for (const value of before) if (!after.has(value) && (confirmedRemovals === null || confirmedRemovals.has(value))) result.delete(value);
+    if (confirmedRemovals) for (const value of confirmedRemovals) if (!after.has(value)) result.delete(value);
     for (const value of after) if (!before.has(value)) result.add(value);
     return [...result];
   }
-  function merge(base, local, remote) {
+  function merge(base, local, remote, safety = null) {
     const result = copy(remote);
-    result.data.saved = membership(base.data.saved, local.data.saved, remote.data.saved);
+    // Only deliberate button actions may remove saved novels / Finished labels.
+    // A blank list caused by a suspended tab, stale account cache or failed
+    // hydration is not an instruction to delete the reader's cloud library.
+    const removals = safety && Array.isArray(safety.savedRemovals) ? new Set(safety.savedRemovals) : null;
+    const unfinished = safety && Array.isArray(safety.unfinishedChapters) ? new Set(safety.unfinishedChapters) : null;
+    result.data.saved = membership(base.data.saved, local.data.saved, remote.data.saved, removals);
     for (const field of ['progress', 'positions']) {
       for (const [key, value] of Object.entries(local.data[field])) {
         if (JSON.stringify(value) === JSON.stringify(base.data[field][key])) continue;
@@ -25,8 +31,11 @@
     for (const [id, value] of Object.entries(local.data.chapterStatus)) {
       const before = base.data.chapterStatus[id] || { started: [], finished: [] };
       const cloud = remote.data.chapterStatus[id] || { started: [], finished: [] };
-      const finished = membership(before.finished, value.finished, cloud.finished);
-      result.data.chapterStatus[id] = { started: [...new Set([...membership(before.started, value.started, cloud.started), ...finished])].sort((a,b) => a-b), finished: finished.sort((a,b) => a-b) };
+      const permitted = unfinished === null ? null : new Set([...unfinished].filter(key => key.startsWith(id+':')).map(key => Number(key.slice(id.length+1))));
+      const finished = membership(before.finished, value.finished, cloud.finished, permitted);
+      // Opening a chapter never means deleting an older In progress record.
+      const started = [...new Set([...cloud.started, ...value.started, ...finished])].sort((a,b)=>a-b);
+      result.data.chapterStatus[id] = { started, finished: finished.sort((a,b) => a-b) };
     }
     result.data.positions = Object.fromEntries(Object.entries(result.data.positions).sort((a,b) => b[1].at-a[1].at).slice(0,200));
     for (const [id, count] of Object.entries(local.seen)) result.seen[id] = Math.max(count, result.seen[id] || 0);

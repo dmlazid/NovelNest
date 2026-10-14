@@ -76,6 +76,7 @@
     entry.started.add(number);
     if (finished) entry.finished.add(number);
     else entry.finished.delete(number);
+    window.NovelNestAccounts?.chapterFinishAction?.(id,number,finished);
     persist({id,number,kind:finished?'finish':'unfinish'});
   }
 
