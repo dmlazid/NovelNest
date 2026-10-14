@@ -80,6 +80,20 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['status','moderationNote','reviewedAt'])
         && validStory(request.resource.data)
+      ) || (
+        // Emergency moderator takedown after public release. Neither authors
+        // nor anonymous clients can hide, delete or re-publish approved works.
+        isEditor() && resource.data.status == 'published'
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status == 'hidden'
+        && request.resource.data.reviewedAt == request.time
+        && request.resource.data.moderationNote is string
+        && request.resource.data.moderationNote.size() >= 10
+        && request.resource.data.moderationNote.size() <= 500
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['status','moderationNote','reviewedAt'])
+        && validStory(request.resource.data)
       );
       allow delete: if false;
 

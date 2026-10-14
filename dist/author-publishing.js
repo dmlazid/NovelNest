@@ -2,12 +2,40 @@ import {initializeApp,getApp,getApps} from 'https://www.gstatic.com/firebasejs/1
 import {getAuth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,collection,doc,getDoc,getDocs,addDoc,setDoc,updateDoc,query,where,serverTimestamp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import {GENRES,cleanText,wordCount,validNovel,validChapter,canSubmit,safeDocId,escapeHTML as esc} from '/author-core.mjs';
+import {readDraft,saveDraft,clearDraft,draftChanged,pendingDraftNumbers} from '/author-draft-recovery.mjs';
 
 if(!window.NOVELNEST_FIREBASE?.projectId)throw new Error('Firebase settings are not available for original-novel publishing.');
 const app=getApps().length?getApp():initializeApp(window.NOVELNEST_FIREBASE);
 const db=getFirestore(app),auth=getAuth(app),view=document.body.dataset.authorPage;
 const host=document.getElementById('author-content'),banner=document.getElementById('author-message'),authBox=document.getElementById('author-auth');
 const state={user:null,isAdmin:false,story:null,chapters:[],editing:0};
+let backupTimer=0;
+const chapterForm=()=>host.querySelector('[data-form="chapter"]');
+// Local drafts protect writing during browser restarts and failed requests.
+// They never publish or overwrite the author's Firestore chapter automatically.
+function captureChapterRecovery(){
+  clearTimeout(backupTimer);backupTimer=0;
+  const form=chapterForm();
+  if(!form||state.story?.status!=='draft'||!state.user)return true;
+  const data=new FormData(form),number=Number(data.get('number'));
+  const fields={title:String(data.get('title')||''),body:String(data.get('body')||'')};
+  const saved=state.chapters.find(c=>c.number===number);
+  if(!draftChanged(fields,saved)){
+    clearDraft(localStorage,state.user.uid,state.story.id,number);
+    return true;
+  }
+  const okay=saveDraft(localStorage,state.user.uid,state.story.id,number,fields);
+  const label=form.querySelector('[data-author-backup-status]');
+  if(label)label.textContent=okay?
+    'Recovery copy saved on this device. Press Save Chapter to save it to your account.':
+    'Your browser cannot store a recovery copy. Press Save Chapter before leaving.';
+  return okay;
+}
+function changeChapterSafely(){
+  if(!chapterForm()||captureChapterRecovery())return true;
+  notice('Unsaved text cannot be protected on this device. Please save the chapter first.',true);
+  return false;
+}
 const forbidden=error=>/permission-denied|missing or insufficient permissions/i.test(String(error?.code||'')+' '+String(error?.message||''));
 function notice(text='',bad=false){banner.textContent=text;banner.dataset.error=String(bad);}
 function fail(error){
@@ -77,11 +105,15 @@ function renderEditor(){
   const wordTotal=chapterWords(state.chapters);
   const current=state.chapters.find(c=>c.number===state.editing);
   const next=Math.max(0,...state.chapters.map(c=>c.number))+1;
+  const activeNumber=current?.number||next;
+  const recovery=canEdit&&state.user?readDraft(localStorage,state.user.uid,s.id,activeNumber):null;
+  const hasRecovery=canEdit&&draftChanged(recovery,current);
   host.innerHTML='<div class="toolbar"><button class="button outline" data-action="back">← My novels</button>'+statusBadge(s.status)+
     (s.status==='published'?'<a class="button secondary" href="/original-story.html?id='+encodeURIComponent(s.id)+'">Read published story</a>':'')+'</div>'+
     '<section class="panel"><h2>'+esc(s.title)+'</h2><p class="stats">'+state.chapters.length+' chapter(s) · '+wordTotal+' words · Status: '+esc(s.status)+'</p>'+
     (s.moderationNote?'<div class="warning">Editor feedback: '+esc(s.moderationNote)+'</div>':'')+
     (s.status==='submitted'?'<div class="warning">Submitted for review. Editing is paused until the decision.</div>':'')+
+    (s.status==='hidden'?'<div class="warning">This novel has been unpublished by an editor following a content or copyright concern. It is not public. Your chapters remain private; <a href="/contact.html">contact NovelHaven</a> to discuss the decision.</div>':'')+
     (s.status==='rejected'?'<div class="warning">Revision requested. Return this story to draft to make changes.</div><button class="button outline" data-action="revise">Revise story</button>':'')+
     '<form class="form-grid" data-form="edit-novel"><div class="two-col"><label>Novel title<input name="title" maxlength="120" minlength="3" required value="'+esc(s.title)+'"'+(canEdit?'':' disabled')+'></label>'+
     '<label>Pen name<input name="penName" maxlength="60" minlength="2" required value="'+esc(s.penName)+'"'+(canEdit?'':' disabled')+'></label></div>'+
@@ -91,9 +123,10 @@ function renderEditor(){
     '<section class="panel"><h2>Chapters</h2><p class="muted">Write your own content. New drafts remain private and no ads run on manuscript pages.</p>'+
     (state.chapters.length?state.chapters.map(c=>'<div class="chapter-item"><div><strong>Chapter '+c.number+': '+esc(c.title)+'</strong><div class="stats">'+wordCount(c.body)+' words</div></div>'+
       (canEdit?'<button class="button outline" data-edit-chapter="'+c.number+'">Edit</button>':'')+'</div>').join(''):'<p>No chapters yet.</p>')+
-    (canEdit?'<form class="form-grid" data-form="chapter"><h3>'+(current?'Edit chapter '+current.number:'New chapter '+next)+'</h3>'+
+    (canEdit?(hasRecovery?'<div class="warning author-recovery" data-author-recovery><strong>Unsaved writing found on this device.</strong><p>Your recovery copy is private to this browser. It was not submitted or saved to your account. Restore it into the editor or discard it.</p><div class="toolbar"><button type="button" class="button" data-action="restore-draft">Restore writing</button><button type="button" class="button outline" data-action="discard-draft">Discard backup</button></div></div>':'')+'<form class="form-grid" data-form="chapter"><h3>'+(current?'Edit chapter '+current.number:'New chapter '+next)+'</h3>'+
       '<input type="hidden" name="number" value="'+(current?current.number:next)+'"><label>Chapter title<input maxlength="120" minlength="3" name="title" required value="'+esc(current?.title||'')+'"></label>'+
       '<label>Chapter text<textarea class="chapter-body" name="body" minlength="100" maxlength="45000" required placeholder="Start writing here…">'+esc(current?.body||'')+'</textarea></label>'+
+      '<p class="stats" role="status" data-author-backup-status>While you type, a recovery copy is kept on this device. Save Chapter saves the actual draft to your account.</p>'+
       '<div class="toolbar"><button class="button" type="submit">Save chapter draft</button>'+(current?'<button type="button" class="button outline" data-action="new-chapter">Write next chapter</button>':'')+'</div></form>':'')+
     '</section>'+
     (canEdit?'<section class="panel"><h2>Submit for editorial review</h2><p>At least 1 chapter and 300 original words are required before submission. An editor checks originality, rights, quality and safety before making the story public.</p>'+
@@ -125,12 +158,19 @@ async function saveChapter(form){
   if(!validChapter(chapter)){notice('A chapter needs a title and at least 100 characters of original text.',true);return;}
   const chapterId=String(chapter.number).padStart(4,'0');
   await setDoc(doc(db,'authorStories',state.story.id,'chapters',chapterId),chapter);
+  clearDraft(localStorage,state.user.uid,state.story.id,chapter.number);
   state.chapters=await chaptersFor(state.story.id);state.editing=0;
   notice('Chapter draft saved securely to your account.');renderEditor();
 }
 async function submitNovel(){
   const s=state.story;
   if(s?.status!=='draft'||!canSubmit(s,state.chapters)){notice('Write at least 300 original words across your chapters, then try again.',true);return;}
+  if(!changeChapterSafely())return;
+  const pending=pendingDraftNumbers(localStorage,state.user.uid,s.id,state.chapters);
+  if(pending.length){
+    notice('Unsaved writing remains on this device for Chapter '+pending.join(', ')+'. Save those chapters to your account or discard their backups before submitting.',true);
+    return;
+  }
   if(!confirm('Submit this novel for editorial approval? You cannot edit it while the submission is under review.'))return;
   await updateDoc(doc(db,'authorStories',s.id),{status:'submitted',updatedAt:serverTimestamp()});
   state.story={...s,status:'submitted'};notice('Your novel is submitted. It is not yet public.');renderEditor();
@@ -145,12 +185,22 @@ async function adminHome(){
   if(!state.isAdmin){host.innerHTML='<section class="panel"><h2>Editor access only</h2><p>This review dashboard is restricted to the administrator selected by the NovelHaven owner. Writers can manage their manuscripts from Author Studio.</p><a class="button" href="/author-studio.html">Author Studio</a></section>';return;}
   state.story=null;wait('Loading submitted manuscripts…');
   try{
-    const snap=await getDocs(query(collection(db,'authorStories'),where('status','==','submitted')));
-    const stories=snap.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
+    const [waiting,publishedSnapshot]=await Promise.all([
+      getDocs(query(collection(db,'authorStories'),where('status','==','submitted'))),
+      getDocs(query(collection(db,'authorStories'),where('status','==','published')))
+    ]);
+    const stories=waiting.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
+    const published=publishedSnapshot.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
     host.innerHTML='<section class="panel"><h2>Pending manuscripts ('+stories.length+')</h2>'+
-      '<p class="muted">No submission is published automatically. Review chapter text, rights declarations, originality and age-appropriateness before approving.</p>'+
+      '<p class="muted">No submission publishes automatically. Review chapter text, rights claims, originality and suitability before approving.</p>'+
       (stories.length?stories.map(s=>'<div class="story-card"><div><h3>'+esc(s.title)+'</h3><p>'+esc(s.penName)+' · '+esc(s.genre)+'</p><p>'+esc(s.summary.slice(0,170))+'</p></div><button class="button outline" data-review-open="'+esc(s.id)+'">Review</button></div>').join(''):
-        '<p>There are no pending submissions.</p>')+'</section>';
+        '<p>No submissions are waiting for review.</p>')+'</section>'+
+      '<section class="panel"><h2>Published novels ('+published.length+')</h2>'+
+      '<p class="muted">You can take down an approved story when a copyright or content issue is reported. Removal requires a reason and does not delete the author\'s private manuscript.</p>'+
+      (published.length?published.map(s=>'<div class="moderation-card"><div><strong>'+esc(s.title)+'</strong><p class="stats">by '+esc(s.penName)+' · '+esc(s.genre)+'</p></div>'+
+        '<label class="moderation-reason">Reason for unpublishing (required)<textarea maxlength="500" data-hide-reason="'+esc(s.id)+'" placeholder="Explain the rights or policy concern"></textarea></label>'+
+        '<button type="button" class="button outline" data-hide-published="'+esc(s.id)+'">Unpublish this novel</button></div>').join(''):
+        '<p>No original novels have been approved yet.</p>')+'</section>';
   }catch(e){fail(e);}
 }
 async function reviewOpen(id){
@@ -181,6 +231,24 @@ async function reviewDecision(status){
   await updateDoc(doc(db,'authorStories',state.story.id),{status,moderationNote:note,reviewedAt:serverTimestamp()});
   notice(status==='published'?'Story approved for public reading.':'Story returned to the author.');await adminHome();
 }
+async function hidePublished(id){
+  if(!state.isAdmin||!safeDocId(id))return;
+  const input=host.querySelector('[data-hide-reason="'+id+'"]');
+  const reason=cleanText(input?.value||'',500);
+  if(reason.trim().length<10){
+    notice('Provide a clear reason of at least 10 characters before unpublishing.',true);
+    return;
+  }
+  if(!confirm('Remove this original novel from public reading? The manuscript stays private for its author.'))return;
+  const ref=doc(db,'authorStories',id);
+  const current=await getDoc(ref);
+  if(!current.exists()||current.data().status!=='published'){
+    notice('This novel is no longer public. Refresh the queue.',true);return;
+  }
+  await updateDoc(ref,{status:'hidden',moderationNote:reason,reviewedAt:serverTimestamp()});
+  notice('Novel unpublished; its author can still see the private manuscript.');
+  await adminHome();
+}
 async function publicCatalog(){
   wait('Loading approved original stories…');
   try{
@@ -206,7 +274,8 @@ async function publicStory(){
     let last=1;try{last=Number(localStorage.getItem('novelhaven.original.progress.'+id))||1;}catch{}
     host.innerHTML='<section class="panel"><div class="toolbar"><a class="button outline" href="/original-novels.html">← Original Novels</a></div>'+
       '<h2>'+esc(story.title)+'</h2><p>by '+esc(story.penName)+' · '+esc(story.genre)+'</p><p>'+esc(story.summary)+'</p>'+
-      '<p class="stats">An original NovelHaven author submission, reviewed before publication. Chapters: '+chs.length+'</p></section>'+
+      '<p class="stats">An original NovelHaven author submission, reviewed before publication. Chapters: '+chs.length+'</p>'+
+      '<p class="stats"><a href="mailto:novelhaven15@gmail.com?subject='+encodeURIComponent('Report NovelHaven original story '+id)+'">Report a copyright or content concern about this novel</a></p></section>'+
       '<section class="panel"><h3>Chapters</h3><div class="toolbar" id="public-chapters">'+
       chs.map(c=>'<button class="button outline" data-read-chapter="'+c.number+'">Chapter '+c.number+'</button>').join('')+'</div></section>'+
       '<article class="panel"><h2 class="reader-title" id="reader-title"></h2><div class="story-text" id="reader-body"></div>'+
@@ -232,14 +301,36 @@ async function runView(){
   else if(view==='reader')await publicStory();
 }
 document.addEventListener('click',async event=>{
-  const button=event.target.closest('[data-action],[data-open],[data-edit-chapter],[data-review-open],[data-decision],[data-read-chapter]');
+  const button=event.target.closest('[data-action],[data-open],[data-edit-chapter],[data-review-open],[data-decision],[data-hide-published],[data-read-chapter]');
   if(!button)return;
   const action=button.dataset.action;
   try{
     if(action==='login'){const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});await signInWithPopup(auth,provider);}
-    else if(action==='logout')await signOut(auth);
-    else if(action==='back')await studioHome();
-    else if(action==='new-chapter'){state.editing=0;renderEditor();}
+    else if(action==='logout'){if(changeChapterSafely())await signOut(auth);}
+    else if(action==='back'){if(changeChapterSafely())await studioHome();}
+    else if(action==='new-chapter'){if(changeChapterSafely()){state.editing=0;renderEditor();}}
+    else if(action==='restore-draft'){
+      const form=chapterForm();
+      if(form){
+        const number=Number(new FormData(form).get('number'));
+        const local=readDraft(localStorage,state.user?.uid,state.story?.id,number);
+        if(local){
+          form.elements.namedItem('title').value=local.title;
+          form.elements.namedItem('body').value=local.body;
+          host.querySelector('[data-author-recovery]')?.remove();
+          notice('Recovered this device\'s chapter backup. Press Save Chapter to save to your account.');
+        }
+      }
+    }
+    else if(action==='discard-draft'){
+      const form=chapterForm();
+      if(form){
+        const number=Number(new FormData(form).get('number'));
+        clearDraft(localStorage,state.user?.uid,state.story?.id,number);
+        host.querySelector('[data-author-recovery]')?.remove();
+        notice('Local recovery copy discarded; the saved chapter was not changed.');
+      }
+    }
     else if(action==='submit')await submitNovel();
     else if(action==='revise')await reviseNovel();
     else if(action==='admin-back')await adminHome();
@@ -248,12 +339,21 @@ document.addEventListener('click',async event=>{
       showPublicChapter(state.chapters[index+(action==='previous-chapter'?-1:1)]?.number);
     }
     else if(button.dataset.open)await openStory(button.dataset.open);
-    else if(button.dataset.editChapter){state.editing=Number(button.dataset.editChapter);renderEditor();}
+    else if(button.dataset.editChapter){if(changeChapterSafely()){state.editing=Number(button.dataset.editChapter);renderEditor();}}
     else if(button.dataset.reviewOpen)await reviewOpen(button.dataset.reviewOpen);
     else if(button.dataset.decision)await reviewDecision(button.dataset.decision);
+    else if(button.dataset.hidePublished)await hidePublished(button.dataset.hidePublished);
     else if(button.dataset.readChapter)showPublicChapter(Number(button.dataset.readChapter));
   }catch(error){fail(error);}
 });
+document.addEventListener('input',event=>{
+  const form=event.target.closest?.('[data-form="chapter"]');
+  if(!form||!['title','body'].includes(event.target.name))return;
+  clearTimeout(backupTimer);
+  backupTimer=setTimeout(captureChapterRecovery,650);
+});
+window.addEventListener('pagehide',()=>captureChapterRecovery());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)captureChapterRecovery();});
 document.addEventListener('submit',async event=>{
   const form=event.target.closest('[data-form]');if(!form)return;event.preventDefault();
   const button=form.querySelector('[type=submit]');if(button)button.disabled=true;
@@ -265,6 +365,7 @@ document.addEventListener('submit',async event=>{
   }catch(error){fail(error);}finally{if(button)button.disabled=false;}
 });
 onAuthStateChanged(auth,async user=>{
+  captureChapterRecovery();
   state.user=user;state.isAdmin=false;authUI();
   if(user)try{
     const badge=await getDoc(doc(db,'authorAdmins',user.uid));

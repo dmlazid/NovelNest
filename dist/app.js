@@ -294,6 +294,13 @@ function home(){
       <div class="home-feed-head"><h2><span aria-hidden="true">✓</span> Completed Novels</h2><a href="./#/completed">See more</a></div>
       ${completed.length?`<div class="home-cover-grid">${completed.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No completed novels yet.</p>'}
     </section>
+    <section class="home-author-invite" aria-labelledby="original-author-title">
+      <div><span class="home-author-kicker">✦ ORIGINAL STORIES · AUTHOR STUDIO PILOT</span>
+        <h2 id="original-author-title">Have a story of your own?</h2>
+        <p>Write private chapters, save drafts, and submit original fiction for editorial review. Nothing publishes automatically. Owner activation is required during this pilot.</p></div>
+      <div class="home-author-actions"><a class="button" href="/author-studio.html">Start writing</a>
+        <a class="button outline" href="/original-novels.html">Browse original novels</a></div>
+    </section>
     <section class="home-feed-section editorial-home-section" aria-labelledby="reading-desk-title">
       <div class="home-feed-head"><h2 id="reading-desk-title"><span aria-hidden="true">✦</span> NovelHaven Reading Desk</h2><a href="/reading-desk.html">See all</a></div>
       <p class="editorial-home-intro">Original guides and recommendations written for NovelHaven readers — made to help you choose what to read next, understand popular web-novel genres, and decide between ongoing and completed stories.</p>

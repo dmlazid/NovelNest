@@ -1142,3 +1142,14 @@
 @media(max-width:400px){.home-release-details{gap:5px}.home-release-details .home-release-genres{max-width:24%;flex-basis:24%}.home-release-details .home-release-time{font-size:9px}}
 
 .bookmark-pending-list{display:grid;gap:10px;margin:16px 0 24px}.bookmark-pending{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--paper);border:1px solid var(--line);border-radius:10px}.bookmark-pending>span{color:var(--accent)}.bookmark-pending strong{font-size:14px;overflow-wrap:anywhere}.bookmark-pending small{margin-left:auto;color:var(--muted);font-size:12px}@media(max-width:560px){.bookmark-pending{flex-wrap:wrap}.bookmark-pending small{width:100%;margin-left:26px}}
+
+/* Moderated original fiction pilot — no changes to the NovelHaven reader UI. */
+.home-author-invite{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:32px 0;
+padding:25px 28px;background:linear-gradient(115deg,#e5f1ec,#fcfbf5);border:1px solid #cadfd6;border-radius:14px}
+.home-author-invite h2{font-size:24px;margin:5px 0 8px;color:#164f4a}
+.home-author-invite p{font-size:14px;line-height:1.65;color:#52635e;max-width:640px;margin:0}
+.home-author-kicker{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#21655d}
+.home-author-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}
+.home-author-actions .button{font-size:13px;white-space:nowrap}
+@media(max-width:760px){.home-author-invite{display:block;padding:21px 20px}
+.home-author-invite h2{font-size:21px}.home-author-actions{justify-content:flex-start;margin-top:17px}}

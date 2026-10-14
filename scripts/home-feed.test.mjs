@@ -271,3 +271,12 @@ test('Latest Novels displays only actual releases when fewer than six exist',()=
   assert.match(listing,/\/novel\/true-new\//);
   assert.doesNotMatch(listing,/\/novel\/old-import\//);
 });
+
+test('homepage describes the moderated Author Studio pilot without claiming it is activated',()=>{
+  const view=harness([source('home-source-test')]);
+  const html=view('home()');
+  assert.match(html,/AUTHOR STUDIO PILOT/);
+  assert.match(html,/href="\/author-studio\.html"/);
+  assert.match(html,/href="\/original-novels\.html"/);
+  assert.match(html,/Nothing publishes automatically/);
+});

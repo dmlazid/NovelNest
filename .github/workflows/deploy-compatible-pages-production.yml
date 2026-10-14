@@ -18,6 +18,11 @@ on:
       - 'dist/author-publishing.css'
       - 'dist/author-core.mjs'
       - 'dist/author-publishing.js'
+      - 'dist/author-draft-recovery.mjs'
+      - 'firebase/firestore.rules'
+      - 'scripts/author-publishing.test.mjs'
+      - 'scripts/author-draft-recovery.test.mjs'
+      - 'scripts/verify-live-author-pages.mjs'
       - 'dist/index.html'
       - 'dist/about.html'
       - 'dist/contact.html'
@@ -62,7 +67,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test real source release ordering and chapter safeguards
-        run: node --test scripts/home-feed.test.mjs scripts/chapter-duplicates.test.mjs scripts/policy-compliance.test.mjs scripts/novel-ad-policy.test.mjs scripts/discovery-curation.test.mjs
+        run: node --test scripts/home-feed.test.mjs scripts/chapter-duplicates.test.mjs scripts/policy-compliance.test.mjs scripts/novel-ad-policy.test.mjs scripts/discovery-curation.test.mjs scripts/author-publishing.test.mjs scripts/author-draft-recovery.test.mjs scripts/firebase-security.test.mjs
       - name: Build existing reader-compatible Pages package
         run: |
           node scripts/build-compatible-pages.mjs
@@ -92,6 +97,9 @@ jobs:
       - name: Verify ordinary and restricted novel routes do not request Google-served ads
         if: always() && steps.pages_upload.outcome == 'success'
         run: node scripts/verify-live-novel-ad-hold.mjs
+      - name: Verify the ad-free Author Studio and original fiction pilot live
+        if: always() && steps.pages_upload.outcome == 'success'
+        run: node scripts/verify-live-author-pages.mjs
       - name: Verify published copyright, contact, privacy and policy pages are ad-free
         if: always() && steps.pages_upload.outcome == 'success'
         run: node scripts/verify-live-policy-pages.mjs

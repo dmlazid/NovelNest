@@ -28,6 +28,8 @@ test('all Author Studio routes are ad-free, secure and noindex until reviewed',(
   assert.match(html,/name="robots" content="noindex,follow"/);
   assert.doesNotMatch(html,/adsbygoogle|pagead2\.googlesyndication/);
  }
+ for(const name of ['author-studio','author-admin','original-novels','original-story'])
+   assert.match(read('dist/'+name+'.html'),/author-publishing\.js\?v=2/);
  const js=read('dist/author-publishing.js');
  assert.match(js,/onAuthStateChanged/);
  assert.match(js,/where\('ownerUid','==',state\.user\.uid\)/);
@@ -35,6 +37,12 @@ test('all Author Studio routes are ad-free, secure and noindex until reviewed',(
  assert.match(js,/status:'submitted'/);
  assert.match(js,/status:'draft'/);
  assert.match(js,/status==='published'/);
+ assert.match(js,/captureChapterRecovery/);
+ assert.match(js,/data-action="restore-draft"/);
+ assert.match(js,/pendingDraftNumbers/);
+ assert.match(js,/data-hide-published/);
+ assert.match(js,/status:'hidden'/);
+ assert.match(js,/Report a copyright or content concern/);
  assert.match(js,/reader-body'\)\.textContent=chapter\.body/);
  assert.doesNotMatch(js,/innerHTML\s*=\s*chapter\.body|eval\(/);
 });
@@ -47,6 +55,8 @@ test('Firestore rules protect authors, moderation and existing bookmarks',()=>{
  assert.match(rules,/resource\.data\.status == 'published'/);
  assert.match(rules,/request\.resource\.data\.status == 'draft'/);
  assert.match(rules,/resource\.data\.status == 'submitted'/);
+ assert.match(rules,/isEditor\(\) && resource\.data\.status == 'published'/);
+ assert.match(rules,/request\.resource\.data\.status == 'hidden'/);
  assert.match(rules,/request\.resource\.data\.ownerUid == request\.auth\.uid/);
  assert.match(rules,/allow list, create, update, delete: if false/);
  assert.doesNotMatch(rules,/allow (read|write): if true/);

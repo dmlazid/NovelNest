@@ -50,12 +50,23 @@ them to improve search or AdSense publisher quality.
 - Drafts and approved stories are **ad-free** in this pilot, and all pilot pages
   are `noindex`. No publisher ID, `ads.txt`, Cloudflare domain, existing novel
   chapter data, or bookmarks are changed.
+- Author Studio keeps **device-only recovery copies** of unsaved chapter text as the
+  writer types. These are keyed by signed-in writer ID and story. After a crash,
+  the writer chooses **Restore writing** or **Discard backup**. An account save
+  still requires pressing **Save Chapter**. The recovery copy clears after
+  Firestore confirms that the chapter was saved. Mobile browser storage can
+  be deleted and is not a private encrypted vault on shared devices.
+- Submitting a novel is blocked while that device contains unsaved chapter
+  edits. This prevents accidentally submitting an earlier cloud draft.
+- The editor can **unpublish an approved story** if a rights or content complaint
+  arrives. The editor must record a reason, and the manuscript remains
+  available privately to the author. The public reader has a reporting email.
 - Chapter text renders as **text** (not trusted HTML); uploaded executable scripts,
   HTML markup or user-provided CSS are not executed.
 - This uses Firestore, **not Cloudflare D1**. No Cloudflare paid plan or new Cloudflare
   database is needed. Firestore quota, Google sign-in setup and Firebase billing
   limits still apply. Monitor database usage and abuse.
-- For production at scale, add content reporting, removal requests, rate limits,
+- For production at scale, add automated reporting queues, removal requests, rate limits,
   plagiarism screening, abuse moderation, scalable storage, and server-side
   approved-story prerendering. These are not implemented in this first pilot.
 
@@ -73,3 +84,21 @@ a setup-required error instead of falsely claiming a chapter was saved.
 
 For takedown or copyright inquiries, see the existing
 `/copyright.html` and `/contact.html` policies.
+
+## Release 2 testing and deployment
+
+- Writer A starts a chapter, types text, refreshes the tab and chooses
+  **Restore writing**. Saving the chapter then clears the local backup.
+  Writer B on the same device must never be offered Writer A's backup.
+- Test that an unsaved local recovery copy prevents submission. Confirm that
+  a failed Firestore save leaves the recovery copy intact.
+- As the configured administrator, publish an approved test manuscript,
+  then unpublish it with a clear reason. Anonymous visitors must no longer
+  read it; the author can still access it privately.
+- Run `node --test scripts/author-draft-recovery.test.mjs scripts/author-publishing.test.mjs`.
+- Deploy the revised `firebase/firestore.rules` in Firebase Console yourself.
+  **GitHub Actions and Cloudflare do not deploy those Firebase rules.**
+
+All Author Studio pilot pages remain ad-free and noindex. The pilot does not
+resolve publication rights for pre-existing imported novels or itself qualify
+NovelHaven for AdSense approval.
