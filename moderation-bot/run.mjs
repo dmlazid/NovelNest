@@ -19,7 +19,7 @@ const MAX_STORIES=100, MAX_CHAPTERS=300, SCAN_REV='2026-10-14-v1';
 const cursorRef=db.collection('moderationBotState').doc('cursor');
 // Keep an editor-readable heartbeat alongside moderation results, even when no books exist.
 // Firestore browser rules already restrict the moderationReviews collection to editors.
-const workerStatusRef=db.collection('moderationReviews').doc('__worker_status__');
+const workerStatusRef=db.collection('moderationReviews').doc('worker_status');
 const iso=()=>new Date().toISOString();
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 function noteFrom(result){
