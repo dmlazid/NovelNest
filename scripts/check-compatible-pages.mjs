@@ -16,7 +16,9 @@ assert(!catalog.includes('/chapter-'),'SPA fallback chapter URLs must not be sub
 const sample=read('novel/shadow-slave/index.html');
 assert.match(sample,/<meta name="description"/);
 assert.match(sample,/https:\/\/novelhaven\.top\/novel\/shadow-slave\//);
-assert(sample.includes(publisher),'Noncurated pages retain publisher setup');
+assert(!sample.includes(publisher),'Unreviewed novel details must not request publisher ads');
+assert.equal(build.novelAdsReviewed,0,'No title-specific commercial rights review was recorded');
+assert.equal(build.novelAdsHeld,build.novels,'All unreviewed novel details must stay ad-free');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
 assert(sample.includes('app.js?v=20261014-source-accurate-latest-1'),
   'Latest Novels must load the updated reader/discovery script');
@@ -67,9 +69,12 @@ assert.match(noads,/name="robots" content="noindex,follow"/);
 assert.doesNotMatch(noads,/pagead2\.googlesyndication\.com/);
 assert(noads.includes('app.js?'),'Restricted chapters must keep the working SPA');
 const rewrites=read('_redirects');
-assert(rewrites.includes('/novel/supreme-harem-god-system/chapter-:number/ /restricted-reader.html 200'));
-assert(rewrites.includes('/novel/my-rich-wife/chapter-752/ /restricted-reader.html 200'));
-assert(!rewrites.includes('/novel/shadow-slave/chapter-:number/'),'Do not redirect normal readers');
+assert(rewrites.includes('/novel/:novel/chapter-:number/ /restricted-reader.html 200'),
+  'Every chapter must load the ad-free reader shell pending novel monetization review');
+assert(!read('novel/shadow-slave/index.html').includes(publisher),
+  'A normally discoverable novel must not gain ads before title-level review');
+assert(rewrites.split('\n').filter(x=>x.includes('/restricted-reader.html 200')).length===1,
+  'Use one safe catchall rather than more than 100 Cloudflare dynamic redirect rules');
 assert.match(read('_headers'),/\/novel\/:novel\/chapter-\*\s+X-Robots-Tag: noindex, follow/);
 assert.equal(read('ads.txt'),fs.readFileSync('dist/ads.txt','utf8'));
 assert(read('index.html').includes(publisher),'Homepage AdSense must be unchanged');
