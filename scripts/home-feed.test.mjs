@@ -276,7 +276,7 @@ test('homepage welcomes new authors but preserves human editorial review',()=>{
   const view=harness([source('home-source-test')]);
   const html=view('home()');
   assert.match(html,/THE WRITERS’ CORNER/);
-  assert.match(html,/href="\/author-studio\.html"/);
+  assert.match(html,/href="\/author-studio\.html\?compose=1"/);
   assert.match(html,/href="\/original-novels\.html"/);
   assert.match(html,/submit it for editorial review/);
   assert.doesNotMatch(html,/automatically publish/i);
@@ -286,7 +286,7 @@ test('homepage makes original-story authorship inviting and keeps review before 
  const html=harness([book('one')])('home()');
  assert.match(html,/Your story could be their next favorite/);
  assert.match(html,/Start my novel/);
- assert.match(html,/href="\/author-studio\.html"/);
+ assert.match(html,/href="\/author-studio\.html\?compose=1"/);
  assert.match(html,/submit it for editorial review/);
  assert.doesNotMatch(html,/Owner activation is required/);
 });
