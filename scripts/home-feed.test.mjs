@@ -173,7 +173,7 @@ test('Latest Novels cards prioritize genuine five-day updates without using chap
   const html=view('home()');
   const area=html.split('<h2><span aria-hidden="true">↻</span> Latest Novels</h2>')[1]
     .split('</section>')[0];
-  assert.equal((area.match(/class="home-novel-tile"/g)||[]).length,6);
+  assert.equal((area.match(/class="home-novel-tile"/g)||[]).length,13);
   assert.doesNotMatch(area,/backfill-/);
   assert.match(area,/fresh-/);
 });

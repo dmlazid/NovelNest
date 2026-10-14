@@ -213,7 +213,7 @@ test('internal anchors use explicit same-site routes for precise mobile new-tab 
   assert.match(index, /src="clean-routes\.js(?:\?v=[^"]*)?"/);
   const cleanRoutes = fs.readFileSync('dist/clean-routes.js', 'utf8');
   assert.match(cleanRoutes, /legacyHashToClean/);
-  assert.match(cleanRoutes, /renderGenericRoute/);
+  assert.match(cleanRoutes, /NovelNestApp\.navigate/);
 });
 
 test('recent release rows show real date metadata without putting dates in unrelated novel lists', () => {
