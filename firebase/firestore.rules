@@ -1,9 +1,108 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAuthor(owner) { return signedIn() && request.auth.uid == owner; }
+    // An administrator UID must be added by the owner in Firebase Console.
+    // No web client can grant itself admin membership.
+    function isEditor() {
+      return signedIn() && exists(/databases/$(database)/documents/authorAdmins/$(request.auth.uid));
+    }
+    function originalFields() {
+      return ['ownerUid','title','penName','genre','summary','copyrightConfirmed',
+        'guidelinesAccepted','status','createdAt','updatedAt','reviewedAt','moderationNote'];
+    }
+    function validStory(data) {
+      return data.keys().hasAll(['ownerUid','title','penName','genre','summary',
+          'copyrightConfirmed','guidelinesAccepted','status','createdAt','updatedAt'])
+        && data.keys().hasOnly(originalFields())
+        && data.ownerUid is string && data.ownerUid.size() > 0
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 120
+        && data.penName is string && data.penName.size() >= 2 && data.penName.size() <= 60
+        && data.genre in ['Fantasy','Romance','Adventure','Mystery','Science Fiction','Historical','Slice of Life','Other']
+        && data.summary is string && data.summary.size() >= 30 && data.summary.size() <= 2000
+        && data.copyrightConfirmed == true && data.guidelinesAccepted == true
+        && data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+    function validChapter(data) {
+      return data.keys().hasAll(['number','title','body','updatedAt'])
+        && data.keys().hasOnly(['number','title','body','updatedAt'])
+        && data.number is int && data.number >= 1 && data.number <= 9999
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 120
+        && data.body is string && data.body.size() >= 100 && data.body.size() <= 45000
+        && data.updatedAt is timestamp;
+    }
+
+    // Existing reading-list/account-sync rules remain unchanged.
     match /users/{userId} {
-      allow read, write: if request.auth != null
-                        && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // The owner creates the admin record in Firebase Console using the real UID.
+    // Listing, creating, deleting or editing admin memberships from the public site is forbidden.
+    match /authorAdmins/{adminUid} {
+      allow get: if request.auth != null && request.auth.uid == adminUid;
+      allow list, create, update, delete: if false;
+    }
+
+    match /authorStories/{storyId} {
+      // The public can query only published novels. Owners see their own drafts;
+      // editor list queries can review submitted manuscripts.
+      allow get, list: if resource.data.status == 'published'
+        || isAuthor(resource.data.ownerUid) || isEditor();
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && validStory(request.resource.data);
+
+      // Authors can edit private drafts, submit for moderation, or revise a rejected story.
+      // Submitted and published manuscripts are frozen: approval is editor-only.
+      allow update: if (
+        isAuthor(resource.data.ownerUid)
+        && resource.data.status in ['draft','rejected']
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status in ['draft','submitted']
+        && (resource.data.status == 'draft' || request.resource.data.status == 'draft')
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['title','penName','genre','summary','status','updatedAt'])
+        && validStory(request.resource.data)
+      ) || (
+        isEditor() && resource.data.status == 'submitted'
+        && request.resource.data.status in ['published','rejected']
+        && request.resource.data.reviewedAt == request.time
+        && request.resource.data.moderationNote is string
+        && request.resource.data.moderationNote.size() <= 500
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['status','moderationNote','reviewedAt'])
+        && validStory(request.resource.data)
+      );
+      allow delete: if false;
+
+      match /chapters/{chapterId} {
+        // Never expose a rejected or unreviewed chapter to anonymous visitors.
+        allow get, list: if get(/databases/$(database)/documents/authorStories/$(storyId)).data.status == 'published'
+          || isAuthor(get(/databases/$(database)/documents/authorStories/$(storyId)).data.ownerUid)
+          || isEditor();
+
+        allow create: if signedIn()
+          && isAuthor(get(/databases/$(database)/documents/authorStories/$(storyId)).data.ownerUid)
+          && get(/databases/$(database)/documents/authorStories/$(storyId)).data.status == 'draft'
+          && request.resource.data.updatedAt == request.time
+          && validChapter(request.resource.data);
+
+        allow update: if signedIn()
+          && isAuthor(get(/databases/$(database)/documents/authorStories/$(storyId)).data.ownerUid)
+          && get(/databases/$(database)/documents/authorStories/$(storyId)).data.status == 'draft'
+          && request.resource.data.number == resource.data.number
+          && request.resource.data.updatedAt == request.time
+          && validChapter(request.resource.data);
+        allow delete: if false;
+      }
     }
   }
 }
