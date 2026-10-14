@@ -7,7 +7,7 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
   const app=getApps().length?getApp():initializeApp(window.NOVELNEST_FIREBASE);
   const auth=getAuth(app),db=getFirestore(app),host=document.getElementById('author-content');
   const reports=new Map();
-  let history=[],ready=false,busy=false,lastReview='',generation=0,problem='';
+  let history=[],heartbeat=null,ready=false,busy=false,lastReview='',generation=0,problem='';
   const escape=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const friendlyTime=t=>{try{return t?.toDate?.().toLocaleString()||'Not checked yet';}catch{return 'Unknown';}};
   const label=r=>r?.level==='action-required'?'Action required':
@@ -27,14 +27,22 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
       const issues=[...reports.values()].filter(r=>r.sourceStatus!=='draft'&&r.level!=='basic-checks-passed').length;
       const newest=[...reports.values()].map(r=>r.checkedAt?.toMillis?.()||0).reduce((a,b)=>Math.max(a,b),0);
       const recent=[...reports.values()].find(r=>(r.checkedAt?.toMillis?.()||0)===newest);
+      const lastScan=heartbeat?.checkedAt||recent?.checkedAt;
+      const scannedInRun=Number(heartbeat?.scanned||0);
+      const failedInRun=Number(heartbeat?.failed||0);
+      const healthMessage=heartbeat?.status==='healthy'
+        ?'<p class="bot-health">✓ Background moderation checked Firebase successfully. '+scannedInRun+' manuscript(s) screened in the latest run.</p>'
+        :heartbeat?.status==='needs-attention'
+          ?'<p class="bot-alert">The most recent background check had '+failedInRun+' error(s). Open GitHub Actions to inspect the job.</p>'
+          :'<p class="bot-disclaimer">No worker heartbeat has been recorded yet. The latest GitHub workflow must run with the updated code before this status appears.</p>';
       const el=document.createElement('section');el.id='bot-console';el.className='panel bot-console';
       el.innerHTML='<div class="bot-heading"><div><span class="author-eyebrow">AUTOMATIC + OWNER REVIEW</span><h2>Smart Moderation Center</h2></div><button class="button outline" type="button" data-bot-refresh>Refresh reports</button></div>'+
         '<div class="bot-stats"><div><strong>'+reports.size+'</strong><span>Manuscripts screened</span></div>'+
         '<div><strong>'+issues+'</strong><span>Reports needing attention</span></div>'+
-        '<div><strong>'+escape(recent?friendlyTime(recent.checkedAt):'Pending')+'</strong><span>Most recent scan</span></div></div>'+
+        '<div><strong>'+escape(lastScan?friendlyTime(lastScan):'Not recorded')+'</strong><span>Most recent scan</span></div></div>'+healthMessage+
         (problem?'<p class="bot-alert">'+escape(problem)+'</p>':'')+
         (reports.size?'<p>Automatic checks are recorded below. NovelHaven still sends uncertain submissions for your editorial review.</p>':
-          '<p>No automatic reports are available yet. Activate the scheduled worker using a private Firebase service-account secret in GitHub Actions. Until then, use the manual Review buttons below.</p>')+
+          '<p>No saved original manuscripts have been screened yet. If no authors have saved or submitted stories, this is normal. The publishing queue is ready for future manuscripts.</p>')+
         '<p class="bot-disclaimer">Personal drafts remain private and are never auto-published. Automatic publication is limited to owner-trusted author UIDs that you explicitly configure. A basic screening pass is not proof of copyright ownership.</p>'+
         '<h3>Recent automatic decisions</h3>'+
         (history.length?'<ul class="bot-history">'+history.slice(0,8).map(a=>'<li><strong>'+escape(a.action||'Checked')+
@@ -84,8 +92,16 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
         getDocs(query(collection(db,'moderationReviews'),orderBy('checkedAt','desc'),limit(500))),
         getDocs(query(collection(db,'moderationAudit'),orderBy('createdAt','desc'),limit(25)))
       ]);
-      reports.clear();
-      for(const item of items.docs)reports.set(item.id,item.data());
+      reports.clear();heartbeat=null;
+      for(const item of items.docs){
+        const data=item.data();
+        if(item.id==='__worker_status__'&&data.recordType==='worker-status'){
+          heartbeat=data;
+          continue;
+        }
+        if(data.recordType==='worker-status')continue;
+        reports.set(item.id,data);
+      }
       history=audit.docs.map(x=>x.data());problem='';
     }catch(e){problem='Automatic report access is unavailable. Publish the repository moderation Firestore rules, or check the owner account permissions.';console.warn('Moderation console read unavailable:',e?.code||'unknown');}
     finally{
@@ -97,7 +113,7 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
     }
   }
   onAuthStateChanged(auth,async user=>{
-    const current=++generation;ready=false;reports.clear();history=[];problem='';
+    const current=++generation;ready=false;reports.clear();history=[];heartbeat=null;problem='';
     host.querySelector('#bot-console')?.remove();
     if(!user)return;
     try{
