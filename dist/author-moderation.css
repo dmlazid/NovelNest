@@ -8,6 +8,7 @@
 .bot-stats span{font-size:12px;color:#647b75}
 .bot-disclaimer{font-size:13px;color:#5f706d;line-height:1.6}
 .bot-alert{color:#913c3b;padding:12px;background:#fff5ec;border-radius:10px}
+.bot-health{color:#176750;font-size:14px;font-weight:650;margin:12px 0;line-height:1.6}
 .bot-risk{display:inline-block;font-size:12px;font-weight:700;padding:4px 9px;margin:7px 4px 0 0;border-radius:999px;background:#ebefed;color:#576562}
 .bot-risk-warning{background:#fff0d2;color:#805919}
 .bot-risk-action{background:#ffe5de;color:#914c33}
