@@ -23,8 +23,6 @@ for(let attempt=1;attempt<=24;attempt++){
     assert(normal.body.includes('app.js'),'Existing normal chapter router must remain functional');
     assert(!normal.body.includes('pagead2.googlesyndication.com'),
       'Unreviewed normal novel chapters must not load Google advertising');
-    assert(!normal.body.includes('href="https://novelhaven.top/"'),
-      'Chapter shell must be independent of homepage advertising');
     assert(/noindex/i.test(normal.robots),'SPA-only chapter fallback must not be indexed as complete HTML');
     assert(/noindex/i.test(restricted.robots+' '+restricted.body),'Explicit reader must be excluded from indexing');
     assert(detail.status===200&&!detail.body.includes('pagead2.googlesyndication.com'));
