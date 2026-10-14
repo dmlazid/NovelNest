@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test scan.test.mjs",
+    "moderate": "node run.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "13.5.0"
+  }
+}
