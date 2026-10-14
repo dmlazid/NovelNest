@@ -1,0 +1,50 @@
+name: NovelHaven mobile UX regression
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/novelhaven-mobile-ux.yml'
+      - 'dist/accounts.js'
+      - 'dist/accounts.css'
+      - 'dist/author-publishing.js'
+      - 'dist/author-publishing.css'
+      - 'dist/author-studio.html'
+      - 'dist/author-admin.html'
+      - 'dist/app.js'
+      - 'dist/index.html'
+      - 'scripts/accounts.test.mjs'
+      - 'scripts/menu-navigation.test.mjs'
+      - 'scripts/author-publishing.test.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-mobile-ux
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out existing site
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript syntax without external services
+        run: |
+          node --check dist/accounts.js
+          node --check dist/author-publishing.js
+          node --check dist/app.js
+          node --check dist/moderation-dashboard.js
+      - name: Run mobile navigation, accounts, and publishing regressions
+        run: node --test scripts/menu-navigation.test.mjs scripts/accounts.test.mjs scripts/author-publishing.test.mjs
+      - name: Confirm no advertising injected into author tools
+        run: |
+          if grep -E 'adsbygoogle|pagead2\.googlesyndication' dist/author-admin.html dist/author-studio.html; then
+            echo "Unexpected ad scripts detected on author pages"
+            exit 1
+          fi
+      - name: Summary
+        run: echo "NovelHaven mobile UX code and offline regressions checked. Live device testing still required." >> "$GITHUB_STEP_SUMMARY"
