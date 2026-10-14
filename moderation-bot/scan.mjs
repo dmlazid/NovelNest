@@ -11,6 +11,8 @@ export function screenStory(story, chapters, {complete=true}={}){
   if(title.trim().length<3||title.length>120)bad('Story title is missing or invalid.');
   if(summary.trim().length<30||summary.length>2000)bad('Story summary needs 30–2,000 characters.');
   if(penName.trim().length<2||penName.length>60)bad('Author pen name is missing or invalid.');
+  if(!['Fantasy','Romance','Adventure','Mystery','Science Fiction','Historical','Slice of Life','Other'].includes(story?.genre))
+    bad('Choose one of the supported story genres.');
   if(story?.copyrightConfirmed!==true||story?.guidelinesAccepted!==true)
     bad('Author must confirm ownership or permission and accept guidelines.');
   if(!saved.length)bad('Add at least one saved chapter.');
