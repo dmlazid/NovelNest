@@ -37,41 +37,22 @@
     if (clean && history.replaceState) history.replaceState(history.state, '', clean);
   }
 
-  function renderGenericRoute(path, push = false) {
-    if (!window.NovelNestApp?.refresh || !history.replaceState) return false;
-    const target = new URL(path, location.origin);
-    if (target.origin !== location.origin || !isGenericRoute(target.pathname)) return false;
-    const clean = target.pathname + target.search;
-    // Do not render the same page again (including on initial load).
-    if (clean === location.pathname + location.search && !location.hash) {
-      if (push) window.scrollTo(0, 0);
-      return true;
-    }
-    if (push && history.pushState) history.pushState(null, '', clean);
-    else history.replaceState(history.state, '', clean);
-
-    // The app router natively reads clean paths. Never temporarily swap
-    // into hash routing: route-rendered listeners may otherwise rewrite
-    // history mid-render and cause a mobile navigation loop.
-    window.NovelNestApp.refresh({ animate: push });
-    rewriteLinks();
-    return true;
-  }
-
   document.addEventListener('click', event => {
-    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const anchor = event.target.closest?.('a[href]');
-    if (!anchor || (anchor.target && anchor.target !== '_self')) return;
-    // Menu dialog owns its navigation. Intercepting it at document capture
-    // prevented the dialog from closing and left the destination behind it.
-    if (anchor.closest('.site-drawer')) return;
-    const target = new URL(normalizeHref(anchor.getAttribute('href') || ''), location.href);
-    if (target.origin !== location.origin || !isGenericRoute(target.pathname)) return;
-
+    if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    const anchor=event.target.closest?.('a[href]');
+    if(!anchor||(anchor.target&&anchor.target!=='_self')||anchor.hasAttribute?.('download'))return;
+    // Let modal menus close themselves and preserve new-tab or external links.
+    if(anchor.closest('.site-drawer'))return;
+    const target=new URL(normalizeHref(anchor.getAttribute('href')||''),location.href);
+    const internal=target.origin===location.origin &&
+      (isGenericRoute(target.pathname)||/^\/novel\/[^/]+\/(?:chapter-\d+\/?)?$/.test(target.pathname));
+    if(!internal||!window.NovelNestApp?.navigate)return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    renderGenericRoute(target.pathname + target.search, true);
-  }, true);
+    // The app performs the one necessary ad-safe document load on a
+    // homepage-to-book/library transition. Otherwise routing stays in-page.
+    window.NovelNestApp.navigate(target.pathname+target.search+target.hash);
+  },true);
 
   window.addEventListener('hashchange', () => {
     queueMicrotask(() => {
@@ -96,9 +77,8 @@
   function boot() {
     const hadHashRoute = (location.hash || '').startsWith('#');
     cleanLegacyAddress();
-    if (!hadHashRoute && location.pathname !== '/' && isGenericRoute(location.pathname)) {
-      renderGenericRoute(location.pathname + location.search);
-    }
+    // app.js already rendered the active URL. A second boot render caused
+    // focus/scroll jumps, especially when opening Home and Library in tabs.
     rewriteLinks();
   }
 

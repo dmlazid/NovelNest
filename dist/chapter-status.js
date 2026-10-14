@@ -17,12 +17,20 @@
     records.set(novel.id, { started, finished, count: novel.chapters.length });
   }
 
-  function persist() {
-    const value = Object.fromEntries([...records].map(([id, entry]) => [id, {
-      started: [...entry.started].sort((a, b) => a - b),
-      finished: [...entry.finished].sort((a, b) => a - b),
-    }]));
-    try { localStorage.setItem(KEY, JSON.stringify(value)); window.NovelNestAccounts?.changed(); } catch {}
+  function persist(unfinish = null) {
+    // Read again before writing: another tab may have finished chapters while
+    // this tab still had an older in-memory copy. Keep unknown catalog IDs.
+    const stored=read(KEY);
+    for(const [id,entry] of records){
+      const before=stored[id]||{};
+      const started=new Set([...(before.started||[]),...entry.started]);
+      const finished=new Set([...(before.finished||[]),...entry.finished]);
+      if(unfinish?.id===id)finished.delete(unfinish.number);
+      for(const number of finished)started.add(number);
+      stored[id]={started:[...started].sort((a,b)=>a-b),finished:[...finished].sort((a,b)=>a-b)};
+      entry.started=started;entry.finished=finished;
+    }
+    try{localStorage.setItem(KEY,JSON.stringify(stored));window.NovelNestAccounts?.changed();}catch{}
   }
 
   // Preserve earlier reading history without assuming that opening a chapter finished it.
@@ -61,7 +69,7 @@
     entry.started.add(number);
     if (finished) entry.finished.add(number);
     else entry.finished.delete(number);
-    persist();
+    persist(finished?null:{id,number});
   }
 
   function reload() {

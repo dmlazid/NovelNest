@@ -22,7 +22,7 @@ function simulateClick(inDrawer) {
   };
   const win = {
     addEventListener() {},
-    NovelNestApp: { refresh() { routed++; } },
+    NovelNestApp: { navigate() { routed++; } },
   };
   vm.runInNewContext(source, { document: doc, window: win,
     location: loc, history, URL, queueMicrotask });

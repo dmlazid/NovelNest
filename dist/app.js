@@ -55,7 +55,7 @@ function navigate(url,replace=false){
   const u=new URL(url,location.href);
   const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);
   const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);
-  if(next===current){window.scrollTo(0,0);return}
+  if(next===current)return;
   // After an ad-tagged homepage, enter unreviewed novel and catalog pages
   // with one full load into their ad-free shell. Keep subsequent navigation
   // fast within those pages; never carry homepage ad code onto them.
@@ -70,7 +70,7 @@ function navigate(url,replace=false){
   }
   if(window.history?.pushState){
     window.history[replace?'replaceState':'pushState'](null,'',next);
-    route({animate:true});main.focus({preventScroll:true});return;
+    route({animate:false});main.focus({preventScroll:true});return;
   }
   location.href=next;
 }
@@ -267,7 +267,7 @@ function home(){
   // Latest Novels is a truthful, chronological source-release feed.
   // Do not hide genuine updates just because Featured already shows that book,
   // randomly shuffle release dates, or fill empty slots with old imports.
-  const latestNovels=releases.filter(n=>n.chapters?.length&&!n.externalUrl).slice(0,6);
+  const latestNovels=releases.filter(n=>n.chapters?.length&&!n.externalUrl);
   const displayed=new Set([...topFeatures,...topRows,...latestNovels].map(n=>n.id));
   const completed=shuffledNovels(sorted.filter(n=>n.status==='Completed'&&n.chapters?.length&&!n.externalUrl&&!displayed.has(n.id))).slice(0,6);
   return `<div class="home-feed">
@@ -503,8 +503,15 @@ function reader(id,number){
     // explain the deletion and provide a safe path to the real next chapter.
     return `<div class="reader-wrap"><article class="empty"><h1>Duplicate chapter removed</h1><p>Chapter ${i+1} was a repeated copy and has been deleted from NovelHaven.</p><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:''}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Continue to Chapter ${next+1}</a>`:`<a class="button" href="${bookUrl(n)}">Back to chapters</a>`}</div></article></div>`;
   }
-  progress[n.id]={chapter:i,at:Date.now()};
-  persist('novelnest.progress',progress);
+  // Re-renders, older browser tabs and revisited earlier chapters must never
+  // roll Continue Reading back or erase progress written by another tab.
+  const latestProgress=read('novelnest.progress',{});
+  if(latestProgress&&typeof latestProgress==='object'&&!Array.isArray(latestProgress))progress=latestProgress;
+  const previousProgress=progress[n.id];
+  if(!Number.isInteger(previousProgress?.chapter)||i>previousProgress.chapter){
+    progress={...progress,[n.id]:{chapter:i,at:Date.now()}};
+    persist('novelnest.progress',progress);
+  }
   return `<div class="reader-wrap">${novelBreadcrumb(n,window.NovelNestChapterLabels?.number(c,i+1)||i+1)}<div class="reader-tools"><div><label for="reader-theme">Appearance</label><select id="reader-theme"><option value="light" ${preferences.theme==='light'?'selected':''}>Light</option><option value="sepia" ${preferences.theme==='sepia'?'selected':''}>Sepia</option><option value="night" ${preferences.theme==='night'?'selected':''}>Night</option></select></div><div><button data-font="-2" aria-label="Decrease text size">A−</button><span id="font-size" class="meta">${preferences.size||20}px</span><button data-font="2" aria-label="Increase text size">A+</button></div><a class="text-link" href="${bookUrl(n)}">Chapters</a></div><article><div class="reader-heading"><span class="eyebrow">Chapter ${i+1}</span><h1>${esc(chapterTitle(c))}</h1><span class="meta">${esc(n.title)} · NovelHaven reader</span></div><div class="prose">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div></article><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:'<button class="button outline" disabled>Previous chapter</button>'}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Next chapter</a>`:`<a class="button" href="${bookUrl(n)}">Back to novel</a>`}</div><div class="end-note">${next<0?(n.status==='Completed'?'The end. Thank you for reading.':'You’re caught up. More chapters will appear here when available.'):'Your last opened chapter is saved on this device.'}</div></div>`;
 }
 // Background account/storage changes must not replace the whole Library page.
