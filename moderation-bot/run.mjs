@@ -17,6 +17,9 @@ const trusted=new Set((process.env.NOVELHAVEN_TRUSTED_AUTHOR_UIDS||'').split(','
 // Empty allowlist is deliberate: new authors ALWAYS need manual copyright/quality review.
 const MAX_STORIES=100, MAX_CHAPTERS=300, SCAN_REV='2026-10-14-v1';
 const cursorRef=db.collection('moderationBotState').doc('cursor');
+// Keep an editor-readable heartbeat alongside moderation results, even when no books exist.
+// Firestore browser rules already restrict the moderationReviews collection to editors.
+const workerStatusRef=db.collection('moderationReviews').doc('__worker_status__');
 const iso=()=>new Date().toISOString();
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 function noteFrom(result){
@@ -48,7 +51,7 @@ async function main(){
   let q=db.collection('authorStories').orderBy(FieldPath.documentId()).limit(MAX_STORIES);
   if(saved)q=q.startAfter(saved);
   const batch=await q.get();
-  let checked=0,changed=0,flagged=0,skipped=0;
+  let checked=0,changed=0,flagged=0,skipped=0,errors=0;
   for(const storyDoc of batch.docs){
     try{
       const story=storyDoc.data();
@@ -77,12 +80,29 @@ async function main(){
       }else skipped++;
       if(result.level!=='basic-checks-passed')flagged++;
       checked++;
-      console.log('Screened:',storyDoc.id,'status:',story.status,'screen:',result.level,'action:',action||'none');
-    }catch(e){console.error('Could not screen story',storyDoc.id, String(e?.message||e));}
+      console.log('Screened manuscript; status:',story.status,'screen:',result.level,'action:',action||'none');
+    }catch(e){
+      errors++;
+      // GitHub Actions logs may be public: never print private story IDs, titles, or manuscript text.
+      console.error('One manuscript could not be screened; error type:',String(e?.code||e?.name||'unknown'));
+    }
   }
-  await cursorRef.set({afterId:batch.size<MAX_STORIES?'':batch.docs.at(-1)?.id||'',
-    ranAt:FieldValue.serverTimestamp(),scanned:checked,flagged,updatedReports:changed});
-  console.log(JSON.stringify({time:iso(),checked,flagged,updatedReports:changed,unchanged:skipped,
-    nextRunContinues:batch.size===MAX_STORIES}));
+  // Do not skip failed manuscripts on the next run. The previous cursor is retained.
+  const nextCursor=errors?saved:(batch.size<MAX_STORIES?'':batch.docs.at(-1)?.id||'');
+  await cursorRef.set({afterId:nextCursor,
+    ranAt:FieldValue.serverTimestamp(),scanned:checked,flagged,updatedReports:changed,errors});
+  // Only health and counts go into the editor-readable status document.
+  // Never put private draft text, account UIDs, or service-account credentials here.
+  await workerStatusRef.set({
+    recordType:'worker-status',checkedAt:FieldValue.serverTimestamp(),
+    scanSucceeded:errors===0,status:errors?'needs-attention':'healthy',
+    scanned:checked,failed:errors,flagged,updatedReports:changed,
+    unchanged:skipped,storiesSeen:batch.size,
+    continuesNextRun:errors===0&&batch.size===MAX_STORIES,
+    scanVersion:SCAN_REV
+  });
+  console.log(JSON.stringify({time:iso(),checked,errors,flagged,updatedReports:changed,
+    unchanged:skipped,nextRunContinues:errors===0&&batch.size===MAX_STORIES}));
+  if(errors)throw new Error(errors+' manuscript(s) failed screening; retry is needed.');
 }
 await main();
