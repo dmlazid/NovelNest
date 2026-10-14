@@ -51,7 +51,28 @@ function readableChapter(n,i){
 }
 const chapterUrl=(n,i)=>`/novel/${encodeURIComponent(n.id)}/chapter-${readableChapter(n,i)+1}/`;
 const chapterPathMatch=pathname=>String(pathname||'').match(/^\/novel\/([^/]+)\/chapter-(\d+)\/?$/);
-function navigate(url,replace=false){const u=new URL(url,location.href);const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);if(next===current){window.scrollTo(0,0);return}if(window.history?.pushState){window.history[replace?'replaceState':'pushState'](null,'',next);route({animate:true});main.focus({preventScroll:true});return}location.href=next}
+function navigate(url,replace=false){
+  const u=new URL(url,location.href);
+  const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);
+  const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);
+  if(next===current){window.scrollTo(0,0);return}
+  // A homepage already loaded Google's publisher tag. Browser-history-only
+  // navigation would carry it onto unreviewed novel detail/chapter screens.
+  // Cross this boundary with ONE document load into the ad-free book shell;
+  // subsequent chapter-to-chapter navigation remains fast SPA navigation.
+  const goingToNovel=/^\/novel\/[^/]+\/(?:chapter-\d+\/?)?$/.test(u.pathname);
+  const publisherScript=document.querySelector?.('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]');
+  if(goingToNovel&&publisherScript?.tagName==='SCRIPT'){
+    if(replace&&typeof location.replace==='function')location.replace(next);
+    else location.href=next;
+    return;
+  }
+  if(window.history?.pushState){
+    window.history[replace?'replaceState':'pushState'](null,'',next);
+    route({animate:true});main.focus({preventScroll:true});return;
+  }
+  location.href=next;
+}
 const SYNOPSIS_PREVIEW_LENGTH = 340;
 function synopsisHtml(n){
   const full = String(n.synopsis || '').trim();
