@@ -29,6 +29,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             scripts/inspect-live-host.mjs
+            dist/index.html
             dist/source-activity.js
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
