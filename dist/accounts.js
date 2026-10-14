@@ -350,7 +350,7 @@
       <span class="writer-kicker">✦ YOUR WRITING JOURNEY</span><span class="writer-feather" aria-hidden="true">✒</span>
       <h3>Your story could be their next favorite.</h3>
       <p>Turn your imagination into a novel. Save chapters, develop characters and share your original story after editorial review.</p>
-      <div class="writer-actions"><a href="/author-studio.html" class="writer-primary-link" data-close-drawer>Start Writing <span aria-hidden="true">↗</span></a>
+      <div class="writer-actions"><a href="/author-studio.html?compose=1" class="writer-primary-link" data-close-drawer>Start Writing <span aria-hidden="true">↗</span></a>
       <a href="/author-guidelines.html" class="writer-help-link" data-close-drawer>How it works</a></div>
     </section>`;
   }
@@ -427,8 +427,17 @@
     const adminSlot=document.querySelector('#navigation-drawer [data-admin-slot]');
     if(adminSlot){
       const shouldHave=!!(editorAccess&&user),existing=adminSlot.querySelector?.('[data-owner-dropdown]');
-      if(shouldHave&&!existing)adminSlot.innerHTML=adminCard('owner-menu-card');
-      else if(!shouldHave&&existing)adminSlot.innerHTML='';
+      if(shouldHave&&!existing){
+        const scrollParent=adminSlot.closest('.site-drawer');
+        const before=scrollParent?.scrollTop||0;
+        adminSlot.innerHTML=adminCard('owner-menu-card');
+        if(scrollParent?.open)scrollParent.scrollTop=before;
+      }else if(!shouldHave&&existing){
+        const scrollParent=adminSlot.closest('.site-drawer');
+        const before=scrollParent?.scrollTop||0;
+        adminSlot.innerHTML='';
+        if(scrollParent?.open)scrollParent.scrollTop=before;
+      }
     }
     const profile = document.querySelector('.profile-button[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
@@ -450,6 +459,13 @@
   }
   function showMenu() {
     const panel = drawer('navigation-drawer', 'Navigation');
+    // Keep mounted menu nodes intact across openings. Rebuilding this large menu
+    // on every tap discards scroll/focus and makes mobile navigation jump.
+    if(panel.dataset.menuReady==='true'){
+      render();
+      openDrawer(panel);
+      return;
+    }
     const genres = [...new Set(books.flatMap(n => n.tags || []))].sort((a,b) => a.localeCompare(b));
     const menuLink = (href, label, symbol) => `<a href="${menuHref(href)}" data-close-drawer><span class="catalog-menu-icon">${icon(symbol)}</span><span>${label}</span></a>`;
     const genreLinks = genres.map(genre => `<a href="${menuHref(`./#/genre/${encodeURIComponent(genre)}`)}" data-close-drawer>${escape(genre)}</a>`).join('');
@@ -491,6 +507,7 @@
       <div class="menu-divider">YOUR READING</div>
       <div class="drawer-rows">${row('./#/latest','Latest chapters','Fresh from your favorite worlds','bell')}${row('./#/library?tab=history','History','Continue your reading journey','history')}${row('./#/about','About NovelHaven','Stories &amp; reading information','info')}</div>
     </div>`;
+    panel.dataset.menuReady='true';
     renderStatus();
     openDrawer(panel);
   }
