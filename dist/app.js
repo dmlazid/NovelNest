@@ -298,7 +298,7 @@ function home(){
       <div><span class="home-author-kicker">✦ NOVELHAVEN · THE WRITERS’ CORNER</span>
         <h2 id="original-author-title">Your story could be their next favorite.</h2>
         <p>Build a world. Bring characters to life. Write your original novel, save each chapter and submit it for editorial review. Your copyright stays yours.</p></div>
-      <div class="home-author-actions"><a class="button" href="/author-studio.html">Start my novel ↗</a>
+      <div class="home-author-actions"><a class="button" href="/author-studio.html?compose=1">Start my novel ↗</a>
         <a class="button outline" href="/original-novels.html">Browse original novels</a></div>
     </section>
     <section class="home-feed-section editorial-home-section" aria-labelledby="reading-desk-title">
