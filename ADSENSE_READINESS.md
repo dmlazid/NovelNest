@@ -87,3 +87,11 @@ Do not claim AdSense approval until Google has reviewed and marked the site Read
 - CI creates a `novel-monetization-review` artifact with the catalog inventory and remaining review queue. It contains no contracts or chapter text.
 - The public homepage and original Reading Desk guides keep the existing AdSense publisher tag and `ads.txt`. Privacy, contact and copyright pages stay free of advertising tags.
 - **This is a precautionary hold, not a declaration that the catalog is copyright-cleared, high-quality or AdSense-approved.** Manual verification and the rejected-account Policy center remain essential. Do not request another review until those gaps are resolved.
+
+## October 14 catalog-directory ad hold
+
+- Generated Browse, Latest Novels, Latest Releases, Completed, Finder and Genre directory pages no longer load Google advertising code while their source-derived novel listings await editorial originality and monetization review. Library stays ad-free.
+- This does **not** hide or delete any novels, change indexability of directory pages, stop source chapter updates, modify saved bookmarks, or turn off site owner verification.
+- Entering these directories or unreviewed novel detail/chapters from the ad-tagged homepage uses one fresh document load. Browsing from an already ad-free page continues through the existing SPA.
+- The homepage and independent original Reading Desk guides retain the existing AdSense publisher verification code; the public `ads.txt` is untouched.
+- A technical hold is not permission to republish or an AdSense approval. Work-specific rights, sensitive-text screening and meaningful original value remain unresolved until privately verified by the owner.

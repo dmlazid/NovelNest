@@ -56,13 +56,14 @@ function navigate(url,replace=false){
   const next=u.pathname+u.search+(u.hash.startsWith('#/')?'':u.hash);
   const current=location.pathname+location.search+(location.hash.startsWith('#/')?'':location.hash);
   if(next===current){window.scrollTo(0,0);return}
-  // A homepage already loaded Google's publisher tag. Browser-history-only
-  // navigation would carry it onto unreviewed novel detail/chapter screens.
-  // Cross this boundary with ONE document load into the ad-free book shell;
-  // subsequent chapter-to-chapter navigation remains fast SPA navigation.
+  // After an ad-tagged homepage, enter unreviewed novel and catalog pages
+  // with one full load into their ad-free shell. Keep subsequent navigation
+  // fast within those pages; never carry homepage ad code onto them.
   const goingToNovel=/^\/novel\/[^/]+\/(?:chapter-\d+\/?)?$/.test(u.pathname);
+  const goingToUnreviewedCatalog=/^\/(?:browse|latest-releases|latest-novels|completed|finder|library)(?:\/|$)/.test(u.pathname)||
+    /^\/genre\/[^/]+\/?$/.test(u.pathname);
   const publisherScript=document.querySelector?.('script[src*="pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"]');
-  if(goingToNovel&&publisherScript?.tagName==='SCRIPT'){
+  if((goingToNovel||goingToUnreviewedCatalog)&&publisherScript?.tagName==='SCRIPT'){
     if(replace&&typeof location.replace==='function')location.replace(next);
     else location.href=next;
     return;

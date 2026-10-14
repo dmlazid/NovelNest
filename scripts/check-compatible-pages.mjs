@@ -17,10 +17,27 @@ const sample=read('novel/shadow-slave/index.html');
 assert.match(sample,/<meta name="description"/);
 assert.match(sample,/https:\/\/novelhaven\.top\/novel\/shadow-slave\//);
 assert(!sample.includes(publisher),'Unreviewed novel details must not request publisher ads');
+for(const p of ['browse/index.html','latest-releases/index.html','latest-novels/index.html',
+  'completed/index.html','finder/index.html']){
+  const html=read(p);
+  assert(!html.includes(publisher),p+': unreviewed catalog directory must be ad-free');
+  assert(html.includes('app.js?'),'Directory must keep the existing interactive reader');
+  assert(html.includes('name="robots" content="index,follow'),
+    p+': do not hide the directory from readers or search');
+}
+const genreFiles=fs.readdirSync('dist/genre',{withFileTypes:true}).filter(x=>x.isDirectory());
+assert(genreFiles.length>0,'Genre directories must exist');
+for(const genre of genreFiles){
+  const p='genre/'+genre.name+'/index.html';
+  assert(!read(p).includes(publisher),p+': generated genre listings must be ad-free');
+}
+assert(!read('library/index.html').includes(publisher),'Library must stay ad-free');
+assert(read('reading-desk/index.html').includes(publisher),
+  'Original Reading Desk publisher verification must stay intact');
 assert.equal(build.novelAdsReviewed,0,'No title-specific commercial rights review was recorded');
 assert.equal(build.novelAdsHeld,build.novels,'All unreviewed novel details must stay ad-free');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
-assert(sample.includes('app.js?v=20261014-source-accurate-latest-1'),
+assert(sample.includes('app.js?v=20261014-catalog-ad-hold-1'),
   'Latest Novels must load the updated reader/discovery script');
 const sourceAsset=sourceFeedFilename(read('source-activity.js'));
 assert(sample.includes('src="'+sourceAsset+'"'),

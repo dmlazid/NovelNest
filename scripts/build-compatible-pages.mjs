@@ -81,12 +81,14 @@ for(const [route,title,expression] of [
   ['/completed/','Completed Novels',"directoryPage('completed')"],
   ['/reading-desk/','Reading Desk','readingDesk()'],
   ['/finder/','Novel Finder','finderPage(new URLSearchParams())']
-]) add(route,title,render(expression),title+' on NovelHaven.');
+]) add(route,title,render(expression),title+' on NovelHaven.',
+  'index,follow,max-image-preview:large',null,route==='/reading-desk/');
 add('/library/','My library',render('library()'),'Your saved NovelHaven bookmarks.','noindex,follow');
 for(const genre of new Set(novels.filter(n=>!n.discoveryHidden).flatMap(n=>n.tags||[]))){
   add('/genre/'+encodeURIComponent(genre)+'/',genre+' novels',
     render('genreDirectory('+JSON.stringify(genre)+',new URLSearchParams())'),
-    'Find '+genre+' stories in NovelHaven.');
+    'Find '+genre+' stories in NovelHaven.',
+    'index,follow,max-image-preview:large',null,false);
 }
 const editorials=render('Object.keys(EDITORIALS)');
 for(const id of editorials){
