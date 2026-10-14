@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {screenStory} from './scan.mjs';
-const novel={title:'The Moonlit Orchard',penName:'Writer One',
+const novel={title:'The Moonlit Orchard',penName:'Writer One',genre:'Fantasy',
   summary:'A farm grows stranger with each passing winter.',
   copyrightConfirmed:true,guidelinesAccepted:true};
 const chapter={number:1,title:'The First Frost',body:'A story of quiet courage. '.repeat(80)};
