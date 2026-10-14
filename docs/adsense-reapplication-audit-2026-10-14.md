@@ -25,6 +25,22 @@ Google's replicated-content policy separately requires original commentary, cura
 - Keep the present AdSense publisher code and ads.txt unchanged; do not cloak or substitute special content for Google's crawler.
 - Record the rights details privately; never upload confidential agreements or private keys into the public GitHub repository.
 
+
+### Updates after reviewing Google's rejection email (October 14)
+The three AdSense email screenshots show a generic "Update your AdSense application" request and Google's tip to focus on original content quality. Neither the screenshots nor the AdSense account homepage names a specific page or final policy finding. Do not label this as a confirmed "low value content" finding.
+
+New source changes:
+- Replaced the empty homepage HTML main region with genuine reading guidance and working static links as a meaningful fallback before the JavaScript application renders. This is visible to readers when JavaScript is delayed or disabled; it is not crawler-only content.
+- Expanded the original Reading Desk with links to practical genre/pacing/reading-list workflows.
+- Expanded three existing guides with original decision checklists, chapter-sample methods, time-management examples and relevant cross-links. Did not fabricate reviews of novels that editors have not read.
+- Updated the sitemap lastmod dates only for pages actually revised.
+- Preserved the existing AdSense verification code and matching ads.txt, plus noindex/ad-free author tools.
+- Verified 25/25 source checks for these changes. **Not verified**: live DNS/HTTP, device rendering, or GitHub Actions completion.
+
+Google's written policy also addresses *replicated content on individual ad-served screens*, even where publication rights exist. Continue creating authentic reader value, not keyword padding, at the level of site sections where third-party text appears. Before resubmission, verify that licensed novel pages are accessible, functional and accompanied by meaningful useful features/curation. Keep rights documentation privately.
+
+The assistant's runtime DNS failed for several unrelated domains as well as novelhaven.top, so external-site fetch failures in that environment are not proof NovelHaven is unavailable to visitors.
+
 ### Technical/live checks still needed
 - Confirm the new mobile UI deployment from an actual phone, including menu scrolling, Create Private Draft, admin login, bookmark preservation, and chapter reading.
 - Confirm GitHub "NovelHaven mobile UX regression" and "NovelHaven AdSense source readiness" Actions jobs passed (the current connector cannot list or verify the runs).
