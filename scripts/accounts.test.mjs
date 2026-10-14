@@ -225,3 +225,17 @@ test('removing a bookmark before Firebase restores sign-in records the user acti
  assert.deepEqual(JSON.parse(storage.get('novelnest.pending-saved-removals.alice')),['book']);
  await h.start();
 });
+
+test('Ctrl-click and middle-click novel links preserve the browser new-tab action',async()=>{
+ const h=harness();await h.start();
+ let navigations=0,prevented=0;
+ h.window.NovelNestApp.navigate=()=>navigations++;
+ const anchor={target:'',getAttribute:()=>'/novel/book/chapter-1/'};
+ const target={closest:selector=>selector==='a[href^="/novel/"]'?anchor:null};
+ for(const overrides of [{button:0,ctrlKey:true},{button:1,ctrlKey:false},{button:0,metaKey:true}]){
+   h.fire('click',{target,button:overrides.button,ctrlKey:overrides.ctrlKey,
+     metaKey:overrides.metaKey,shiftKey:false,altKey:false,preventDefault(){prevented++;}});
+ }
+ assert.equal(navigations,0);
+ assert.equal(prevented,0);
+});

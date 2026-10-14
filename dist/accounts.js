@@ -409,7 +409,11 @@
       drawer?.querySelectorAll('[data-catalog-panel]').forEach(section => { section.hidden = section.dataset.catalogPanel !== catalogTab.dataset.catalogTab; });
     }
     const cleanNovelLink = target.closest('a[href^="/novel/"]');
-    if (cleanNovelLink && window.NovelNestApp?.navigate) {
+    // Respect Ctrl/Shift/middle-click and target=_blank. Otherwise opening
+    // a novel in a new tab unexpectedly navigated the CURRENT tab as well.
+    const normalLinkTap=event.button===0 && !event.metaKey && !event.ctrlKey &&
+      !event.shiftKey && !event.altKey && (!cleanNovelLink?.target || cleanNovelLink.target==='_self');
+    if (cleanNovelLink && normalLinkTap && window.NovelNestApp?.navigate) {
       event.preventDefault();
       closeDrawers();
       window.NovelNestApp.navigate(cleanNovelLink.getAttribute('href'));
