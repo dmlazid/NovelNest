@@ -1,5 +1,11 @@
 name: NovelHaven author moderation
 on:
+  # A workflow edit triggers a fresh, non-interactive verification run.
+  # Other repository changes do not initiate unrequested production moderation.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/author-moderation.yml'
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
@@ -17,18 +23,24 @@ jobs:
       NOVELHAVEN_TRUSTED_AUTHOR_UIDS: ${{ vars.NOVELHAVEN_TRUSTED_AUTHOR_UIDS }}
     steps:
       - uses: actions/checkout@v4
-      - name: Unit tests
+      - name: Run manuscript screening tests
         run: node --test moderation-bot/scan.test.mjs
+      - name: Run author publishing and Firestore rules regressions
+        run: node --test scripts/author-publishing.test.mjs
+      - name: Validate moderation source syntax
+        run: |
+          node --check moderation-bot/run.mjs
+          node --check dist/moderation-dashboard.js
       - name: Check activation
         id: activate
         shell: bash
         run: |
           if [ -z "$NOVELHAVEN_FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "active=false" >> "$GITHUB_OUTPUT"
-            echo "Moderation bot not active: configure the Firebase service-account GitHub Actions secret." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Moderation bot is not active: configure the private Firebase service-account secret."
+            echo "Moderation bot was not activated; no scan was performed." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
+          echo "active=true" >> "$GITHUB_OUTPUT"
       - name: Install isolated Firebase Admin dependency
         if: steps.activate.outputs.active == 'true'
         run: npm install --prefix moderation-bot --no-audit --no-fund
