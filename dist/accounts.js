@@ -428,12 +428,12 @@
     if(adminSlot){
       const shouldHave=!!(editorAccess&&user),existing=adminSlot.querySelector?.('[data-owner-dropdown]');
       if(shouldHave&&!existing){
-        const scrollParent=adminSlot.closest('.site-drawer');
+        const scrollParent=adminSlot.closest?.('.site-drawer');
         const before=scrollParent?.scrollTop||0;
         adminSlot.innerHTML=adminCard('owner-menu-card');
         if(scrollParent?.open)scrollParent.scrollTop=before;
       }else if(!shouldHave&&existing){
-        const scrollParent=adminSlot.closest('.site-drawer');
+        const scrollParent=adminSlot.closest?.('.site-drawer');
         const before=scrollParent?.scrollTop||0;
         adminSlot.innerHTML='';
         if(scrollParent?.open)scrollParent.scrollTop=before;
