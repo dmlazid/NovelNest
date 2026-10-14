@@ -21,18 +21,21 @@ for(let attempt=1;attempt<=24;attempt++){
     assert(!restricted.body.includes('pagead2.googlesyndication.com'),'Explicit chapter must not load AdSense');
     assert(!duplicate.body.includes('pagead2.googlesyndication.com'),'Duplicate chapter must not load AdSense');
     assert(normal.body.includes('app.js'),'Existing normal chapter router must remain functional');
-    assert(normal.body.includes('pagead2.googlesyndication.com'),'Regular pages retain existing publisher verification');
+    assert(!normal.body.includes('pagead2.googlesyndication.com'),
+      'Unreviewed normal novel chapters must not load Google advertising');
+    assert(!normal.body.includes('href="https://novelhaven.top/"'),
+      'Chapter shell must be independent of homepage advertising');
     assert(/noindex/i.test(normal.robots),'SPA-only chapter fallback must not be indexed as complete HTML');
     assert(/noindex/i.test(restricted.robots+' '+restricted.body),'Explicit reader must be excluded from indexing');
     assert(detail.status===200&&!detail.body.includes('pagead2.googlesyndication.com'));
     assert(ads.status===200&&ads.body.trim()===expectedAds,'Ads.txt publisher settings changed unexpectedly');
-    console.log('Verified live ad-safe restricted chapters; normal reader, source scripts and ads.txt remain intact.');
+    console.log('Verified live ad-free novel chapter reader on restricted and normal titles; original reader and ads.txt remain intact.');
     success=true;break;
   }catch(e){console.log('Awaiting Cloudflare production restricted-route publication ('+attempt+'/24): '+e.message.slice(0,180));}
   await new Promise(r=>setTimeout(r,15000));
 }
 if(!success)throw Error('Restricted chapter rewrites have not yet passed production verification');
 if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-  '### Live restricted chapter verification\n\nNo AdSense script is present on restricted chapters. '+
-  'Normal chapters still load the original reader and ads.txt is unchanged. '+
+  '### Live novel chapter ad exclusion\n\nNo AdSense script is present on restricted or normal novel chapters. '+
+  'All chapters still load the original reader and ads.txt is unchanged. '+
   'Unrendered SPA chapter routes are temporarily noindex pending D1 verification.\n');
