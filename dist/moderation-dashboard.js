@@ -24,7 +24,7 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
     if(!ready||!host)return;
     const dashboard=host.querySelector('.dashboard-summary');
     if(dashboard&&!host.querySelector('#bot-console')){
-      const issues=[...reports.values()].filter(r=>r.level!=='basic-checks-passed').length;
+      const issues=[...reports.values()].filter(r=>r.sourceStatus!=='draft'&&r.level!=='basic-checks-passed').length;
       const newest=[...reports.values()].map(r=>r.checkedAt?.toMillis?.()||0).reduce((a,b)=>Math.max(a,b),0);
       const recent=[...reports.values()].find(r=>(r.checkedAt?.toMillis?.()||0)===newest);
       const el=document.createElement('section');el.id='bot-console';el.className='panel bot-console';
