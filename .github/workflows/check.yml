@@ -28,6 +28,16 @@ jobs:
       - run: node --check scripts/activate-compatible-pages.mjs
       - run: node --check scripts/guard-compatible-pages-production.mjs
       - run: node --check scripts/verify-live-source-feed.mjs
+      - run: node --check scripts/audit-novel-ads.mjs
+      - name: Generate novel-by-novel monetization review queue (no chapter text)
+        env:
+          POLICY_AUDIT_REPORT_PATH: novel-monetization-review.json
+        run: node scripts/audit-novel-ads.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: novel-monetization-review
+          path: novel-monetization-review.json
+          if-no-files-found: error
       - run: node scripts/build.mjs
         env:
           NOVELNEST_CLOUDFLARE: '1'
