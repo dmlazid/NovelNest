@@ -563,7 +563,10 @@ function library(params = new URLSearchParams()) {
   const tabs=`<nav class="library-tabs" aria-label="Your library"><a href="./#/library" ${!history?'aria-current="page"':''}>Bookmarks <span>${saved.length}</span></a><a href="./#/library?tab=history" ${history?'aria-current="page"':''}>History</a></nav>`;
   const shelf=history?(books.length?`<div class="history-list">${books.map(n=>`<a class="history-row" href="${chapterUrl(n,lastRead(n).chapter)}">${image(n)}<div><h2>${esc(n.title)}</h2><p>Continue chapter ${lastRead(n).chapter+1}</p></div><span aria-hidden="true">›</span></a>`).join('')}</div>`:'<div class="empty"><h2>Your story starts here.</h2><p>Chapters you open will appear here.</p><a class="button" href="./#/browse">Explore novels</a></div>'):
     `<div data-library-shelf>${bookmarkShelf()}</div>`;
-  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${tabs}${!history?continueBox():''}${shelf}`;
+  // Keep the account row IN the first Library paint. Async Firebase state
+  // changes must never insert or remove content above bookmarked novels.
+  const accountRow='<div id="account-panel" class="library-account-status" role="group" aria-label="Reading account status"><span class="sync-dot" aria-hidden="true"></span><p data-account-status title="Reading data status">Checking saved reading data…</p><button type="button" data-open-library-account aria-label="Open My Account">My Account</button></div>';
+  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${accountRow}${tabs}${!history?continueBox():''}${shelf}`;
 }
 function missing(){return `<div class="empty"><h1>Page not found</h1><p>This story or chapter is not in the catalog.</p><a class="button" href="./#/browse">Browse novels</a></div>`}
 function about(){return `<article class="policy-page">

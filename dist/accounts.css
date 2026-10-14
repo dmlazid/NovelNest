@@ -203,3 +203,27 @@
   .catalog-genre-grid a:nth-child(3n){border-right:1px dashed #d7dfdc}
   .catalog-genre-grid a:nth-child(2n){border-right:0}
 }
+
+
+/* Stable Library: auth may load seconds after the catalog. Do not insert a
+   tall sign-in block or let changing status messages move the bookshelf. */
+.library-account-status{
+  display:flex;align-items:center;gap:8px;min-width:0;
+  min-height:24px;height:24px;box-sizing:border-box;
+  margin:0 0 10px;color:var(--muted);
+}
+.library-account-status .sync-dot{flex:0 0 6px}
+.library-account-status [data-account-status]{
+  flex:1;min-width:0;margin:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  line-height:18px;font-size:12px;
+}
+.library-account-status [data-open-library-account]{
+  flex:0 0 auto;min-height:24px;padding:0 4px;
+  background:transparent;border:0;color:var(--green);
+  font:600 12px 'DM Sans',sans-serif;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;
+}
+.library-account-status [data-open-library-account]:focus-visible{
+  outline:2px solid var(--green);outline-offset:2px;border-radius:3px;
+}

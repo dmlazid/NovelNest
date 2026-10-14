@@ -239,3 +239,16 @@ test('Ctrl-click and middle-click novel links preserve the browser new-tab actio
  assert.equal(navigations,0);
  assert.equal(prevented,0);
 });
+
+test('Firebase sign-in and background sync never create a new Library account panel',async()=>{
+  const storage=new Map();save(storage,fixture());
+  storage.set('novelnest.account-owner','"alice"');
+  const h=harness({storage,uid:'alice',cloud:new Map([['alice',{version:1,...fixture()}]])});
+  await h.start();
+  assert.equal(h.nodes.has('#account-panel'),false,
+    'Library account panel must be pre-rendered by app.js, not inserted by Firebase');
+  await h.window.NovelNestAccounts.synchronize(true);
+  assert.equal(h.nodes.has('#account-panel'),false,
+    'Background account synchronization must not re-create its Library panel');
+  assert.match(h.nodes.get('[data-account-status]').textContent,/synced/i);
+});

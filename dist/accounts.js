@@ -294,19 +294,9 @@
     const main = document.querySelector('#main');
     const profile = document.querySelector('[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
-    if (location.hash.split('?')[0] === '#/library' || /^\/library\/?$/.test(location.pathname||'')) {
-      let section = document.querySelector('#account-panel');
-      if (!section) { section = document.createElement('section'); section.id = 'account-panel'; main.querySelector('.intro')?.insertAdjacentElement('afterend', section); }
-      section.className = user ? 'library-sync' : 'library-signin';
-      const statusMarkup = user ? '<span class="sync-dot" aria-hidden="true"></span><p data-account-status role="status" aria-live="polite"></p>' : `<div><strong>Your bookmarks, everywhere.</strong><p>Sign in to sync your bookmarks.</p></div>${googleButton()}<p class="signin-status" data-account-status role="status" aria-live="polite"></p>`;
-      // Preserve the status node while its text changes; rebuilding it on each
-      // sync used to make the mobile Library jump and reflow its cards.
-      const viewMode=user?'signed':!ready?'connecting':busy?'busy':'guest';
-      if(section.dataset?.viewMode!==viewMode){
-        section.innerHTML=statusMarkup;
-        if(section.dataset)section.dataset.viewMode=viewMode;
-      }
-    }
+    // The Library paints a fixed account-status row itself. Updating auth
+    // should change ONLY its text, never append a panel or replace its HTML.
+    // This avoids jumping on delayed Firebase sign-in / mobile refresh.
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {
       const settingsOpen = !!panel.querySelector('details[open]');
@@ -400,7 +390,7 @@
   }
   document.addEventListener('click', event => {
     const target = event.target;
-    if (target.closest('[data-profile]')) showProfile();
+    if (target.closest('[data-profile]') || target.closest('[data-open-library-account]')) showProfile();
     if (target.closest('[data-menu]')) showMenu();
     const catalogTab = target.closest('[data-catalog-tab]');
     if (catalogTab) {

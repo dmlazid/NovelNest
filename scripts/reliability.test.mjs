@@ -544,3 +544,20 @@ test('mobile reader JavaScript remains parseable and retains the ad-safe chapter
   assert.match(app,/restricted-reader/);
   assert.match(app,/chapter-\\d/);
 });
+
+test('Library account status has a stable pre-rendered footprint through auth changes',()=>{
+  const h=harness('#/library',{'novelnest.saved':JSON.stringify(['got-a-gallery-in-the-wild'])});
+  const html=h.node('#main').innerHTML;
+  assert.match(html,/id="account-panel" class="library-account-status"/);
+  assert.match(html,/data-account-status/);
+  assert.match(html,/data-open-library-account/);
+  assert(html.indexOf('id="account-panel"')<html.indexOf('class="library-tabs"'));
+  const accounts=fs.readFileSync('dist/accounts.js','utf8');
+  const rendering=accounts.slice(accounts.indexOf('  function render() {'),accounts.indexOf('  function showMenu() {'));
+  assert.doesNotMatch(rendering,/insertAdjacentElement|section\.innerHTML|library-signin|library-sync/,
+    'Firebase auth render must not add or resize any Library account panel');
+  assert.match(accounts,/\[data-open-library-account\]/,'Account sign-in must remain accessible');
+  const style=fs.readFileSync('dist/accounts.css','utf8');
+  assert.match(style,/\.library-account-status \[data-account-status\]/);
+  assert.match(style,/white-space:nowrap/,'Sync status must not wrap into extra rows');
+});
