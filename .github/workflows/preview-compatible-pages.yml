@@ -132,3 +132,7 @@ jobs:
         env:
           POLICY_REVIEW_ORIGIN: ${{ steps.pages_preview.outputs.deployment-url }}
         run: node scripts/verify-live-policy-pages.mjs
+      - name: Verify preview excludes Google-served ads from unreviewed novel pages
+        env:
+          NOVEL_AD_HOLD_ORIGIN: ${{ steps.pages_preview.outputs.deployment-url }}
+        run: node scripts/verify-live-novel-ad-hold.mjs
