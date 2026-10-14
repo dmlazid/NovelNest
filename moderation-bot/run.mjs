@@ -2,7 +2,7 @@
 // Requires a GitHub Actions secret; never bundle service-account credentials in dist/.
 import {createHash} from 'node:crypto';
 import {cert,initializeApp} from 'firebase-admin/app';
-import {getFirestore,FieldValue} from 'firebase-admin/firestore';
+import {getFirestore,FieldValue,FieldPath} from 'firebase-admin/firestore';
 import {screenStory} from './scan.mjs';
 
 const raw=process.env.NOVELHAVEN_FIREBASE_SERVICE_ACCOUNT;
@@ -18,7 +18,6 @@ const trusted=new Set((process.env.NOVELHAVEN_TRUSTED_AUTHOR_UIDS||'').split(','
 const MAX_STORIES=100, MAX_CHAPTERS=300, SCAN_REV='2026-10-14-v1';
 const cursorRef=db.collection('moderationBotState').doc('cursor');
 const iso=()=>new Date().toISOString();
-const stamp=FieldValue.serverTimestamp();
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 function noteFrom(result){
   return ('Automatic check: '+result.reasons.join(' ')+' Review your saved chapters and resubmit.').slice(0,500);
@@ -45,7 +44,7 @@ async function changeStatus(storyDoc,original,to,result){
 }
 async function main(){
   const saved=(await cursorRef.get()).data()?.afterId||'';
-  let q=db.collection('authorStories').orderBy(FieldValue.documentId()).limit(MAX_STORIES);
+  let q=db.collection('authorStories').orderBy(FieldPath.documentId()).limit(MAX_STORIES);
   if(saved)q=q.startAfter(saved);
   const batch=await q.get();
   let checked=0,changed=0,flagged=0,skipped=0;
