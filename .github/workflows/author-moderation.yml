@@ -1,0 +1,40 @@
+name: NovelHaven author moderation
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-author-moderation
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NOVELHAVEN_FIREBASE_SERVICE_ACCOUNT: ${{ secrets.NOVELHAVEN_FIREBASE_SERVICE_ACCOUNT }}
+      NOVELHAVEN_TRUSTED_AUTHOR_UIDS: ${{ vars.NOVELHAVEN_TRUSTED_AUTHOR_UIDS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: node --test moderation-bot/scan.test.mjs
+      - name: Check activation
+        id: activate
+        shell: bash
+        run: |
+          if [ -z "$NOVELHAVEN_FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            echo "Moderation bot not active: configure the Firebase service-account GitHub Actions secret." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install isolated Firebase Admin dependency
+        if: steps.activate.outputs.active == 'true'
+        run: npm install --prefix moderation-bot --no-audit --no-fund
+      - name: Screen unpublished and published originals
+        if: steps.activate.outputs.active == 'true'
+        run: node moderation-bot/run.mjs
+      - name: Summarize
+        if: steps.activate.outputs.active == 'true'
+        run: echo "NovelHaven automatic moderation screening completed. See the Owner Dashboard for results." >> "$GITHUB_STEP_SUMMARY"
