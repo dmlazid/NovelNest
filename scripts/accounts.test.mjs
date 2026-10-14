@@ -117,14 +117,14 @@ test('background position autosaves never repaint or flicker the Library page',a
   assert.equal(h.uiUpdates.full,before,'Bookmark changes must not remount the Library');
   assert.equal(h.uiUpdates.shelf,1,'Refresh only the saved bookshelf');
 });
-test('cloud session with newer timestamp cannot return Continue Reading to older chapter',async()=>{
+test('cloud session uses the actual last opened chapter when its timestamp is newer',async()=>{
   const storage=new Map();
   const data=fixture();data.data.progress.book={chapter:2,at:100};
   save(storage,data);storage.set('novelnest.account-owner','"alice"');
   const remote=empty();remote.data.progress.book={chapter:1,at:200};
   const cloud=new Map([['alice',{version:1,...remote}]]);
   const h=harness({storage,uid:'alice',cloud});await h.start();
-  assert.equal(h.state().data.progress.book.chapter,2);
+  assert.equal(h.state().data.progress.book.chapter,1);
   assert.equal(h.uiUpdates.full,0,'Progress synchronization does not flash the entire library');
 });
 
@@ -169,4 +169,21 @@ test('a stale local sync baseline cannot remove cloud bookmarks when the account
   const next=harness({storage,uid:'alice',cloud});await next.start();
   assert.deepEqual(next.state().data.saved,['book']);
   assert.deepEqual(cloud.get('alice').data.saved,['book']);
+});
+
+test('transient null authentication does not delete a signed-in library or reload the tab',async()=>{
+  const storage=new Map();save(storage,fixture());
+  storage.set('novelnest.account-owner','"alice"');
+  const h=harness({storage,uid:'alice',error:'unavailable'});await h.start();
+  await h.account(null);
+  assert.equal(h.reloads,0);
+  assert.deepEqual(h.state().data.saved,['book']);
+  assert.match(h.nodes.get('[data-account-status]').textContent,/remain saved/);
+});
+test('opening a new tab does not overwrite any saved bookmark, progress or Finished key',async()=>{
+  const storage=new Map();save(storage,fixture());
+  const before=new Map([...storage].filter(([k])=>Object.values(keys).includes(k)));
+  const h=harness({storage});
+  await h.start();
+  for(const [k,value] of before)assert.equal(storage.get(k),value);
 });

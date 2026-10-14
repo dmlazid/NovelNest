@@ -70,3 +70,16 @@ test('malformed or blocked storage does not break the controls', () => {
   blocked.ready(); blocked.click(); assert.equal(blocked.label.textContent, 'Finished');
   blocked.click(); assert.equal(blocked.label.textContent, 'In progress');
 });
+
+test('a stale tab opening a different chapter cannot undo a Finished chapter',()=>{
+  const storage=new Map();
+  const earlier=setup(storage);
+  const latest=setup(storage);
+  latest.api.setFinished('story',1,true);
+  earlier.api.opened('story',2);
+  assert.equal(setup(storage).api.status('story',1),'finished');
+  // And an explicit undo in one tab cannot be resurrected by an older tab.
+  latest.api.setFinished('story',1,false);
+  earlier.api.opened('story',1);
+  assert.equal(setup(storage).api.status('story',1),'in-progress');
+});

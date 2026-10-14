@@ -16,13 +16,9 @@
       for (const [key, value] of Object.entries(local.data[field])) {
         if (JSON.stringify(value) === JSON.stringify(base.data[field][key])) continue;
         const previous = result.data[field][key];
-        // Continue Reading is the furthest chapter reached. A later cloud
-        // update from a tab still showing an older chapter must not roll it
-        // back (e.g. 26 to 18). Paragraph positions remain last-write-wins.
-        const advances = field === 'progress'
-          ? (!previous || value.chapter > previous.chapter ||
-              (value.chapter === previous.chapter && value.at >= previous.at))
-          : (!previous || value.at >= previous.at);
+        // Last opened follows actual navigation time, including chosen
+        // backwards chapters. The old maximum-chapter logic was incorrect.
+        const advances=!previous||value.at>=previous.at;
         if (advances) result.data[field][key] = copy(value);
       }
     }

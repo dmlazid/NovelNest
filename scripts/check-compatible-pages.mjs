@@ -37,7 +37,7 @@ assert(read('reading-desk/index.html').includes(publisher),
 assert.equal(build.novelAdsReviewed,0,'No title-specific commercial rights review was recorded');
 assert.equal(build.novelAdsHeld,build.novels,'All unreviewed novel details must stay ad-free');
 assert(sample.includes('app.js?'),'Interactive SPA must remain loaded');
-assert(sample.includes('app.js?v=20261014-library-stability-3'),
+assert(sample.includes('app.js?v=20261014-reader-reliability-1'),
   'Latest Novels must load the updated reader/discovery script');
 const sourceAsset=sourceFeedFilename(read('source-activity.js'));
 assert(sample.includes('src="'+sourceAsset+'"'),
@@ -79,6 +79,8 @@ const restricted=read('novel/supreme-harem-god-system/index.html');
 assert.match(restricted,/<meta name="robots" content="noindex,follow"/);
 assert(!restricted.includes(publisher),'Restricted detail must not include ads script');
 const library=read('library/index.html');
+assert(library.includes('Loading your bookmarks'),'Library must not pretend bookmarks are empty before hydration');
+assert(!library.includes('A shelf waiting for stories'),'Do not prerender an empty guest bookshelf');
 assert.match(library,/name="robots" content="noindex,follow"/);
 assert(!library.includes(publisher));
 const noads=read('restricted-reader.html');

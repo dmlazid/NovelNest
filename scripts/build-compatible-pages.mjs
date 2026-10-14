@@ -83,7 +83,10 @@ for(const [route,title,expression] of [
   ['/finder/','Novel Finder','finderPage(new URLSearchParams())']
 ]) add(route,title,render(expression),title+' on NovelHaven.',
   'index,follow,max-image-preview:large',null,route==='/reading-desk/');
-add('/library/','My library',render('library()'),'Your saved NovelHaven bookmarks.','noindex,follow');
+// Static HTML cannot know local bookmarks. Avoid briefly displaying 0 saved
+// novels as a false state before the client has hydrated the shelf.
+add('/library/','My library','<section class="library-loading" role="status">Loading your bookmarks…</section>',
+  'Your saved NovelHaven bookmarks.','noindex,follow');
 for(const genre of new Set(novels.filter(n=>!n.discoveryHidden).flatMap(n=>n.tags||[]))){
   add('/genre/'+encodeURIComponent(genre)+'/',genre+' novels',
     render('genreDirectory('+JSON.stringify(genre)+',new URLSearchParams())'),

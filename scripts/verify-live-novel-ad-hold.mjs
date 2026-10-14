@@ -12,7 +12,7 @@ async function get(path){
   const response=await fetch(origin+path+(path.includes('?')?'&':'?')+'review='+Date.now(),{
     signal:AbortSignal.timeout(20000),headers:{'Cache-Control':'no-cache'}
   });
-  return {status:response.status,body:await response.text(),
+  return {status:response.status,url:response.url,body:await response.text(),
     robots:response.headers.get('x-robots-tag')||''};
 }
 let verified=false,reason='';
@@ -52,6 +52,12 @@ for(let attempt=1;attempt<=12;attempt++){
         path+': unreviewed catalog or library page must remain free of Google ads');
       assert(response.body.includes('app.js'),path+': catalog search/reader interface missing');
     }
+    // A rewrite must preserve the browser URL; exposing restricted-reader
+    // as a redirect causes a real mobile Page not found regression.
+    assert.equal(new URL(chapter.url).pathname,'/novel/shadow-slave/chapter-1/',
+      'Normal chapter redirected into the internal Cloudflare reader shell');
+    assert.equal(new URL(restrictedChapter.url).pathname,'/novel/supreme-harem-god-system/chapter-1/',
+      'Restricted chapter redirected into the internal Cloudflare reader shell');
     assert(/noindex/i.test(chapter.robots+' '+chapter.body),
       'Unrendered SPA chapter must remain noindex');
     assert(/noindex/i.test(restricted.robots+' '+restricted.body),

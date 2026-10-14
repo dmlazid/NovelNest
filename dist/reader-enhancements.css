@@ -239,3 +239,9 @@
 }
 .synopsis-toggle:hover{opacity:.85}
 .synopsis-toggle:focus-visible{outline:2px solid var(--green);outline-offset:4px;border-radius:2px}
+
+/* Mobile-friendly direct chapter navigation, without replacing the existing range picker. */
+.reader-go-chapter{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:10px 0 16px;flex-wrap:wrap}
+.reader-go-chapter label{display:flex;align-items:center;gap:10px;font-size:.88rem;font-weight:600;color:var(--text,#193e3a)}
+.reader-go-chapter input{box-sizing:border-box;width:100px;max-width:100%;min-height:40px;padding:6px 8px;border:1px solid #b5cbc4;border-radius:8px;font:inherit;background:var(--surface,#fff);color:inherit}
+.reader-go-chapter button{min-height:40px;padding:6px 16px;border:0;border-radius:8px;background:#16564d;color:white;font:inherit;font-weight:700;cursor:pointer}

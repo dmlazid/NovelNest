@@ -17,15 +17,22 @@
     records.set(novel.id, { started, finished, count: novel.chapters.length });
   }
 
-  function persist(unfinish = null) {
-    // Read again before writing: another tab may have finished chapters while
-    // this tab still had an older in-memory copy. Keep unknown catalog IDs.
+  function persist(action=null){
+    // Change only the chapter touched in this tab; avoid re-uploading a
+    // stale Finished state for another chapter from old in-memory records.
     const stored=read(KEY);
-    for(const [id,entry] of records){
+    const ids=action?[action.id]:[...records.keys()];
+    for(const id of ids){
+      const entry=records.get(id);
+      if(!entry)continue;
       const before=stored[id]||{};
-      const started=new Set([...(before.started||[]),...entry.started]);
-      const finished=new Set([...(before.finished||[]),...entry.finished]);
-      if(unfinish?.id===id)finished.delete(unfinish.number);
+      const valid=n=>Number.isInteger(n)&&n>0&&n<=entry.count;
+      const started=new Set([...(before.started||[]),...entry.started].filter(valid));
+      const finished=new Set((before.finished||[]).filter(valid));
+      if(!action)for(const number of entry.finished)finished.add(number);
+      else if(action.kind==='finish')finished.add(action.number);
+      else if(action.kind==='unfinish')finished.delete(action.number);
+      if(action)started.add(action.number);
       for(const number of finished)started.add(number);
       stored[id]={started:[...started].sort((a,b)=>a-b),finished:[...finished].sort((a,b)=>a-b)};
       entry.started=started;entry.finished=finished;
@@ -60,7 +67,7 @@
     const entry = validEntry(id, number);
     if (!entry || entry.started.has(number)) return;
     entry.started.add(number);
-    persist();
+    persist({id,number,kind:'open'});
   }
 
   function setFinished(id, number, finished) {
@@ -69,7 +76,7 @@
     entry.started.add(number);
     if (finished) entry.finished.add(number);
     else entry.finished.delete(number);
-    persist(finished?null:{id,number});
+    persist({id,number,kind:finished?'finish':'unfinish'});
   }
 
   function reload() {

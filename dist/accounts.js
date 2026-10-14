@@ -7,6 +7,7 @@
   const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let owner = '', user = null, sdk = null, auth = null, db = null, ready = false;
   let applying = false, running = false, busy = false, generation = 0, timer = 0, lastSync = 0;
+  let requestedSignOut=false;
   let message = 'Connecting account service…', lastSaved = [], lastTracked = '', baseline = sync.empty();
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
   function normalize(value) {
@@ -34,14 +35,12 @@
   }
   function apply(state) {
     const previous = current();
-    // An older remote session must not roll this book's Continue Reading
-    // backward while cloud synchronization finishes.
-    for (const [id, progress] of Object.entries(previous.data.progress)) {
-      const incoming = state.data.progress?.[id];
-      if (Number.isInteger(progress?.chapter) &&
-          (!incoming || progress.chapter > incoming.chapter)) {
-        state.data.progress[id] = progress;
-      }
+    // A deliberately opened earlier chapter is still "last opened"
+    // when it has a more recent timestamp than the cloud snapshot.
+    for(const [id,progress] of Object.entries(previous.data.progress)){
+      const incoming=state.data.progress?.[id];
+      if(Number.isInteger(progress?.chapter)&&(!incoming||progress.at>incoming.at))
+        state.data.progress[id]=progress;
     }
     const savedChanged = JSON.stringify(previous.data.saved) !== JSON.stringify(state.data.saved);
     const progressChanged = JSON.stringify(previous.data.progress) !== JSON.stringify(state.data.progress);
@@ -345,7 +344,14 @@
       sdk.onAuthStateChanged(auth, next => {
         generation++; user = next; ready = true;
         try {
-          if (owner !== (next?.uid || '')) { switchOwner(next?.uid || ''); return; }
+          // An expired Firebase session must not erase the local shelf merely
+          // because a mobile tab was suspended or lost its sign-in state.
+          if(!next&&owner&&!requestedSignOut){
+            message='Sign-in unavailable. Your bookmarks remain saved on this device.';
+            busy=false;render();return;
+          }
+          if (owner !== (next?.uid || '')) {requestedSignOut=false;switchOwner(next?.uid || '');return;}
+          requestedSignOut=false;
           baseline = normalize(read(baseKey(owner), sync.empty()));
           message = user ? 'Loading your cloud library…' : 'Reading as a guest. Saved on this device.';
           busy = false; render();
@@ -382,9 +388,9 @@
       render();
     }
     if (target.closest('[data-signout]') && !busy) {
-      busy = true; window.NovelNestPositions?.capture(); cache();
+      busy = true; requestedSignOut=true; window.NovelNestPositions?.capture(); cache();
       // Pending changes stay in this account's local cache even when offline.
-      sdk.signOut(auth).catch(fail).finally(() => { busy = false; render(); });
+      sdk.signOut(auth).catch(error=>{requestedSignOut=false;fail(error);}).finally(() => { busy = false; render(); });
     }
     if (target.closest('[data-sync-now]')) synchronize(true);
     if (target.closest('[data-import-guest]') && user && owner === user.uid) {
@@ -433,8 +439,11 @@
   try {
     owner = read(OWNER, '');
     if (typeof owner !== 'string') owner = '';
-    write(initializeSeen(current())); cache();
-    lastSaved = current().data.saved.slice();
+    // A new browser tab should not rewrite every reading-data key.
+    const initial=current();
+    lastSaved=initial.data.saved.slice();
+    lastTracked=JSON.stringify(initial);
+    cache();
   } catch { message = 'Browser storage is unavailable. Enable site storage to use accounts.'; }
   render();
   setTimeout(start, 0);

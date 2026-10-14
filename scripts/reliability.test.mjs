@@ -506,3 +506,22 @@ test('a bookmark for a temporarily missing novel remains visible in My Bookmarks
   assert.doesNotMatch(html,/A shelf waiting for stories/);
   assert.deepEqual(JSON.parse(h.storage.get('novelnest.saved')),['temporarily-unloaded-series']);
 });
+
+test('reading an earlier chapter deliberately updates Continue Reading, not the maximum ever reached',()=>{
+  const h=harness();
+  const n=h.window.NOVELS.find(x=>x.id==='got-a-gallery-in-the-wild');
+  assert(n);
+  h.go('#/read/'+n.id+'/10');
+  if(n.chapters[9].lazy)h.complete(h.scripts.at(-1));
+  h.go('#/read/'+n.id+'/2');
+  if(n.chapters[1].lazy)h.complete(h.scripts.at(-1));
+  const state=JSON.parse(h.storage.get('novelnest.progress'));
+  assert.equal(state[n.id].chapter,1,'Last opened must be chapter 2, not chapter 10');
+  h.go('#/library');
+  assert.match(h.node('#main').innerHTML,/Continue reading/i);
+});
+test('My Bookmarks always has a stable shelf container even when no novels are saved',()=>{
+  const h=harness('#/library');
+  assert.match(h.node('#main').innerHTML,/data-library-shelf/);
+  assert.match(h.node('#main').innerHTML,/A shelf waiting for stories/);
+});

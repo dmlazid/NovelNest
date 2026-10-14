@@ -220,7 +220,10 @@
         <select class="reader-chapter-select" data-chapter-jump="${n.id}" aria-label="Jump to chapter">${chapterOptions(n, current)}</select>
         <button class="reader-settings-button" type="button" data-reader-settings-toggle aria-label="Reader settings">⚙</button>
         ${current < n.chapters.length ? `<a class="reader-nav-button" href="${readerHref(n.id, current + 1)}" aria-label="Next chapter">›</a>` : '<span class="reader-nav-button disabled" aria-hidden="true">›</span>'}
-      </div>${settingsPanel(prefs())}`;
+      </div><form class="reader-go-chapter" data-reader-go-chapter="${esc(n.id)}">
+        <label>Go to chapter <input type="number" inputmode="numeric" min="1" max="${n.chapters.length}" placeholder="1–${n.chapters.length}" aria-label="Chapter number" required></label>
+        <button type="submit">Go</button>
+      </form>${settingsPanel(prefs())}`;
       oldTools.replaceWith(modern);
     }
 
@@ -285,6 +288,16 @@
     }
   });
 
+  main.addEventListener('submit', e => {
+    const form=e.target.closest?.('[data-reader-go-chapter]');
+    if(!form)return;
+    e.preventDefault();
+    const n=(window.NOVELS||[]).find(book=>book.id===form.dataset.readerGoChapter);
+    const number=Number(form.querySelector('input')?.value);
+    if(!n||!Number.isInteger(number)||number<1||number>n.chapters.length)return;
+    if(window.NovelNestApp?.navigate)window.NovelNestApp.navigate(readerHref(n.id,number));
+    else location.href=readerHref(n.id,number);
+  });
   main.addEventListener('change', e => {
     const range = e.target.closest('[data-toc-range]');
     if (range) {

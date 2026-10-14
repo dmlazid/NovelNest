@@ -11,6 +11,8 @@ let saved=read('novelnest.saved',[]); if(!Array.isArray(saved)) saved=[]; saved=
 let progress=read('novelnest.progress',{}); if(!progress||typeof progress!=='object'||Array.isArray(progress))progress={};
 let preferences=read('novelnest.preferences',{}); if(!preferences||typeof preferences!=='object')preferences={};
 let storageWarning=false;
+let lastOpenedRoute='';
+const LAST_READER_ROUTE='novelhaven.last-reader-route';
 function persist(key,value){try{localStorage.setItem(key,JSON.stringify(value));if(key!=='novelnest.preferences')window.NovelNestAccounts?.changed();return true}catch{if(!storageWarning){toast('Storage is unavailable. Your bookmark was not saved.');storageWarning=true}return false}}
 function toast(text){const el=document.querySelector('#toast');el.textContent=text;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3200)}
 function applySettings(){document.body.dataset.theme=['night','sepia'].includes(preferences.theme)?preferences.theme:'light';document.documentElement.style.setProperty('--reader-size',`${Math.min(28,Math.max(16,Number(preferences.size)||20))}px`)}
@@ -503,15 +505,18 @@ function reader(id,number){
     // explain the deletion and provide a safe path to the real next chapter.
     return `<div class="reader-wrap"><article class="empty"><h1>Duplicate chapter removed</h1><p>Chapter ${i+1} was a repeated copy and has been deleted from NovelHaven.</p><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:''}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Continue to Chapter ${next+1}</a>`:`<a class="button" href="${bookUrl(n)}">Back to chapters</a>`}</div></article></div>`;
   }
-  // Re-renders, older browser tabs and revisited earlier chapters must never
-  // roll Continue Reading back or erase progress written by another tab.
-  const latestProgress=read('novelnest.progress',{});
-  if(latestProgress&&typeof latestProgress==='object'&&!Array.isArray(latestProgress))progress=latestProgress;
-  const previousProgress=progress[n.id];
-  if(!Number.isInteger(previousProgress?.chapter)||i>previousProgress.chapter){
-    progress={...progress,[n.id]:{chapter:i,at:Date.now()}};
+  const readerRoute=n.id+':'+(i+1);
+  if(lastOpenedRoute!==readerRoute){
+    lastOpenedRoute=readerRoute;
+    const latest=read('novelnest.progress',{});
+    if(latest&&typeof latest==='object'&&!Array.isArray(latest))progress=latest;
+    // Last opened is the chapter actually chosen, not the highest number.
+    const previous=progress[n.id];
+    const at=Math.max(Date.now(),(Number(previous?.at)||0)+1);
+    progress={...progress,[n.id]:{chapter:i,at}};
     persist('novelnest.progress',progress);
   }
+  try{sessionStorage.setItem(LAST_READER_ROUTE,chapterUrl(n,i));}catch{}
   return `<div class="reader-wrap">${novelBreadcrumb(n,window.NovelNestChapterLabels?.number(c,i+1)||i+1)}<div class="reader-tools"><div><label for="reader-theme">Appearance</label><select id="reader-theme"><option value="light" ${preferences.theme==='light'?'selected':''}>Light</option><option value="sepia" ${preferences.theme==='sepia'?'selected':''}>Sepia</option><option value="night" ${preferences.theme==='night'?'selected':''}>Night</option></select></div><div><button data-font="-2" aria-label="Decrease text size">A−</button><span id="font-size" class="meta">${preferences.size||20}px</span><button data-font="2" aria-label="Increase text size">A+</button></div><a class="text-link" href="${bookUrl(n)}">Chapters</a></div><article><div class="reader-heading"><span class="eyebrow">Chapter ${i+1}</span><h1>${esc(chapterTitle(c))}</h1><span class="meta">${esc(n.title)} · NovelHaven reader</span></div><div class="prose">${c.paragraphs.map(p=>`<p>${esc(p)}</p>`).join('')}</div></article><div class="chapter-nav">${previous>=0?`<a class="button outline" href="${chapterUrl(n,previous)}">Previous chapter</a>`:'<button class="button outline" disabled>Previous chapter</button>'}${next>=0?`<a class="button" href="${chapterUrl(n,next)}">Next chapter</a>`:`<a class="button" href="${bookUrl(n)}">Back to novel</a>`}</div><div class="end-note">${next<0?(n.status==='Completed'?'The end. Thank you for reading.':'You’re caught up. More chapters will appear here when available.'):'Your last opened chapter is saved on this device.'}</div></div>`;
 }
 // Background account/storage changes must not replace the whole Library page.
@@ -526,34 +531,29 @@ function refreshLibraryProgress(){
 }
 // Replace only the shelf when another tab/account sync adds bookmarks.
  // Rebuilding the entire route changes image heights and jumps the page.
+function bookmarkShelf(){
+  const books=novels.filter(n=>saved.includes(n.id));
+  const missing=saved.filter(id=>!novels.some(n=>n.id===id));
+  const pending=missing.length?`<div class="bookmark-pending-list">${missing.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\\b\\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('')}</div>`:'';
+  return books.length||missing.length?`<div class="catalog-grid">${books.map(card).join('')}</div>`+pending:
+    '<div class="empty"><h2>A shelf waiting for stories.</h2><p>Bookmark a novel to find it here and follow new chapters.</p><a class="button" href="./#/browse">Explore novels</a></div>';
+}
 function refreshLibraryBookmarks(){
   if(!(/^#\/library(?:\?|$)/.test(location.hash||'')||/^\/library\/?$/.test(location.pathname||'')))return;
   if((location.hash||'').includes('tab=history')||(location.search||'').includes('tab=history'))return;
-  const shelf=main.querySelector?.('.catalog-grid');
-  const items=novels.filter(n=>saved.includes(n.id));
   const tally=main.querySelector?.('.library-tabs span');
   if(tally)tally.textContent=String(saved.length);
-  if(!shelf||!items.length){route({preserveScroll:true});return;}
-  const html=items.map(card).join('');
-  if(shelf.innerHTML!==html)shelf.innerHTML=html;
-  const missing=saved.filter(id=>!novels.some(n=>n.id===id));
-  const pending=main.querySelector?.('.bookmark-pending-list');
-  if(pending){
-    if(!missing.length)pending.remove();
-    else pending.innerHTML=missing.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\\b\\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('');
-  }
+  const shelf=main.querySelector?.('[data-library-shelf]');
+  if(shelf){const html=bookmarkShelf();if(shelf.innerHTML!==html)shelf.innerHTML=html;}
   refreshLibraryProgress();
 }
 function library(params = new URLSearchParams()) {
-  const history = params.get('tab') === 'history';
-  const books = history ? novels.filter(n=>lastRead(n)).sort((a,b)=>lastRead(b).at-lastRead(a).at) : novels.filter(n=>saved.includes(n.id));
-  const tabs = `<nav class="library-tabs" aria-label="Your library"><a href="./#/library" ${!history?'aria-current="page"':''}>Bookmarks <span>${saved.length}</span></a><a href="./#/library?tab=history" ${history?'aria-current="page"':''}>History</a></nav>`;
-  const items = history ? `<div class="history-list">${books.map(n=>`<a class="history-row" href="${chapterUrl(n,lastRead(n).chapter)}">${image(n)}<div><h2>${esc(n.title)}</h2><p>Continue chapter ${lastRead(n).chapter+1}</p></div><span aria-hidden="true">›</span></a>`).join('')}</div>` : `<div class="catalog-grid">${books.map(card).join('')}</div>`;
-  // A book missing from today's catalog must still be visible as bookmarked.
-  // Keep its stored ID untouched; its regular card returns with the catalog.
-  const missingIds=history?[]:saved.filter(id=>!novels.some(n=>n.id===id));
-  const pending=missingIds.length?`<div class="bookmark-pending-list">${missingIds.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\b\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('')}</div>`:'';
-  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${tabs}${!history?continueBox():''}${books.length||missingIds.length?items+pending:`<div class="empty"><h2>${history?'Your story starts here.':'A shelf waiting for stories.'}</h2><p>${history?'Chapters you open will appear here.':'Bookmark a novel to find it here and follow new chapters.'}</p><a class="button" href="./#/browse">Explore novels</a></div>`}`;
+  const history=params.get('tab')==='history';
+  const books=history?novels.filter(n=>lastRead(n)).sort((a,b)=>lastRead(b).at-lastRead(a).at):[];
+  const tabs=`<nav class="library-tabs" aria-label="Your library"><a href="./#/library" ${!history?'aria-current="page"':''}>Bookmarks <span>${saved.length}</span></a><a href="./#/library?tab=history" ${history?'aria-current="page"':''}>History</a></nav>`;
+  const shelf=history?(books.length?`<div class="history-list">${books.map(n=>`<a class="history-row" href="${chapterUrl(n,lastRead(n).chapter)}">${image(n)}<div><h2>${esc(n.title)}</h2><p>Continue chapter ${lastRead(n).chapter+1}</p></div><span aria-hidden="true">›</span></a>`).join('')}</div>`:'<div class="empty"><h2>Your story starts here.</h2><p>Chapters you open will appear here.</p><a class="button" href="./#/browse">Explore novels</a></div>'):
+    `<div data-library-shelf>${bookmarkShelf()}</div>`;
+  return `<section class="intro library-intro"><div><h1>My Bookmarks</h1></div></section>${tabs}${!history?continueBox():''}${shelf}`;
 }
 function missing(){return `<div class="empty"><h1>Page not found</h1><p>This story or chapter is not in the catalog.</p><a class="button" href="./#/browse">Browse novels</a></div>`}
 function about(){return `<article class="policy-page">
@@ -635,6 +635,15 @@ function copyrightPage(){return `<article class="policy-page">
 </article>`}
 
 function renderRoute({preserveScroll=false}={}){
+  // Recovery if a mobile refresh reveals the internal ad-free reader shell.
+  if(/^\/restricted-reader(?:\.html)?\/?$/.test(location.pathname||'')&&window.history?.replaceState){
+    let remembered='';
+    try{remembered=sessionStorage.getItem(LAST_READER_ROUTE)||'';}catch{}
+    const m=remembered.match(/^\/novel\/([^/]+)\/chapter-(\d+)\/$/);
+    const novel=m?novels.find(n=>n.id===decodeURIComponent(m[1])):null;
+    const valid=novel&&Number(m[2])>0&&Number(m[2])<=novel.chapters.length;
+    window.history.replaceState(null,'',valid?remembered:'/library/');
+  }
   if(!preserveScroll)window.dispatchEvent(new Event('novelnest:before-route'));
   const oldScrollY=preserveScroll?(window.scrollY||0):0;
   let pathname=location.pathname||'/',search=location.search||'';
@@ -657,6 +666,7 @@ function renderRoute({preserveScroll=false}={}){
   if(!raw&&oldReadPath){const chapter=new URLSearchParams(search).get('chapter')||'1';raw=`/read/${decodeURIComponent(oldReadPath[1])}/${chapter}`}
   if(!raw)raw='/';
   let [path,query='']=raw.split('?');const parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);
+  if(parts[0]!=='read')lastOpenedRoute='';
   applySettings();document.querySelector('#library-count').textContent=saved.length;
   document.querySelectorAll('[data-nav]').forEach(a=>{const active=a.dataset.nav===(parts[0]||'home');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});
   let html,title='Find your next chapter';
@@ -730,8 +740,8 @@ main.addEventListener('change',e=>{
     navigate('/genre/'+encodeURIComponent(e.target.dataset.genreSort)+(p.toString()?'?'+p.toString():''));
   }
 });
-window.addEventListener('hashchange',()=>{route({animate:true});main.focus({preventScroll:true})});
-window.addEventListener('popstate',()=>{route({animate:true});main.focus({preventScroll:true})});
+window.addEventListener('hashchange',()=>{route({animate:false});main.focus({preventScroll:true})});
+window.addEventListener('popstate',()=>{route({animate:false});main.focus({preventScroll:true})});
 document.querySelector('#year').textContent=new Date().getFullYear();route();
 if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'search_novelnest_catalog',description:'Search the available NovelHaven catalog without changing bookmarks.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute(input){if(!input||typeof input.query!=='string')throw new Error('query must be a string');return novels.filter(n=>`${n.title} ${n.author} ${n.tags.join(' ')}`.toLowerCase().includes(input.query.toLowerCase())).map(n=>({id:n.id,title:n.title,chapters:n.chapters.length,readingLocation:n.externalUrl?n.externalSource:"NovelHaven",url:bookUrl(n)}))}})).catch(()=>{})}catch{}}
 

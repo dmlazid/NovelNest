@@ -61,19 +61,13 @@ test('backfill checkpoints and unsynced releases never generate false notificati
  assert.deepEqual(plain(updates([metadata],state)),[{id:'a',title:'A',count:1,first:501}]);
 });
 
-test('cloud sync cannot roll Continue Reading from chapter 26 back to chapter 18', () => {
+test('last deliberately opened chapter wins by time, including moving backwards',()=>{
   const base=empty(),local=empty(),remote=empty();
-  // Another browser tab has newer time but a lower chapter.
   local.data.progress.story={chapter:25,at:100};
   remote.data.progress.story={chapter:17,at:150};
-  assert.deepEqual(plain(merge(base,local,remote).data.progress.story),{chapter:25,at:100});
-  // A subsequent older-tab write must also not roll a synced book backward.
-  const newer=empty(),older=empty();
-  newer.data.progress.story={chapter:25,at:100};
-  older.data.progress.story={chapter:17,at:200};
-  const resolved=merge(base,older,newer);
-  assert.equal(resolved.data.progress.story.chapter,25);
-  // Advancing to chapter 27 must remain possible.
-  older.data.progress.story={chapter:26,at:220};
-  assert.equal(merge(base,older,newer).data.progress.story.chapter,26);
+  assert.deepEqual(plain(merge(base,local,remote).data.progress.story),{chapter:17,at:150});
+  local.data.progress.story={chapter:16,at:200};
+  assert.deepEqual(plain(merge(base,local,remote).data.progress.story),{chapter:16,at:200});
+  local.data.progress.story={chapter:26,at:220};
+  assert.equal(merge(base,local,remote).data.progress.story.chapter,26);
 });
