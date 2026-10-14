@@ -1163,3 +1163,12 @@ padding:25px 28px;background:linear-gradient(115deg,#e5f1ec,#fcfbf5);border:1px 
 .home-author-invite p{max-width:635px;line-height:1.7}
 .home-author-invite .home-author-actions .button{font-weight:800;border-radius:10px;min-height:44px}
 @media(max-width:760px){.home-author-invite{padding:23px 19px}.home-author-invite:before{font-size:100px;right:4%;top:-16px}}
+
+/* Initial homepage HTML: informative before scripts complete, replaced by the real catalog on app boot. */
+.home-loading-intro{background:linear-gradient(125deg,#eaf3ef,#fff);border:1px solid #dce8e4;border-radius:18px;padding:clamp(22px,4vw,42px);max-width:920px;margin:30px auto 45px;color:#25453f}
+.home-loading-intro .home-loading-kicker{font-size:11px;font-weight:800;letter-spacing:1.4px;color:#206357}
+.home-loading-intro h1{font-size:clamp(26px,3.8vw,39px);line-height:1.15;max-width:760px;margin:10px 0 16px}
+.home-loading-intro p{line-height:1.7;max-width:760px}
+.home-loading-intro a{color:#17564d;text-underline-offset:3px}
+.home-loading-links{display:flex;flex-wrap:wrap;gap:10px 24px;margin-top:23px;font-size:14px;font-weight:750}
+@media(max-width:760px){.home-loading-intro{padding:22px 18px;margin:20px auto 32px}}
