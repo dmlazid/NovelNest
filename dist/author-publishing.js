@@ -185,17 +185,23 @@ async function adminHome(){
   if(!state.isAdmin){host.innerHTML='<section class="panel"><h2>Editor access only</h2><p>This review dashboard is restricted to the administrator selected by the NovelHaven owner. Writers can manage their manuscripts from Author Studio.</p><a class="button" href="/author-studio.html">Author Studio</a></section>';return;}
   state.story=null;wait('Loading submitted manuscripts…');
   try{
-    const [waiting,publishedSnapshot]=await Promise.all([
+    const [waiting,publishedSnapshot,draftSnapshot]=await Promise.all([
       getDocs(query(collection(db,'authorStories'),where('status','==','submitted'))),
-      getDocs(query(collection(db,'authorStories'),where('status','==','published')))
+      getDocs(query(collection(db,'authorStories'),where('status','==','published'))),
+       getDocs(query(collection(db,'authorStories'),where('status','==','draft')))
     ]);
     const stories=waiting.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
     const published=publishedSnapshot.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
+    const drafts=draftSnapshot.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
     const authors=new Set([...stories,...published].map(s=>s.ownerUid)).size;
     host.innerHTML='<section class="dashboard-summary"><span class="author-eyebrow">VERIFIED ADMINISTRATOR</span><h2>Your publishing desk</h2><div class="dashboard-stats"><div><strong>'+stories.length+'</strong><span>Awaiting review</span></div><div><strong>'+published.length+'</strong><span>Published originals</span></div><div><strong>'+authors+'</strong><span>Authors with submitted or published work</span></div></div><p>Counts reflect the current submission queue and published original novels.</p></section>'+ '<section class="panel"><h2>Pending manuscripts ('+stories.length+')</h2>'+
-      '<p class="muted">No submission publishes automatically. Review chapter text, rights claims, originality and suitability before approving.</p>'+
+      '<p class="muted">New authors require human approval. Only explicitly owner-trusted authors can qualify for automatic approval after objective checks.</p>'+
       (stories.length?stories.map(s=>'<div class="story-card"><div><h3>'+esc(s.title)+'</h3><p>'+esc(s.penName)+' · '+esc(s.genre)+'</p><p>'+esc(s.summary.slice(0,170))+'</p></div><button class="button outline" data-review-open="'+esc(s.id)+'">Review</button></div>').join(''):
         '<p>No submissions are waiting for review.</p>')+'</section>'+
+      '<section class="panel"><h2>Private drafts ('+drafts.length+')</h2>'+
+      '<p class="muted">Read-only and not publicly visible. Inspect saved chapters for safety or quality without changing the writer\'s work. Drafts cannot be approved before submission.</p>'+
+      (drafts.length?drafts.map(s=>'<div class="story-card"><div><h3>'+esc(s.title)+'</h3><p>'+esc(s.penName)+' · '+esc(s.genre)+'</p></div><button class="button outline" data-review-open="'+esc(s.id)+'">Inspect privately</button></div>').join(''):
+        '<p>No private drafts found.</p>')+'</section>'+
       '<section class="panel"><h2>Published novels ('+published.length+')</h2>'+
       '<p class="muted">You can take down an approved story when a copyright or content issue is reported. Removal requires a reason and does not delete the author\'s private manuscript.</p>'+
       (published.length?published.map(s=>'<div class="moderation-card"><div><strong>'+esc(s.title)+'</strong><p class="stats">by '+esc(s.penName)+' · '+esc(s.genre)+'</p></div>'+
@@ -209,18 +215,18 @@ async function reviewOpen(id){
   wait('Loading original manuscript for review…');
   try{
     const snap=await getDoc(doc(db,'authorStories',id));
-    if(!snap.exists()||snap.data().status!=='submitted'){await adminHome();return;}
+    if(!snap.exists()||!['submitted','draft'].includes(snap.data().status)){await adminHome();return;}
     state.story={id,...snap.data()};state.chapters=await chaptersFor(id);
     const s=state.story;
-    host.innerHTML='<div class="toolbar"><button class="button outline" data-action="admin-back">← Pending stories</button></div>'+
+    host.innerHTML='<div class="toolbar"><button class="button outline" data-action="admin-back">← Owner dashboard</button></div>'+
       '<section class="panel"><h2>'+esc(s.title)+'</h2><p>by '+esc(s.penName)+' · '+esc(s.genre)+'</p><p>'+esc(s.summary)+'</p>'+
       '<p class="stats">'+state.chapters.length+' chapter(s) · '+chapterWords(state.chapters)+' words</p>'+
-      '<div class="warning">The author claims originality and permission. This is not independent proof. Check for plagiarism, copyright violations, harmful content and low quality before approving. No ads run on this review.</div></section>'+
+      (s.status==='draft'?'<div class="warning">PRIVATE DRAFT · Read-only owner inspection. This story cannot be published or rejected until the author submits it. Respect the writer\'s privacy.</div>':'<div class="warning">The author claims originality and permission. This is not independent proof. Check for plagiarism, copyright violations, harmful content and low quality before approving. No ads run on this review.</div>')+'</section>'+
       state.chapters.map(c=>'<section class="panel"><h3>Chapter '+c.number+': '+esc(c.title)+'</h3><div class="story-text">'+esc(c.body)+'</div></section>').join('')+
-      '<section class="panel"><h2>Editorial decision</h2><label>Reviewer note (optional on approval; required for rejection)<textarea id="review-note" maxlength="500" style="width:100%;min-height:95px;border:1px solid var(--line);border-radius:9px;padding:10px"></textarea></label>'+
+      (s.status==='submitted'?'<section class="panel"><h2>Editorial decision</h2><label>Reviewer note (optional on approval; required for rejection)<textarea id="review-note" maxlength="500" style="width:100%;min-height:95px;border:1px solid var(--line);border-radius:9px;padding:10px"></textarea></label>'+
       '<div class="toolbar"><button class="button" data-decision="published"'+(canSubmit(s,state.chapters)?'':' disabled')+'>Approve for public reading</button>'+
       '<button class="button outline" data-decision="rejected">Request changes / Reject</button></div>'+
-      '<p class="muted">Approved stories become readable immediately. Pages remain ad-free and noindex during the initial publishing pilot.</p></section>';
+      '<p class="muted">Approved stories become readable immediately. Pages remain ad-free and noindex during the initial publishing pilot.</p></section>':'<section class="panel"><h2>Private draft</h2><p>This manuscript is not submitted. Inspection is read-only; publishing and rejection are disabled until submission.</p></section>');
   }catch(e){fail(e);}
 }
 async function reviewDecision(status){
