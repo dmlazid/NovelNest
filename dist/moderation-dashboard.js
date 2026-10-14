@@ -95,7 +95,7 @@ if(document.body.dataset.authorPage==='admin'&&window.NOVELNEST_FIREBASE?.projec
       reports.clear();heartbeat=null;
       for(const item of items.docs){
         const data=item.data();
-        if(item.id==='__worker_status__'&&data.recordType==='worker-status'){
+        if(item.id==='worker_status'&&data.recordType==='worker-status'){
           heartbeat=data;
           continue;
         }
