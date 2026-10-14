@@ -25,8 +25,8 @@ for(let attempt=1;attempt<=8;attempt++){
     assert.doesNotMatch(body,/pagead2\.googlesyndication\.com|adsbygoogle/,pages[i]+' must not serve ads');
     assert.match(body,/novelhaven|NovelHaven/i,pages[i]+' missing branding');
     if(pages[i]!=='/author-guidelines.html'){
-      assert.match(body,/author-publishing\.js\?v=3/,pages[i]+' must load latest writer client');
-      assert.match(body,/author-publishing\.css\?v=3/,pages[i]+' missing updated styles');
+      assert.match(body,i<2?/author-publishing\.js\?v=4/:/author-publishing\.js\?v=3/,pages[i]+' must load latest writer client');
+      assert.match(body,i<2?/author-publishing\.css\?v=4/:/author-publishing\.css\?v=3/,pages[i]+' missing updated styles');
     }
   }
   assert.match(contents[5],/pendingDraftNumbers/);
