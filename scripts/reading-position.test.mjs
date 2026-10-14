@@ -9,7 +9,7 @@ function reader({ saved = {}, prefs = {}, mode = 'scroll', blocked = false, lazy
   let id = 0, height = 100, proseTop = 200, chapter = 1;
   const emit = name => { for (const callback of events.get(name) || []) callback(); };
   const on = (name, fn) => events.set(name, [...events.get(name) || [], fn]);
-  const window = { scrollY: 0, innerHeight: 400, NOVELS: [{ id: 'story', chapters: [{ lazy }, { lazy: false }] }], addEventListener: on, scrollTo({ top }) { this.scrollY = top; emit('scroll'); } };
+  const window = { scrollY: 0, innerWidth: 390, innerHeight: 400, scrollToCalls:0, NOVELS: [{ id: 'story', chapters: [{ lazy }, { lazy: false }] }], addEventListener: on, scrollTo({ top }) { this.scrollToCalls++;this.scrollY = top; emit('scroll'); } };
   const location = { hash: '#/read/story/1' };
   const label = { textContent: '' }, meter = { value: 0 };
   const bars = [];
@@ -44,7 +44,7 @@ function reader({ saved = {}, prefs = {}, mode = 'scroll', blocked = false, lazy
     window.scrollY = 0; layout();
   }
   function positions() { emit('pagehide'); return JSON.parse(storage.get('novelnest.positions')); }
-  return { window, document, ready, scroll, leave, emit, flush, positions, label, meter, bars, storage, get prose() { return prose; }, changeHeight(value) { height = value; emit('resize'); flush(); }, top() { for (const callback of events.get('click') || []) callback({ target: { closest: () => true } }); flush(); } };
+  return { window, document, ready, scroll, leave, emit, flush, positions, label, meter, bars, storage, get prose() { return prose; }, changeHeight(value) { height = value;window.innerWidth += 40;emit('resize'); flush(); }, heightOnlyResize(value){window.innerHeight=value;emit('resize');flush();}, top() { for (const callback of events.get('click') || []) callback({ target: { closest: () => true } }); flush(); } };
 }
 
 test('restores paragraph and its offset after reopening, even when text height changes', () => {
@@ -114,4 +114,25 @@ test('a suspended tab must not overwrite a newer position saved in another tab',
   const result=JSON.parse(h.storage.get('novelnest.positions'));
   assert.equal(result['story:1'].paragraph,5);
   assert.equal(result['story:2'].paragraph,3);
+});
+
+test('Brave mobile address bar height changes do not rewind chapter while scrolling',()=>{
+  const h=reader();h.ready();h.scroll(734);
+  const current=h.window.scrollY, calls=h.window.scrollToCalls;
+  const percent=h.label.textContent;
+  // Chrome/Brave send repeated resize events as toolbars appear/disappear.
+  for(const height of [370,340,400,365,400])h.heightOnlyResize(height);
+  assert.equal(h.window.scrollY,current,'Must not programmatically jump back to the top');
+  assert.equal(h.window.scrollToCalls,calls,'Browser chrome resize must never trigger scrollTo');
+  assert.equal(h.label.textContent,percent,'Reading progress must not reset to 0%');
+  h.scroll(834);
+  assert(h.window.scrollY>current,'A subsequent reader swipe must work');
+  assert.notEqual(h.label.textContent,'0% read');
+});
+test('a true viewport WIDTH change still preserves the active paragraph',()=>{
+  const h=reader();h.ready();h.scroll(534);
+  const before=h.window.scrollToCalls;
+  h.changeHeight(200);
+  assert.equal(h.window.scrollY,884);
+  assert(h.window.scrollToCalls>before,'Width/layout change should restore reading anchor');
 });

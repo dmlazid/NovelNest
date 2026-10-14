@@ -5,6 +5,11 @@
   try { positions = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { positions = {}; }
   if (typeof positions !== 'object' || Array.isArray(positions)) positions = {};
   let active = null, generation = 0, saveTimer = 0, scrollFrame = 0;
+  // Brave/Chrome hide and reveal mobile browser chrome while scrolling.
+  // This changes viewport HEIGHT, firing resize many times per gesture.
+  // Only changes to the content's actual width require anchor restoration.
+  const contentWidth = () => Math.round(Number(window.innerWidth) || Number(document.documentElement?.clientWidth) || 0);
+  let lastContentWidth = contentWidth();
 
   function persist() {
     clearTimeout(saveTimer);saveTimer=0;
@@ -142,8 +147,17 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) capture(true); });
   // Restore the same paragraph after changing the font, width, or reading mode.
   window.addEventListener('novelnest:reader-layout', () => { if (active) restore(active.position); });
-  window.addEventListener('resize', () => { if (active) restore(active.position); });
-  document.fonts?.ready.then(() => { if (active) restore(active.position); });
+  window.addEventListener('resize', () => {
+    const nextWidth=contentWidth();
+    const widthChanged=nextWidth>0 && lastContentWidth>0 && nextWidth!==lastContentWidth;
+    if(nextWidth>0)lastContentWidth=nextWidth;
+    // Mobile address-bar expansion changes innerHeight, not content width.
+    // Never call scrollTo for those events; it fights the user's swipes.
+    if(widthChanged && active && active.position)restore(active.position);
+  });
+  // Fonts can finish loading seconds into a reading session. Restoring an
+  // old position at that time used to yank readers back to Chapter headings.
+  // Native browser layout already handles font swaps without scrollTo.
   document.addEventListener('click', event => {
     if (!event.target.closest('[data-reader-top]') || !active) return;
     restore({ paragraph: 0, fraction: 0, start: true });
