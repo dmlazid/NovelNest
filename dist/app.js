@@ -675,7 +675,7 @@ function renderRoute({preserveScroll=false}={}){
   // Some mobile tabs retain the ad-free restricted-reader shell URL.
   // When the remembered chapter is unavailable, send readers to Library
   // rather than showing a misleading missing-novel error.
-  if(/^\\/restricted-reader(?:\\.html)?\\/?$/.test(pathname))raw='/library';
+  if(pathname==='/restricted-reader'||pathname==='/restricted-reader/'||pathname==='/restricted-reader.html')raw='/library';
   let [path,query='']=raw.split('?');const parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);
   if(parts[0]!=='read')lastOpenedRoute='';
   applySettings();document.querySelector('#library-count').textContent=saved.length;
