@@ -25,6 +25,7 @@ on:
       - 'scripts/novel-ad-policy.mjs'
       - 'scripts/novel-monetization-reviews.json'
       - 'scripts/verify-live-novel-ad-hold.mjs'
+      - 'scripts/purge-policy-cache.mjs'
       - 'scripts/audit-novel-ads.mjs'
       - 'cloudflare/reader/worker.mjs'
   workflow_dispatch:
@@ -56,14 +57,25 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: node scripts/guard-compatible-pages-production.mjs
       - name: Upload only verified dist to existing Pages production branch
+        id: pages_upload
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name novelnest --branch main
       - name: Verify new homepage, source chronology, reader and ads.txt live
+        if: steps.pages_upload.outcome == 'success'
         run: node scripts/verify-live-source-feed.mjs
-      - name: Verify published copyright, contact, privacy and policy pages are ad-free
-        run: node scripts/verify-live-policy-pages.mjs
+      - name: Refresh only stale NovelHaven policy and novel routes
+        if: steps.pages_upload.outcome == 'success'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/purge-policy-cache.mjs
       - name: Verify ordinary and restricted novel routes do not request Google-served ads
+        if: steps.pages_upload.outcome == 'success'
         run: node scripts/verify-live-novel-ad-hold.mjs
+      - name: Verify published copyright, contact, privacy and policy pages are ad-free
+        if: steps.pages_upload.outcome == 'success'
+        run: node scripts/verify-live-policy-pages.mjs
