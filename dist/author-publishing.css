@@ -11,6 +11,8 @@ a{color:var(--teal)}button,input,textarea,select{font:inherit}button{cursor:poin
 .author-eyebrow{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--teal)}
 h1{font-size:clamp(26px,4vw,37px);margin:6px 0 7px;line-height:1.18}h2{font-size:22px;line-height:1.25}h3{font-size:18px}
 .author-hero p{margin:0;max-width:690px;color:var(--muted)}
+#new-story{scroll-margin-top:116px}
+@media(max-width:640px){.author-nav{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:10px 15px;gap:8px 12px;min-height:unset}.author-brand{font-size:17px}.author-auth{justify-content:flex-end;gap:5px;font-size:12px}.author-auth .button{font-size:12px;padding:8px 10px}.author-links{grid-column:1/-1;display:flex;flex-wrap:nowrap;gap:17px;overflow-x:auto;padding:5px 0 7px;scrollbar-width:none}.author-links::-webkit-scrollbar{display:none}.author-links a{white-space:nowrap;font-size:13px}.author-main{padding:17px 13px 48px}.author-hero{padding:19px;border-radius:16px}#new-story{scroll-margin-top:122px}}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:22px;margin-top:16px}
 .panel h2,.panel h3{margin-top:0}.muted,.panel small{color:var(--muted)}.author-message:not(:empty){padding:12px 14px;background:var(--soft);border-radius:10px;margin:12px 0}
 .author-message[data-error="true"]{background:#fceeed;color:var(--red)}
