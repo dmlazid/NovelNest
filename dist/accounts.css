@@ -260,3 +260,86 @@
 .compact-admin-shortcut svg{width:16px;height:16px}
 @media(max-width:420px){.compact-admin-shortcut span{display:none}.compact-admin-shortcut{padding:7px}
 .owner-priority-card,.writer-invite-card{margin-inline:12px;padding:17px 15px}.owner-menu-card,.writer-menu-card{margin-inline:0}}
+
+/* Founder Account v2 · distinctive premium treatment, existing teal theme. */
+.founder-profile-summary{
+  position:relative;isolation:isolate;
+  background:linear-gradient(112deg,#214940 0%,#173a34 62%,#1b4339 100%)!important;
+  border-bottom:1px solid #bba36d70;
+}
+.founder-profile-summary:before{content:"✦";position:absolute;z-index:-1;right:17px;top:-10px;
+ font:112px/1 Georgia,serif;color:#d6ba7140;pointer-events:none}
+.founder-profile-summary .profile-avatar{overflow:visible;position:relative;background:#224840;
+ border-color:#ccab6e;box-shadow:0 0 0 4px #c9ac682b}
+.founder-profile-summary .profile-avatar img{border-radius:50%}
+.founder-avatar-crown{position:absolute;display:grid;place-items:center;right:-7px;top:-11px;
+ width:26px;height:26px;border-radius:9px;background:#edd49b;color:#304b3b;
+ box-shadow:0 2px 8px #071a1844;font-size:18px;font-weight:800}
+.founder-profile-badge{display:inline-block;margin:0 0 7px;font-size:10px;font-weight:850;
+ color:#e8c784;letter-spacing:.8px;overflow-wrap:anywhere}
+.owner-member-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.owner-member-mark{color:#f2d694;font:36px/1 Georgia}
+.owner-priority-card{background:linear-gradient(137deg,#244b41,#193a35 62%,#14312c);
+ border:1px solid #d9b778;box-shadow:0 11px 32px #091c1842}
+.owner-priority-card h3{font-size:23px;letter-spacing:-.4px;line-height:1.2;margin:12px 0 8px}
+.owner-priority-card .owner-intro{line-height:1.6;color:#cde3d9;font-size:13px;margin:0 0 17px}
+.owner-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+ padding:12px 4px;margin:0 0 17px;border-top:1px solid #e9c88f38;border-bottom:1px solid #e9c88f38}
+.owner-stats>div{display:flex;flex-direction:column;align-items:center;min-width:0;text-align:center;gap:3px}
+.owner-stats strong{font:850 21px/1.1 'DM Sans',sans-serif;color:#f5daa5;font-variant-numeric:tabular-nums}
+.owner-stats span{color:#cee1d7;font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+.owner-tools-title{font-weight:850;font-size:10px;letter-spacing:1.3px;color:#edcf98;margin:19px 0 10px}
+.owner-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.site-drawer .owner-action-grid a,
+.site-drawer .owner-action-grid button{display:flex;gap:8px;align-items:center;text-align:left;
+ min-width:0;min-height:50px;padding:10px 9px;border:1px solid #a7c5b642;border-radius:11px;
+ background:#ffffff10;color:#f1f7f1;font:700 12px/1.25 'DM Sans',sans-serif;
+ text-decoration:none;cursor:pointer;overflow-wrap:anywhere}
+.site-drawer .owner-action-grid a:hover,.site-drawer .owner-action-grid button:hover{
+ border-color:#edd395a1;background:#ffffff17}
+.owner-action-grid svg{width:18px;height:18px;color:#f0ce8f;flex:0 0 18px}
+.owner-action-grid button:disabled{opacity:.48;cursor:wait}
+.owner-priority-card .owner-privacy-note{font-size:10px;margin:12px 0 0;color:#bed4ca;line-height:1.45}
+.owner-menu-dropdown{border:1px solid #d6b77c83;border-radius:13px;background:#23463e;
+ margin:0 0 16px;overflow:hidden;color:#f6f4e8}
+.owner-menu-summary{display:flex;align-items:center;gap:11px;list-style:none;
+ padding:12px 14px;cursor:pointer;min-height:62px;touch-action:manipulation}
+.owner-menu-summary::-webkit-details-marker{display:none}
+.owner-menu-summary:focus-visible{outline:2px solid #d9bd84;outline-offset:-3px}
+.owner-menu-crown{width:36px;height:36px;display:grid;place-items:center;flex:0 0 36px;
+ border-radius:11px;background:#d7b67929;color:#f6d28e}
+.owner-menu-crown svg{width:23px;height:23px}
+.owner-menu-label{min-width:0;flex:1;display:grid;gap:2px}
+.owner-menu-label strong{font-size:15px;font-weight:800;color:#f8f7ec}
+.owner-menu-label small{font-size:11px;color:#c9d8cc}
+.owner-menu-chevron{color:#ebd08e;font-size:23px;transition:transform .18s ease}
+.owner-menu-dropdown[open] .owner-menu-chevron{transform:rotate(180deg)}
+.owner-menu-tools{display:grid;grid-template-columns:1fr 1fr;gap:7px;
+ padding:0 11px 13px}
+.site-drawer .owner-menu-tools a{display:flex;align-items:flex-start;gap:7px;min-height:59px;
+ padding:10px 8px;border-radius:9px;background:#142d29bd;border:1px solid #b8cab72f;
+ font-size:12px;color:#f2eacb;text-decoration:none;overflow-wrap:anywhere}
+.owner-menu-tools a svg{width:17px;height:17px;flex:0 0 17px;color:#edd197}
+.owner-menu-tools a>span{display:grid;gap:4px;line-height:1.2;font-weight:700}
+.owner-menu-tools small{color:#bdcbc0;font-size:10px;font-weight:450}
+.catalog-menu-tabs button{position:relative;gap:8px;background:#f8faf8;color:#245148}
+.catalog-menu-tabs button[aria-expanded="true"]{background:#164f4a;color:#fff}
+.catalog-menu-tabs button[aria-expanded="false"]{background:#f9fbf9;color:#2c4943}
+.catalog-tab-chevron{margin-left:auto;font-size:23px;color:#b68a4e;line-height:1;
+ transform-origin:center;transition:transform .18s ease}
+.catalog-menu-tabs button[aria-expanded="true"] .catalog-tab-chevron{color:#e5cf99;transform:rotate(180deg)}
+.catalog-menu-panel[hidden]{display:none}
+.writer-account-card{margin-top:16px}
+.site-drawer .drawer-row:focus-visible,.site-drawer .owner-action-grid button:focus-visible{
+ outline:2px solid #e9ca8d;outline-offset:2px}
+@media(max-width:430px){
+ .owner-priority-card h3{font-size:21px}
+ .owner-menu-tools{grid-template-columns:1fr 1fr}
+ .owner-menu-tools small{font-size:9px}
+ .owner-action-grid{gap:7px}
+ .site-drawer .owner-action-grid a,.site-drawer .owner-action-grid button{min-height:54px;font-size:11px}
+ .owner-stats strong{font-size:20px}
+ .catalog-menu-tabs button{gap:6px;padding-inline:9px}
+ .catalog-tab-chevron{font-size:20px}
+}
+@media(prefers-reduced-motion:reduce){.owner-menu-chevron,.catalog-tab-chevron{transition:none}}

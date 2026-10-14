@@ -290,13 +290,55 @@
     if(expectedGeneration!==generation||user?.uid!==account.uid)return;
     editorAccess=allowed;render();
   }
+  function ownerStatistics(){
+    try {
+      const data=backup.readCurrent();
+      const finished=Object.values(data.chapterStatus||{}).reduce((total,item)=>total+(item.finished?.length||0),0);
+      const currentlyReading=Object.keys(data.progress||{}).length;
+      return {saved:data.saved.length,finished,currentlyReading};
+    }catch{return {saved:0,finished:0,currentlyReading:0};}
+  }
   function adminCard(which) {
     if(!editorAccess||!user)return '';
-    return `<section class="owner-priority-card ${which}" aria-label="Administrator tools">
-      <span class="owner-eyebrow">${icon('shield')} VERIFIED NOVELHAVEN ADMIN</span>
-      <h3>Admin Dashboard</h3>
-      <p>Review new submissions, approve stories and manage published originals.</p>
-      <a class="owner-primary-link" data-close-drawer href="/author-admin.html">Open Admin Dashboard <span aria-hidden="true">↗</span></a>
+    // The main menu is intentionally COMPACT. The owner chooses when to
+    // expand tools, instead of pushing Search / Genres far off-screen.
+    if(which==='owner-menu-card')return `<details class="owner-menu-dropdown owner-menu-card" data-owner-dropdown>
+      <summary class="owner-menu-summary">
+        <span class="owner-menu-crown" aria-hidden="true">${icon('shield')}</span>
+        <span class="owner-menu-label"><strong>Founder tools</strong><small>Verified admin · Tap to expand</small></span>
+        <span class="owner-menu-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="owner-menu-tools">
+        <a href="/author-admin.html" data-close-drawer>${icon('shield')} <span>Admin Dashboard<small>Review new submissions</small></span></a>
+        <a href="/author-studio.html" data-close-drawer>${icon('book')} <span>Author Studio<small>Write and manage drafts</small></span></a>
+        <a href="/original-novels.html" data-close-drawer>${icon('bookmark')} <span>Published originals<small>Visit the public library</small></span></a>
+        <a href="/author-guidelines.html" data-close-drawer>${icon('info')} <span>Editorial guidelines<small>Review publishing requirements</small></span></a>
+      </div>
+    </details>`;
+    const stats=ownerStatistics();
+    return `<section class="owner-priority-card owner-account-card" aria-label="Founder command center">
+      <div class="owner-member-top">
+        <span class="owner-eyebrow">${icon('shield')} VERIFIED NOVELHAVEN ADMIN</span>
+        <span class="owner-member-mark" aria-hidden="true">✦</span>
+      </div>
+      <h3>Founder Command Center</h3>
+      <p class="owner-intro">Your private space to guide NovelHaven, review new authors, and keep your reading library safe.</p>
+      <div class="owner-stats" aria-label="Your saved reading activity">
+        <div><strong>${stats.saved}</strong><span>Bookmarks</span></div>
+        <div><strong>${stats.finished}</strong><span>Chapters finished</span></div>
+        <div><strong>${stats.currentlyReading}</strong><span>Stories opened</span></div>
+      </div>
+      <a class="owner-primary-link" data-close-drawer href="/author-admin.html">Admin Dashboard <span aria-hidden="true">↗</span></a>
+      <div class="owner-tools-title">FOUNDER PRIVILEGES</div>
+      <div class="owner-action-grid">
+        <a href="/author-admin.html" data-close-drawer>${icon('shield')} <span>Moderation</span></a>
+        <a href="/author-studio.html" data-close-drawer>${icon('book')} <span>My manuscripts</span></a>
+        <a href="/original-novels.html" data-close-drawer>${icon('bookmark')} <span>Published stories</span></a>
+        <a href="/author-guidelines.html" data-close-drawer>${icon('info')} <span>Author policy</span></a>
+        <button type="button" data-sync-now ${busy?'disabled':''}>${icon('settings')} <span>Sync reading</span></button>
+        <button type="button" data-founder-backup>${icon('history')} <span>Export backup</span></button>
+      </div>
+      <p class="owner-privacy-note">Your backup downloads to this device. Keep it private; it includes your reading history.</p>
     </section>`;
   }
   function writerCard(which) {
@@ -311,7 +353,7 @@
   function profileContent() {
     let guest = false;
     try { const data = read(scopeKey(''), null)?.data; guest = !!data && (data.saved.length > 0 || Object.keys(data.progress).length > 0); } catch {}
-    return drawerTop('account') + `<section class="profile-summary"><div class="profile-avatar">${avatar()}</div><div><h2>${escape(user?.displayName || (user ? 'Reader' : 'Welcome, reader'))}</h2><p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
+    return drawerTop('account') + `<section class="profile-summary ${editorAccess&&user?'founder-profile-summary':''}"><div class="profile-avatar">${avatar()}${editorAccess&&user?'<span class="founder-avatar-crown" aria-label="Founder">✦</span>':''}</div><div><h2>${escape(user?.displayName || (user ? 'Reader' : 'Welcome, reader'))}</h2>${editorAccess&&user?'<span class="founder-profile-badge">✦ FOUNDER · VERIFIED ADMIN</span>':''}<p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
       adminCard('owner-account-card') + writerCard('writer-account-card') +
       (!user ? `<div class="drawer-signin"><p>Sign in to keep your library across devices.</p>${googleButton()}</div>` : '') +
       `<div class="drawer-rows">${row('./#/library','Bookmarks','Your saved novels','bookmark')}${row('./#/library?tab=history','History','Pick up where you left off','history')}
@@ -326,7 +368,11 @@
     const headerAdmin=document.querySelector('[data-admin-shortcut]');
     if(headerAdmin)headerAdmin.hidden=!(editorAccess&&user);
     const adminSlot=document.querySelector('#navigation-drawer [data-admin-slot]');
-    if(adminSlot){const markup=adminCard('owner-menu-card');if(adminSlot.innerHTML!==markup)adminSlot.innerHTML=markup;}
+    if(adminSlot){
+      const shouldHave=!!(editorAccess&&user),existing=adminSlot.querySelector?.('[data-owner-dropdown]');
+      if(shouldHave&&!existing)adminSlot.innerHTML=adminCard('owner-menu-card');
+      else if(!shouldHave&&existing)adminSlot.innerHTML='';
+    }
     const profile = document.querySelector('[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
     // The Library paints a fixed account-status row itself. Updating auth
@@ -358,12 +404,12 @@
       </form>
       <div data-admin-slot>${adminCard('owner-menu-card')}</div>
 
-      <div class="catalog-menu-tabs" role="tablist" aria-label="Browse NovelHaven">
-        <button type="button" role="tab" aria-selected="true" data-catalog-tab="novels">${icon('book')}<span>Novel list</span></button>
-        <button type="button" role="tab" aria-selected="false" data-catalog-tab="genres">${icon('grid')}<span>Genres</span></button>
+      <div class="catalog-menu-tabs" aria-label="Browse NovelHaven">
+        <button type="button" aria-expanded="false" aria-controls="catalog-novels-panel" data-catalog-tab="novels">${icon('book')}<span>Novel list</span><span class="catalog-tab-chevron" aria-hidden="true">⌄</span></button>
+        <button type="button" aria-expanded="false" aria-controls="catalog-genres-panel" data-catalog-tab="genres">${icon('grid')}<span>Genres</span><span class="catalog-tab-chevron" aria-hidden="true">⌄</span></button>
       </div>
 
-      <section class="catalog-menu-panel" data-catalog-panel="novels">
+      <section class="catalog-menu-panel" id="catalog-novels-panel" data-catalog-panel="novels" hidden>
         <nav class="catalog-menu-list" aria-label="Novel list">
           ${menuLink('/original-novels.html','Original Novels','book')}
           ${menuLink('./#/library','Bookmarks','bookmark')}
@@ -375,7 +421,7 @@
         </nav>
       </section>
 
-      <section class="catalog-menu-panel" data-catalog-panel="genres" hidden>
+      <section class="catalog-menu-panel" id="catalog-genres-panel" data-catalog-panel="genres" hidden>
         <nav class="catalog-genre-grid" aria-label="Genres">${genreLinks}</nav>
       </section>
 
@@ -390,6 +436,25 @@
     </div>`;
     renderStatus();
     openDrawer(panel);
+  }
+  function downloadFounderReadingBackup() {
+    if(!editorAccess||!user)return;
+    let objectUrl='';
+    try {
+      const data=backup.readCurrent();
+      const json=JSON.stringify({format:'novelnest-backup',version:1,data,exportedAt:new Date().toISOString()},null,2);
+      // Use the same validated format as NovelNestBackup.parse().
+      backup.parse(json);
+      objectUrl=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+      const link=document.createElement('a');
+      link.href=objectUrl;link.download='novelhaven-reading-backup-'+new Date().toISOString().slice(0,10)+'.json';
+      document.body.appendChild(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
+    }catch(error){
+      if(objectUrl)URL.revokeObjectURL(objectUrl);
+      message='Could not export reading backup. Please keep this browser’s saved data.';
+      renderStatus();
+    }
   }
   function showUpdates() {
     const dialog = drawer('updates-dialog', 'Notifications');
@@ -439,8 +504,13 @@
     const catalogTab = target.closest('[data-catalog-tab]');
     if (catalogTab) {
       const drawer = catalogTab.closest('.site-drawer');
-      drawer?.querySelectorAll('[data-catalog-tab]').forEach(button => button.setAttribute('aria-selected', String(button === catalogTab)));
-      drawer?.querySelectorAll('[data-catalog-panel]').forEach(section => { section.hidden = section.dataset.catalogPanel !== catalogTab.dataset.catalogTab; });
+      const show=catalogTab.getAttribute('aria-expanded')!=='true';
+      drawer?.querySelectorAll('[data-catalog-tab]').forEach(button=>{
+        button.setAttribute('aria-expanded',String(show && button===catalogTab));
+      });
+      drawer?.querySelectorAll('[data-catalog-panel]').forEach(section=>{
+        section.hidden=!(show && section.dataset.catalogPanel===catalogTab.dataset.catalogTab);
+      });
     }
     const cleanNovelLink = target.closest('a[href^="/novel/"]');
     // Respect Ctrl/Shift/middle-click and target=_blank. Otherwise opening
@@ -468,6 +538,7 @@
       // Pending changes stay in this account's local cache even when offline.
       sdk.signOut(auth).catch(error=>{requestedSignOut=false;fail(error);}).finally(() => { busy = false; render(); });
     }
+    if (target.closest('[data-founder-backup]')) downloadFounderReadingBackup();
     if (target.closest('[data-sync-now]')) synchronize(true);
     if (target.closest('[data-import-guest]') && user && owner === user.uid) {
       try {

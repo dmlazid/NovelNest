@@ -9,7 +9,7 @@ const keys = {saved:'novelnest.saved',progress:'novelnest.progress',positions:'n
 function save(storage, value) { for (const [key, name] of Object.entries(keys)) storage.set(name, JSON.stringify(value.data[key])); storage.set('novelnest.update-seen', JSON.stringify(value.seen)); }
 const settle = async () => { for(let i=0;i<20;i++) await Promise.resolve(); };
 function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new Map(), error = null, catalog = [{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}] } = {}) {
-  const handlers = new Map(), timers = new Map(), nodes = new Map();
+  const handlers = new Map(), timers = new Map(), nodes = new Map(), downloads=[],downloadBlobs=[];
   let reloads = 0, stopped = 0, timerId = 0, callback, transactions = 0, failure = error, gate = null;
   const uiUpdates={full:0,card:0,shelf:0,lastRefresh:null};
   const on = (name, fn) => handlers.set(name, [...handlers.get(name)||[], fn]);
@@ -18,7 +18,10 @@ function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new 
     if(!nodes.has(name)) nodes.set(name,{ textContent:'', innerHTML:'', dataset:{}, setAttribute(){}, addEventListener:on, querySelector:node, appendChild(){}, insertAdjacentElement(_where,n){nodes.set('#'+n.id,n);}, close(){},showModal(){} });
     return nodes.get(name);
   };
-  const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
+  const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node,
+    createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node,
+      click(){downloads.push({download:this.download,href:this.href});},remove(){}}),
+    body:node('body'),addEventListener:on };
   const window = {NOVELS:catalog,addEventListener:on,dispatchEvent:e=>fire(e.type,e),NOVELNEST_FIREBASE:{},NovelNestPositions:{capture(){},stop(){stopped++;},reload(){}},NovelNestApp:{reloadData(){},refresh(options){uiUpdates.full++;uiUpdates.lastRefresh=options;},refreshLibraryProgress(){uiUpdates.card++;},refreshLibraryBookmarks(){uiUpdates.shelf++;}},NovelNestReading:{reload(){}}};
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
@@ -30,14 +33,16 @@ function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new 
       return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),set:(id,value)=>cloud.set(id,copy(value))});},
     signOut:async()=>{auth.currentUser=null;callback(null);},GoogleAuthProvider:class{setCustomParameters(){}},signInWithPopup:async()=>{}
   };
-  const context = vm.createContext({window,document,localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem(){},setItem(){},removeItem(){}},location:{hash:'#/library',reload(){reloads++;}},navigator:{onLine:true},setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),Event,firebaseMock,console});
+  const context = vm.createContext({window,document,localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem(){},setItem(){},removeItem(){}},location:{hash:'#/library',reload(){reloads++;}},navigator:{onLine:true},setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),
+    URL:{createObjectURL(blob){downloadBlobs.push(blob);return 'blob:novelhaven-'+downloadBlobs.length;},revokeObjectURL(){}},
+    Blob,Event,firebaseMock,console});
   for(const name of ['backup.js','account-sync.js','accounts.js']) {
     let source=fs.readFileSync('dist/'+name,'utf8');
     // Replace the external SDK import boundary; all account and storage code is real.
     if(name==='accounts.js')source=source.replace(/import\('https:\/\/www\.gstatic\.com\/firebasejs\/[^']+'\)/g,'Promise.resolve(firebaseMock)');
     vm.runInContext(source,context);
   }
-  return {window,storage,cloud,nodes,timers,context,uiUpdates,get reloads(){return reloads;},get transactions(){return transactions;},get stopped(){return stopped;},
+  return {window,storage,cloud,nodes,timers,context,uiUpdates,downloads,downloadBlobs,get reloads(){return reloads;},get transactions(){return transactions;},get stopped(){return stopped;},
     async start(){const entry=[...timers].find(([,t])=>t.ms===0);timers.delete(entry[0]);entry[1].fn();await settle();},
     async account(next){auth.currentUser=next?{uid:next,displayName:next}:null;callback(auth.currentUser);await settle();},
     async click(selector){fire('click',{target:{closest:s=>s===selector}});await settle();},
@@ -262,7 +267,7 @@ test('verified Firebase editor sees Admin Dashboard before all reading links',as
  const profile=h.nodes.get('#account-drawer').innerHTML;
  assert.match(profile,/VERIFIED NOVELHAVEN ADMIN/);
  assert.match(profile,/owner-account-card/);
- assert(profile.indexOf('Admin Dashboard')<profile.indexOf('Bookmarks'));
+ assert(profile.indexOf('owner-account-card')<profile.indexOf('<div class="drawer-rows">'));
  assert.match(profile,/writer-account-card/);
  await h.click('[data-menu]');
  const menu=h.nodes.get('#navigation-drawer').innerHTML;
@@ -289,4 +294,61 @@ test('admin role is cleared when switching to an account without permission',asy
  assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,false);
  await h.account('reader');
  assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,true);
+});
+
+test('founder profile has verified crown, real reading statistics and working owner-only tools',async()=>{
+ const storage=new Map();save(storage,fixture());storage.set('novelnest.account-owner','"owner"');
+ const h=harness({uid:'owner',adminUids:['owner'],storage});await h.start();
+ await h.click('[data-profile]');
+ const html=h.nodes.get('#account-drawer').innerHTML;
+ assert.match(html,/founder-profile-summary/);
+ assert.match(html,/FOUNDER · VERIFIED ADMIN/);
+ assert.match(html,/Founder Command Center/);
+ assert.match(html,/FOUNDER PRIVILEGES/);
+ assert.match(html,/data-founder-backup/);
+ assert.match(html,/data-sync-now/);
+ assert.match(html,/My manuscripts/);
+ assert.match(html,/Moderation/);
+ assert.match(html,/Chapters finished/);
+ assert.match(html,/owner-stats/);
+ // Export is a real action, not a dummy premium button.
+ await h.click('[data-founder-backup]');
+ assert.equal(h.downloads.length,1,'Founder should receive a downloaded JSON file');
+ assert.match(h.downloads[0].download,/novelhaven-reading-backup-\d{4}-\d{2}-\d{2}\.json/);
+ const raw=await h.downloadBlobs[0].text(),payload=JSON.parse(raw);
+ assert.equal(payload.format,'novelnest-backup');
+ assert.equal(payload.version,1);
+ assert.deepEqual(payload.data.saved,['book']);
+ assert.deepEqual(payload.data.chapterStatus.book.finished,[1]);
+});
+test('non-editors cannot trigger founder backup, even by artificially invoking its event',async()=>{
+ for(const config of [{uid:null},{uid:'ordinary',adminUids:['owner']}]){
+  const h=harness(config);await h.start();
+  await h.click('[data-founder-backup]');
+  assert.equal(h.downloads.length,0);
+ }
+});
+test('admin menu defaults compact; Novel list and Genres expand independently on tap',async()=>{
+ const h=harness({uid:'owner',adminUids:['owner']});await h.start();
+ await h.click('[data-menu]');
+ const markup=h.nodes.get('#navigation-drawer').innerHTML;
+ assert.match(markup,/<details class="owner-menu-dropdown owner-menu-card"/);
+ assert.doesNotMatch(markup,/<details class="owner-menu-dropdown owner-menu-card"[^>]* open/);
+ assert.match(markup,/data-catalog-tab="novels"/);
+ assert.match(markup,/data-catalog-tab="genres"/);
+ assert.match(markup,/id="catalog-novels-panel"[^>]+hidden/);
+ assert.match(markup,/id="catalog-genres-panel"[^>]+hidden/);
+ const panels={novels:{dataset:{catalogPanel:'novels'},hidden:true},genres:{dataset:{catalogPanel:'genres'},hidden:true}};
+ const tabs={};
+ const drawer={querySelectorAll(sel){return sel==='[data-catalog-tab]'?Object.values(tabs):Object.values(panels);}};
+ for(const key of ['novels','genres']){
+   const attrs={'aria-expanded':'false'};
+   tabs[key]={dataset:{catalogTab:key},closest:s=>s==='.site-drawer'?drawer:null,
+     getAttribute:k=>attrs[k],setAttribute:(k,v)=>{attrs[k]=v;}};
+ }
+ const tap=name=>h.fire('click',{button:0,target:{closest:s=>s==='[data-catalog-tab]'?tabs[name]:null}});
+ tap('novels');assert.equal(panels.novels.hidden,false);assert.equal(panels.genres.hidden,true);
+ tap('novels');assert.equal(panels.novels.hidden,true,'Tap again should collapse panel');
+ tap('genres');assert.equal(panels.genres.hidden,false);assert.equal(panels.novels.hidden,true);
+ tap('novels');assert.equal(panels.novels.hidden,false);assert.equal(panels.genres.hidden,true);
 });
