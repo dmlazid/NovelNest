@@ -295,10 +295,10 @@ function home(){
       ${completed.length?`<div class="home-cover-grid">${completed.map(homeNovelTile).join('')}</div>`:'<p class="home-empty">No completed novels yet.</p>'}
     </section>
     <section class="home-author-invite" aria-labelledby="original-author-title">
-      <div><span class="home-author-kicker">✦ ORIGINAL STORIES · AUTHOR STUDIO PILOT</span>
-        <h2 id="original-author-title">Have a story of your own?</h2>
-        <p>Write private chapters, save drafts, and submit original fiction for editorial review. Nothing publishes automatically. Owner activation is required during this pilot.</p></div>
-      <div class="home-author-actions"><a class="button" href="/author-studio.html">Start writing</a>
+      <div><span class="home-author-kicker">✦ NOVELHAVEN · THE WRITERS’ CORNER</span>
+        <h2 id="original-author-title">Your story could be their next favorite.</h2>
+        <p>Build a world. Bring characters to life. Write your original novel, save each chapter and submit it for editorial review. Your copyright stays yours.</p></div>
+      <div class="home-author-actions"><a class="button" href="/author-studio.html">Start my novel ↗</a>
         <a class="button outline" href="/original-novels.html">Browse original novels</a></div>
     </section>
     <section class="home-feed-section editorial-home-section" aria-labelledby="reading-desk-title">

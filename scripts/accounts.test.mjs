@@ -8,14 +8,14 @@ const fixture = () => ({data:{saved:['book'],progress:{book:{chapter:1,at:100}},
 const keys = {saved:'novelnest.saved',progress:'novelnest.progress',positions:'novelnest.positions',chapterStatus:'novelnest.chapter-status'};
 function save(storage, value) { for (const [key, name] of Object.entries(keys)) storage.set(name, JSON.stringify(value.data[key])); storage.set('novelnest.update-seen', JSON.stringify(value.seen)); }
 const settle = async () => { for(let i=0;i<20;i++) await Promise.resolve(); };
-function harness({ storage = new Map(), uid = null, cloud = new Map(), error = null, catalog = [{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}] } = {}) {
+function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new Map(), error = null, catalog = [{id:'book',title:'Book',chapters:[{},{},{}]},{id:'other',title:'Other',chapters:[{},{}]}] } = {}) {
   const handlers = new Map(), timers = new Map(), nodes = new Map();
   let reloads = 0, stopped = 0, timerId = 0, callback, transactions = 0, failure = error, gate = null;
   const uiUpdates={full:0,card:0,shelf:0,lastRefresh:null};
   const on = (name, fn) => handlers.set(name, [...handlers.get(name)||[], fn]);
   const fire = (name, event) => { for(const fn of handlers.get(name)||[]) fn(event); };
   const node = name => {
-    if(!nodes.has(name)) nodes.set(name,{ textContent:'', innerHTML:'', setAttribute(){}, addEventListener:on, querySelector:node, appendChild(){}, insertAdjacentElement(_where,n){nodes.set('#'+n.id,n);}, close(){},showModal(){} });
+    if(!nodes.has(name)) nodes.set(name,{ textContent:'', innerHTML:'', dataset:{}, setAttribute(){}, addEventListener:on, querySelector:node, appendChild(){}, insertAdjacentElement(_where,n){nodes.set('#'+n.id,n);}, close(){},showModal(){} });
     return nodes.get(name);
   };
   const document = { querySelectorAll:selector=>selector==='[data-account-status]'?[node(selector)]:[], querySelector:node, createElement:()=>({innerHTML:'',className:'',setAttribute(){},querySelector:node}),body:node('body'),addEventListener:on };
@@ -23,7 +23,9 @@ function harness({ storage = new Map(), uid = null, cloud = new Map(), error = n
   const auth = {currentUser: uid ? {uid,displayName:uid} : null};
   const firebaseMock = {
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
-    onAuthStateChanged(_auth,fn){callback=fn;fn(auth.currentUser);},doc(_db,collection,id){assert.equal(collection,'users');return id;},
+    onAuthStateChanged(_auth,fn){callback=fn;fn(auth.currentUser);},
+    doc(_db,collection,id){assert(['users','authorAdmins'].includes(collection);return collection==='users'?id:'admin:'+id;},
+    async getDoc(ref){const okay=ref.startsWith('admin:')&&adminUids.includes(ref.slice(6));return {exists:()=>okay,data:()=>okay?{role:'editor'}:null};},
     async runTransaction(_db,fn){transactions++;if(failure)throw Object.assign(Error('failure'),{code:failure});if(gate)await gate;
       return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),set:(id,value)=>cloud.set(id,copy(value))});},
     signOut:async()=>{auth.currentUser=null;callback(null);},GoogleAuthProvider:class{setCustomParameters(){}},signInWithPopup:async()=>{}
@@ -251,4 +253,40 @@ test('Firebase sign-in and background sync never create a new Library account pa
   assert.equal(h.nodes.has('#account-panel'),false,
     'Background account synchronization must not re-create its Library panel');
   assert.match(h.nodes.get('[data-account-status]').textContent,/synced/i);
+});
+
+test('verified Firebase editor sees Admin Dashboard before all reading links',async()=>{
+ const h=harness({uid:'owner',adminUids:['owner']});await h.start();
+ assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,false);
+ await h.click('[data-profile]');
+ const profile=h.nodes.get('#account-drawer').innerHTML;
+ assert.match(profile,/VERIFIED NOVELHAVEN ADMIN/);
+ assert.match(profile,/owner-account-card/);
+ assert(profile.indexOf('Admin Dashboard')<profile.indexOf('Bookmarks'));
+ assert.match(profile,/writer-account-card/);
+ await h.click('[data-menu]');
+ const menu=h.nodes.get('#navigation-drawer').innerHTML;
+ assert.match(menu,/owner-menu-card/);
+ assert(menu.indexOf('Admin Dashboard')<menu.indexOf('catalog-menu-tabs'));
+ assert.match(menu,/writer-menu-card/);
+ assert.match(menu,/Start Writing/);
+ assert.doesNotMatch(menu,/menuLink\('\/author-studio\.html','Write & Publish'/);
+});
+test('regular readers and guests see inviting author card but not administrator tools',async()=>{
+ for(const config of [{uid:null},{uid:'reader',adminUids:['owner']}]){
+   const h=harness(config);await h.start();
+   assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,true);
+   await h.click('[data-profile]');
+   assert.doesNotMatch(h.nodes.get('#account-drawer').innerHTML,/VERIFIED NOVELHAVEN ADMIN|owner-account-card/);
+   assert.match(h.nodes.get('#account-drawer').innerHTML,/writer-account-card/);
+   await h.click('[data-menu]');
+   assert.doesNotMatch(h.nodes.get('#navigation-drawer').innerHTML,/owner-menu-card/);
+   assert.match(h.nodes.get('#navigation-drawer').innerHTML,/Start Writing/);
+ }
+});
+test('admin role is cleared when switching to an account without permission',async()=>{
+ const h=harness({uid:'owner',adminUids:['owner']});await h.start();
+ assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,false);
+ await h.account('reader');
+ assert.equal(h.nodes.get('[data-admin-shortcut]').hidden,true);
 });

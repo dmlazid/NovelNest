@@ -280,3 +280,12 @@ test('homepage describes the moderated Author Studio pilot without claiming it i
   assert.match(html,/href="\/original-novels\.html"/);
   assert.match(html,/Nothing publishes automatically/);
 });
+
+test('homepage makes original-story authorship inviting and keeps review before publication',()=>{
+ const html=harness([book('one')])('home()');
+ assert.match(html,/Your story could be their next favorite/);
+ assert.match(html,/Start my novel/);
+ assert.match(html,/href="\/author-studio\.html"/);
+ assert.match(html,/submit it for editorial review/);
+ assert.doesNotMatch(html,/Owner activation is required/);
+});

@@ -1153,3 +1153,13 @@ padding:25px 28px;background:linear-gradient(115deg,#e5f1ec,#fcfbf5);border:1px 
 .home-author-actions .button{font-size:13px;white-space:nowrap}
 @media(max-width:760px){.home-author-invite{display:block;padding:21px 20px}
 .home-author-invite h2{font-size:21px}.home-author-actions{justify-content:flex-start;margin-top:17px}}
+
+/* A visible, distinctive author invitation without changing reader colors. */
+.home-author-invite{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#e3f2eb,#faf6eb 79%,#f5ebd8);
+ border:1px solid #a6cabc;border-radius:18px;box-shadow:0 6px 25px #164f4a11;padding:27px 30px}
+.home-author-invite:before{content:"✒";position:absolute;z-index:-1;right:14%;top:-35px;font:160px Georgia;color:#91c3ad33;transform:rotate(-12deg)}
+.home-author-invite h2{font-size:clamp(22px,2.5vw,30px);line-height:1.23;max-width:550px;letter-spacing:-.3px}
+.home-author-invite .home-author-kicker{font-size:10px;color:#237566}
+.home-author-invite p{max-width:635px;line-height:1.7}
+.home-author-invite .home-author-actions .button{font-weight:800;border-radius:10px;min-height:44px}
+@media(max-width:760px){.home-author-invite{padding:23px 19px}.home-author-invite:before{font-size:100px;right:4%;top:-16px}}
