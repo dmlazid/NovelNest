@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import {spawnSync} from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
@@ -42,7 +43,16 @@ export function validateSite(root = 'dist') {
     if (/^(?:https?:|data:|#|\.\/#\/)/.test(ref)) continue;
     assert(fs.existsSync(path.join(root, ref.split('?')[0])), `Missing page asset: ${ref}`);
   }
-  for (const name of fs.readdirSync(root).filter(n => n.endsWith('.js'))) new vm.Script(read(name), { filename: name });
+  for (const name of fs.readdirSync(root).filter(n => n.endsWith('.js'))) {
+    const content=read(name);
+    // Author Studio uses standard ES module imports, unlike the existing
+    // classic scripts. Check the module with Node's module parser instead.
+    if(/^\s*(?:import\s|export\s)/m.test(content)){
+      const result=spawnSync(process.execPath,['--check','--input-type=module'],
+        {input:content,encoding:'utf8'});
+      assert.equal(result.status,0,'Invalid module '+name+': '+String(result.stderr||'').slice(0,500));
+    }else new vm.Script(content,{filename:name});
+  }
   for (const name of scripts.filter(s => s === 'catalog.js' || /^licensed-(?!ui\.js)/.test(s))) vm.runInContext(read(name), context, { filename: name, timeout: 1000 });
   const removedRecords = root === 'dist'
     ? JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json', 'utf8')).known

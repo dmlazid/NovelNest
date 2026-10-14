@@ -198,7 +198,7 @@ test('background Library progress refresh replaces only the Continue Reading car
     globalThis.location={hash:'#/library',pathname:'/library',search:''};
     const card={outerHTML:'old'};
     main.querySelector=selector=>selector==='.continue-box'?card:null;
-    progress.story={chapter:25,at:100};
+    localStorage.setItem('novelnest.progress',JSON.stringify({story:{chapter:25,at:100}}));
     refreshLibraryProgress();
     return card.outerHTML;
   })()`);

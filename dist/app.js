@@ -539,7 +539,7 @@ function refreshLibraryProgress(){
 function bookmarkShelf(){
   const books=novels.filter(n=>saved.includes(n.id));
   const missing=saved.filter(id=>!novels.some(n=>n.id===id));
-  const pending=missing.length?`<div class="bookmark-pending-list">${missing.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').replace(/\\b\\w/g,x=>x.toUpperCase()))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('')}</div>`:'';
+  const pending=missing.length?`<div class="bookmark-pending-list">${missing.map(id=>`<div class="bookmark-pending"><span>♥</span><strong>${esc(id.replace(/[-_]+/g,' ').split(' ').map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(' '))}</strong><small>Bookmarked · temporarily unavailable</small></div>`).join('')}</div>`:'';
   return books.length||missing.length?`<div class="catalog-grid">${books.map(card).join('')}</div>`+pending:
     '<div class="empty"><h2>A shelf waiting for stories.</h2><p>Bookmark a novel to find it here and follow new chapters.</p><a class="button" href="./#/browse">Explore novels</a></div>';
 }
