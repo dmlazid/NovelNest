@@ -77,3 +77,13 @@ Do not claim AdSense approval until Google has reviewed and marked the site Read
 ## Historical D1 rows and accurate copy accounting
 - The D1 migration may contain older novels no longer in the published catalog; its raw `total_stored` can be greater than the 129,000 active source chapters. The migration now reports `active_stored`, `historical_stored` and `remaining_chapters` based only on current novel IDs, without deleting any archived data.
 - Historical rows and routes no longer cause a false inventory error during the read-only full paragraph audit; they do not contribute to active coverage, and every current chapter must still match its original paragraphs and validated route. A full audit still has `cutover_ready: false` and never alters the live deployment.
+
+## October 14 novel-page monetization safeguard — pending production verification
+
+- Google Publisher Policies prohibit serving Google ads on replicated pages without substantial added value, and separately prohibit copyright infringement. Owner source-wide import permission flags are NOT evidence for individual translation, cover-image, full-text or advertising permissions.
+- The compatible Pages build now keeps all **unreviewed novel details** readable and discoverable while removing the Google advertising loader on those pages. Chapter routes use one publisher-free, temporarily noindex SPA shell until the fully verified D1 reader is available. This does NOT delete any chapter or change bookmarks.
+- The SPA navigation boundary forces a full document load when entering a novel from a page that already loaded the publisher script; subsequent ad-free chapter navigation stays in the reader. The future D1 Worker is also ad-free for novel chapter text.
+- `scripts/novel-monetization-reviews.json` is initially empty by design. Each individual work needs evidence for text, translation, cover and commercial-ad rights, meaningful additional original value and content-policy checks before being added.
+- CI creates a `novel-monetization-review` artifact with the catalog inventory and remaining review queue. It contains no contracts or chapter text.
+- The public homepage and original Reading Desk guides keep the existing AdSense publisher tag and `ads.txt`. Privacy, contact and copyright pages stay free of advertising tags.
+- **This is a precautionary hold, not a declaration that the catalog is copyright-cleared, high-quality or AdSense-approved.** Manual verification and the rejected-account Policy center remain essential. Do not request another review until those gaps are resolved.

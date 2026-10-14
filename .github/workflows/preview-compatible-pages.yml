@@ -1,11 +1,14 @@
 name: Preview compatible NovelHaven Pages build
 on:
   push:
-    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014, fix/verify-rendered-source-feed-20261014, fix/adsense-policy-pages-20261014, fix/private-rights-email-20261014]
+    branches: [fix/cloudflare-compatible-pages-20261013, fix/restricted-reader-ad-exclusion-20261013, fix/duplicate-audit-baseline-20261013, fix/reliable-source-latest-20261014, fix/source-feed-fingerprinted-cache-20261014, fix/verify-rendered-source-feed-20261014, fix/adsense-policy-pages-20261014, fix/private-rights-email-20261014, fix/novel-ads-policy-hold-20261014]
     paths:
       - '.github/workflows/preview-compatible-pages.yml'
       - 'scripts/build-compatible-pages.mjs'
       - 'scripts/check-compatible-pages.mjs'
+      - 'scripts/verify-live-novel-ad-hold.mjs'
+      - 'scripts/novel-monetization-reviews.json'
+      - 'scripts/novel-ad-policy.mjs'
       - '.github/workflows/check.yml'
       - 'dist/**'
       - 'scripts/check-cloudflare-build.mjs'
@@ -57,6 +60,13 @@ jobs:
           assert.match(sitemap.body,/<urlset\b/);
           assert.match(novel.body,/<meta name="description"/);
           assert.match(novel.body,/<main id="main"/);
+          assert(!novel.body.includes('pagead2.googlesyndication.com'),
+            'Normally discoverable book detail must not carry publisher code until rights review');
+          const normalChapter = await fetchPage('/novel/shadow-slave/chapter-1/');
+          assert.equal(normalChapter.status,200);
+          assert.match(normalChapter.body,/app\.js/);
+          assert(!normalChapter.body.includes('pagead2.googlesyndication.com'),
+            'All novel chapter routes must render in the ad-free shell');
           assert.match(hidden.body,/noindex,follow/);
           assert.doesNotMatch(hidden.body,/pagead2\.googlesyndication\.com/);
           assert.equal(app.status,200);
@@ -125,3 +135,7 @@ jobs:
         env:
           POLICY_REVIEW_ORIGIN: ${{ steps.pages_preview.outputs.deployment-url }}
         run: node scripts/verify-live-policy-pages.mjs
+      - name: Verify preview excludes Google-served ads from unreviewed novel pages
+        env:
+          NOVEL_AD_HOLD_ORIGIN: ${{ steps.pages_preview.outputs.deployment-url }}
+        run: node scripts/verify-live-novel-ad-hold.mjs

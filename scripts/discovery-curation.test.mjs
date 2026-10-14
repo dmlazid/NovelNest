@@ -48,13 +48,14 @@ test('repeated chapter bodies are readable but excluded from advertising and ind
   assert.match(html,/Readable chapter content/);
   assert.doesNotMatch(html,/pagead2\.googlesyndication\.com/);
 });
-test('uncurated novel chapters remain indexable',async()=>{
+test('uncurated D1 novel chapters remain readable and indexable but ad-free pending rights review',async()=>{
   const result=await readerWorker.fetch(new Request('https://novelhaven.top/novel/curated/chapter-1/'),fakeEnv(false));
   assert.equal(result.status,200);
   assert.equal(result.headers.has('X-Robots-Tag'),false);
   const html=await result.text();
   assert.match(html,/name="robots" content="index,follow,max-image-preview:large"/);
-  assert.match(html,/pagead2\.googlesyndication\.com/,'Visible chapters retain existing publisher verification');
+  assert.doesNotMatch(html,/pagead2\.googlesyndication\.com/,
+    'Even discoverable novel chapters must remain ad-free while rights and original value are unverified');
 });
 
 test('Cloudflare static route headers noindex all curated books but leave Shadow Slave visible',()=>{

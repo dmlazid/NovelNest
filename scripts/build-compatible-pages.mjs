@@ -7,6 +7,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
 import {fingerprintSourceActivity} from './source-feed-fingerprint.mjs';
+import {loadReviewRegistry,novelMayHaveGoogleAds} from './novel-ad-policy.mjs';
 
 const root='dist';
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
@@ -27,7 +28,10 @@ for(const p of ['chapter-labels.js',...catalogPaths,'discovery-curation.js','rem
   vm.runInContext(read(p),ctx,{filename:p,timeout:2000});
 }
 const novels=ctx.window.NOVELS;
+const advertisingReviews=loadReviewRegistry();
 assert(Array.isArray(novels)&&novels.length>0,'No published novels');
+for(const id of Object.keys(advertisingReviews.approved))
+  assert(novels.some(n=>n.id===id),'Reviewed novel is not in the published catalog: '+id);
 const chapterTitle=ctx.window.NovelNestChapterLabels.title;
 for(const book of novels)for(const chapter of book.chapters)chapter.title=chapterTitle(chapter.title);
 const el={innerHTML:'',textContent:'',classList:{toggle(){},add(){},remove(){}},setAttribute(){},removeAttribute(){},style:{setProperty(){}}};
@@ -44,7 +48,7 @@ const currentMap=read('sitemap.xml');
 assert(/<urlset\b/.test(currentMap),'The original static sitemap has changed; refuse overwriting it');
 const known=new Set([...currentMap.matchAll(/<loc>https:\/\/novelhaven\.top([^<]*)<\/loc>/g)].map(m=>m[1]));
 const routeLinks=[];
-function add(route,title,content,description,robots='index,follow,max-image-preview:large',schema=null){
+function add(route,title,content,description,robots='index,follow,max-image-preview:large',schema=null,allowAds=true){
   assert(/^\/[a-zA-Z0-9\/%.-]*\/$/.test(route),'Unsafe route: '+route);
   let html=source
     .replace(/<title>[\s\S]*?<\/title>/,'<title>'+escape(title)+' — NovelHaven</title>')
@@ -57,7 +61,7 @@ function add(route,title,content,description,robots='index,follow,max-image-prev
     .replace(marker,'<main id="main" class="wrap" tabindex="-1">'+content.replaceAll('href="./#/','href="/')+'</main>');
   if(schema) html=html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/,
     '<script type="application/ld+json">'+json(schema)+'</script>');
-  if(robots.startsWith('noindex'))html=html.replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'');
+  if(robots.startsWith('noindex')||!allowAds)html=html.replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'');
   write(route.slice(1)+'index.html',html);
   if(!robots.startsWith('noindex')&&!known.has(route))routeLinks.push(route);
 }
@@ -67,7 +71,8 @@ for(const novel of novels){
   const schema={'@context':'https://schema.org','@type':'Book',name:novel.title,
     author:{'@type':'Person',name:novel.author||'Unknown'},url:'https://novelhaven.top'+route};
   add(route,novel.title,render('detail('+JSON.stringify(novel.id)+')'),
-    description,novel.discoveryHidden?'noindex,follow':'index,follow,max-image-preview:large',schema);
+    description,novel.discoveryHidden?'noindex,follow':'index,follow,max-image-preview:large',
+    schema,novelMayHaveGoogleAds(novel.id,advertisingReviews));
 }
 for(const [route,title,expression] of [
   ['/browse/','Browse novels','browse(new URLSearchParams())'],
@@ -97,7 +102,10 @@ write('sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="
 write('build-info.json',JSON.stringify({mode:'compatible-spa-with-static-details',novels:novels.length,
   chapters:novels.reduce((s,n)=>s+n.chapters.filter(c=>!c.removedDuplicate).length,0),removedChapterBodies:9,serverRenderedChapters:false,
   catalogRoutes:known.size+routeLinks.length,
-  sourceFeedAsset:sourceFeed.filename,generatedAt:new Date().toISOString()},null,2)+'\n');
+  sourceFeedAsset:sourceFeed.filename,
+  novelAdsHeld:novels.filter(n=>!novelMayHaveGoogleAds(n.id,advertisingReviews)).length,
+  novelAdsReviewed:Object.keys(advertisingReviews.approved).length,
+  generatedAt:new Date().toISOString()},null,2)+'\n');
 // While chapter prose is still delivered by the existing interactive SPA,
 // block crawlers from treating the generic app shell as an indexed chapter.
 // This one pattern applies only to chapter URLs and must be removed once the
@@ -118,20 +126,14 @@ const restricted=source
 assert(!restricted.includes('pagead2.googlesyndication.com'),'Restricted reader must not load AdSense');
 assert(restricted.includes('app.js?'),'Restricted reader must retain the original SPA');
 write('restricted-reader.html',restricted);
-const noads=new Set();
-for(const book of novels.filter(n=>n.discoveryHidden)) {
-  noads.add('/novel/'+encodeURIComponent(book.id)+'/chapter-:number/ /restricted-reader.html 200');
-}
-const reviewed=JSON.parse(fs.readFileSync('scripts/known-chapter-duplicates.json','utf8'));
-for(const item of reviewed.known){
-  if(novels.some(n=>n.id===item.novel_id&&!n.discoveryHidden)){
-    noads.add('/novel/'+encodeURIComponent(item.novel_id)+'/chapter-'+item.repeated_chapter+'/ /restricted-reader.html 200');
-  }
-}
-assert(noads.size>=11,'Missing restricted novels');
-write('_redirects','# AdSense-free fallback for the restricted reading routes only.\n'+
-  [...noads].join('\n')+'\n');
-console.log('Kept '+noads.size+' restricted-reader rewrite rules; all original chapter files remain unchanged.');
+// All SPA chapter routes remain ad-free while copied texts and their added
+// editorial value await per-work review. One dynamic rewrite avoids Pages'
+ // dynamic-rule limits and preserves chapter URLs, routing and bookmarks.
+const chapterAdHold='/novel/:novel/chapter-:number/ /restricted-reader.html 200';
+write('_redirects','# AdSense-free chapter shell while novel monetization review is incomplete.\n'+
+  chapterAdHold+'\n');
+assert(read('_redirects').includes(chapterAdHold),'Novel chapter ad hold missing');
+console.log('Protected all SPA chapter routes with one ad-free fallback; original chapter files unchanged.');
 
 // Keep the original index, chapter JavaScript chunks, auth, and licensed imports.
 assert.equal(read('index.html'),source,'Original site shell unexpectedly changed');

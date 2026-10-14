@@ -40,10 +40,14 @@ export default {
     const template=await assets('/_internal/chapter.html');if(!template.ok)throw Error('Missing template');
     const body=renderChapter(await template.text(),{id,title:novel.title,total:novel.total,number,chapter:{title:row.title,paragraphs:JSON.parse(row.paragraphs_json)}});
     const privateFromDiscovery=novel.discoveryHidden===true||novel.duplicateChapters?.includes(number)===true;
+    // Fail closed for future D1 chapters as well: this is republished fiction,
+    // and content rights + substantial original value are NOT yet verified for
+    // ad serving, regardless of whether the novel is discoverable.
+    const publisherFree=body.replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'');
     const html=privateFromDiscovery
-      ?body.replace(/<meta name="robots" content="[^"]*">/, '<meta name="robots" content="noindex,follow">')
-        .replace(/<script async src="https:\/\/pagead2\.googlesyndication\.com[^>]*><\/script>/g,'')
-      :body;
+      ?publisherFree.replace(/<meta name="robots" content="[^"]*">/,
+          '<meta name="robots" content="noindex,follow">')
+      :publisherFree;
     const headers={'Content-Type':'text/html; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'};
     if(privateFromDiscovery)headers['X-Robots-Tag']='noindex, follow';
     return new Response(request.method==='HEAD'?null:html,{headers});
