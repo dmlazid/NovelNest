@@ -9,7 +9,7 @@ const app=getApps().length?getApp():initializeApp(window.NOVELNEST_FIREBASE);
 const db=getFirestore(app),auth=getAuth(app),view=document.body.dataset.authorPage;
 const host=document.getElementById('author-content'),banner=document.getElementById('author-message'),authBox=document.getElementById('author-auth');
 const state={user:null,isAdmin:false,story:null,chapters:[],editing:0};
-let backupTimer=0;
+let backupTimer=0, authGeneration=0;
 const chapterForm=()=>host.querySelector('[data-form="chapter"]');
 // Local drafts protect writing during browser restarts and failed requests.
 // They never publish or overwrite the author's Firestore chapter automatically.
@@ -55,7 +55,7 @@ async function chaptersFor(id){
 }
 function authUI(){
   authBox.innerHTML=state.user?
-    '<span>'+esc(state.user.displayName||'Signed in')+'</span><button class="button secondary" data-action="logout">Sign out</button>':
+    '<a href="/?account=1" class="author-account-link">'+esc(state.user.displayName||'My account')+'</a>'+(state.isAdmin?'<a class="button secondary" href="/author-admin.html">♢ Dashboard</a>':'')+'<button class="button secondary" data-action="logout">Sign out</button>':
     '<button class="button outline" data-action="login">Sign in with Google</button>';
 }
 function signInPrompt(){
@@ -76,7 +76,7 @@ async function studioHome(){
     host.innerHTML='<section class="panel"><div class="toolbar"><h2 style="margin:0;flex:1">My novels</h2>'+
       (state.isAdmin?'<a class="button secondary" href="/author-admin.html">Review submissions</a>':'')+
       '<a class="button outline" href="/original-novels.html">Browse originals</a></div>'+
-      '<p class="muted">Drafts are private. Submitted stories cannot be edited until you withdraw or an editor returns them.</p>'+
+      '<p class="muted">Drafts are private. Submitted stories cannot be edited until an editor returns them. There is no subscription cap on personal drafts; Firebase storage and service limits apply.</p>'+
       (list.length?list.map(listingCard).join(''):'<p>You have no novels yet. Create your first original story below.</p>')+'</section>'+
       '<section class="panel"><h2>Start a new novel</h2><form class="form-grid" data-form="create-novel">'+
       '<div class="two-col"><label>Novel title<input name="title" maxlength="120" minlength="3" required placeholder="Your original title"></label>'+
@@ -191,7 +191,8 @@ async function adminHome(){
     ]);
     const stories=waiting.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
     const published=publishedSnapshot.docs.map(s=>({id:s.id,...s.data()})).sort((a,b)=>timestamp(b)-timestamp(a));
-    host.innerHTML='<section class="panel"><h2>Pending manuscripts ('+stories.length+')</h2>'+
+    const authors=new Set([...stories,...published].map(s=>s.ownerUid)).size;
+    host.innerHTML='<section class="dashboard-summary"><span class="author-eyebrow">VERIFIED ADMINISTRATOR</span><h2>Your publishing desk</h2><div class="dashboard-stats"><div><strong>'+stories.length+'</strong><span>Awaiting review</span></div><div><strong>'+published.length+'</strong><span>Published originals</span></div><div><strong>'+authors+'</strong><span>Authors with submitted or published work</span></div></div><p>Counts reflect the current submission queue and published original novels.</p></section>'+ '<section class="panel"><h2>Pending manuscripts ('+stories.length+')</h2>'+
       '<p class="muted">No submission publishes automatically. Review chapter text, rights claims, originality and suitability before approving.</p>'+
       (stories.length?stories.map(s=>'<div class="story-card"><div><h3>'+esc(s.title)+'</h3><p>'+esc(s.penName)+' · '+esc(s.genre)+'</p><p>'+esc(s.summary.slice(0,170))+'</p></div><button class="button outline" data-review-open="'+esc(s.id)+'">Review</button></div>').join(''):
         '<p>No submissions are waiting for review.</p>')+'</section>'+
@@ -365,11 +366,14 @@ document.addEventListener('submit',async event=>{
   }catch(error){fail(error);}finally{if(button)button.disabled=false;}
 });
 onAuthStateChanged(auth,async user=>{
+  const ticket=++authGeneration;
   captureChapterRecovery();
   state.user=user;state.isAdmin=false;authUI();
   if(user)try{
     const badge=await getDoc(doc(db,'authorAdmins',user.uid));
-    state.isAdmin=badge.exists();
+    if(ticket!==authGeneration||auth.currentUser?.uid!==user.uid)return;
+    state.isAdmin=badge.exists()&&badge.data()?.role==='editor';
   }catch(error){if(!forbidden(error))console.warn('Admin membership is not yet configured.');}
-  await runView();
+  if(ticket!==authGeneration)return;
+  authUI();await runView();
 });

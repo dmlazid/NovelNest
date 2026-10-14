@@ -28,14 +28,14 @@ function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new 
     initializeApp(){return {};},getAuth(){return auth;},getFirestore(){return {};},browserLocalPersistence:{},setPersistence:async()=>{},
     onAuthStateChanged(_auth,fn){callback=fn;fn(auth.currentUser);},
     doc(_db,collection,id){assert(['users','authorAdmins'].includes(collection));return collection==='users'?id:'admin:'+id;},
-    async getDoc(ref){const okay=ref.startsWith('admin:')&&adminUids.includes(ref.slice(6));return {exists:()=>okay,data:()=>okay?{role:'editor'}:null};},
+    async getDoc(ref){if(!ref.startsWith('admin:'))return {exists:()=>cloud.has(ref),data:()=>cloud.get(ref)};const okay=ref.startsWith('admin:')&&adminUids.includes(ref.slice(6));return {exists:()=>okay,data:()=>okay?{role:'editor'}:null};},
     async runTransaction(_db,fn){transactions++;if(failure)throw Object.assign(Error('failure'),{code:failure});if(gate)await gate;
       return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),set:(id,value)=>cloud.set(id,copy(value))});},
     signOut:async()=>{auth.currentUser=null;callback(null);},GoogleAuthProvider:class{setCustomParameters(){}},signInWithPopup:async()=>{}
   };
   const context = vm.createContext({window,document,localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem(){},setItem(){},removeItem(){}},location:{hash:'#/library',reload(){reloads++;}},navigator:{onLine:true},setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),
     URL:{createObjectURL(blob){downloadBlobs.push(blob);return 'blob:novelhaven-'+downloadBlobs.length;},revokeObjectURL(){}},
-    Blob,Event,firebaseMock,console});
+    Blob,Event,URLSearchParams,firebaseMock,console});
   for(const name of ['backup.js','account-sync.js','accounts.js']) {
     let source=fs.readFileSync('dist/'+name,'utf8');
     // Replace the external SDK import boundary; all account and storage code is real.
@@ -268,7 +268,7 @@ test('verified Firebase editor sees Admin Dashboard before all reading links',as
  assert.match(profile,/VERIFIED NOVELHAVEN ADMIN/);
  assert.match(profile,/owner-account-card/);
  assert(profile.indexOf('owner-account-card')<profile.indexOf('<div class="drawer-rows">'));
- assert.match(profile,/writer-account-card/);
+ assert.doesNotMatch(profile,/writer-account-card/);
  await h.click('[data-menu]');
  const menu=h.nodes.get('#navigation-drawer').innerHTML;
  assert.match(menu,/owner-menu-card/);
@@ -297,12 +297,12 @@ test('admin role is cleared when switching to an account without permission',asy
 });
 
 test('founder profile has verified crown, real reading statistics and working owner-only tools',async()=>{
- const storage=new Map();save(storage,fixture());storage.set('novelnest.account-owner','"owner"');
- const h=harness({uid:'owner',adminUids:['owner'],storage});await h.start();
+ const storage=new Map();save(storage,fixture());storage.set('novelnest.account-owner','"vJaubaSEoDbqt9HXekVzWBM08Tj1"');
+ const h=harness({uid:'vJaubaSEoDbqt9HXekVzWBM08Tj1',adminUids:['vJaubaSEoDbqt9HXekVzWBM08Tj1'],storage});await h.start();
  await h.click('[data-profile]');
  const html=h.nodes.get('#account-drawer').innerHTML;
  assert.match(html,/founder-profile-summary/);
- assert.match(html,/FOUNDER · VERIFIED ADMIN/);
+ assert.match(html,/FOUNDER \/ OWNER · VERIFIED ADMIN/);
  assert.match(html,/Founder Command Center/);
  assert.match(html,/FOUNDER PRIVILEGES/);
  assert.match(html,/data-founder-backup/);
@@ -351,4 +351,31 @@ test('admin menu defaults compact; Novel list and Genres expand independently on
  tap('novels');assert.equal(panels.novels.hidden,true,'Tap again should collapse panel');
  tap('genres');assert.equal(panels.genres.hidden,false);assert.equal(panels.novels.hidden,true);
  tap('novels');assert.equal(panels.novels.hidden,false);assert.equal(panels.genres.hidden,true);
+});
+
+
+test('account refresh leaves the complete My account menu row intact',async()=>{
+ const h=harness();await h.start();await h.click('[data-menu]');
+ const row=h.nodes.get('[data-profile]');
+ assert.equal(row,undefined,'Only a dedicated profile-button can receive avatar HTML');
+ const before=h.nodes.get('#navigation-drawer').innerHTML;
+ h.fire('novelnest:view-ready',{});
+ assert.equal(h.nodes.get('#navigation-drawer').innerHTML,before);
+ assert.match(before,/My account/);
+});
+test('reading sync preserves custom profile while applying explicit bookmark removals',async()=>{
+ const storage=new Map();save(storage,fixture());storage.set('novelnest.account-owner','"alice"');
+ const profile={displayName:'My pen name',photoURL:'https://example.com/photo.jpg'};
+ const cloud=new Map([['alice',{version:1,...fixture(),profile}]]);
+ const h=harness({storage,uid:'alice',cloud});await h.start();
+ const data=h.state();data.data.saved=[];save(storage,data);
+ h.window.NovelNestAccounts.bookmarkAction('book',false);
+ await h.window.NovelNestAccounts.synchronize(true);
+ assert.deepEqual(cloud.get('alice').profile,profile);
+ assert.deepEqual(cloud.get('alice').data.saved,[]);
+});
+test('editor membership does not automatically grant the Founder label',async()=>{
+ const h=harness({uid:'another-editor',adminUids:['another-editor']});await h.start();
+ await h.click('[data-profile]');const html=h.nodes.get('#account-drawer').innerHTML;
+ assert.match(html,/VERIFIED ADMINISTRATOR/);assert.doesNotMatch(html,/FOUNDER PRIVILEGES|Founder Command Center|FOUNDER \/ OWNER/);
 });

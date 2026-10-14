@@ -343,3 +343,24 @@
  .catalog-tab-chevron{font-size:20px}
 }
 @media(prefers-reduced-motion:reduce){.owner-menu-chevron,.catalog-tab-chevron{transition:none}}
+
+/* Account v3: stable, compact mobile navigation and shared profile editing. */
+.site-drawer{scroll-behavior:auto;overflow-anchor:none;scrollbar-gutter:stable}
+.drawer-top{min-height:58px;padding:9px 18px}
+.menu-content{padding:16px 18px}.drawer-search{margin-bottom:12px}
+.owner-menu-summary{min-height:48px;padding:8px 11px;gap:9px}
+.owner-menu-crown{width:30px;height:30px;flex-basis:30px}.owner-menu-crown svg{width:20px;height:20px}
+.owner-menu-label strong{font-size:13px}.owner-menu-label small{font-size:10px}
+.owner-menu-dropdown{margin-bottom:12px;border-radius:10px}
+.menu-divider{margin:18px 0 6px}.drawer-row{padding-block:12px}
+.writer-menu-card{padding:16px!important}.writer-menu-card h3{font-size:19px;margin-block:8px}.writer-menu-card p{font-size:12px;line-height:1.5}
+.profile-editor{margin:14px 18px;border:1px solid #416359;border-radius:12px;background:#193b34}
+.profile-editor summary{padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;font-weight:600;list-style:none}
+.profile-editor summary::-webkit-details-marker{display:none}.profile-editor[open] summary span{transform:rotate(180deg)}
+.profile-editor form{display:grid;gap:12px;padding:0 14px 14px}.profile-editor label{display:grid;gap:6px;font-size:13px}
+.profile-editor input:not([type=checkbox]){width:100%;min-width:0;box-sizing:border-box;padding:10px;border:1px solid #52776b;border-radius:8px;background:#102d27;color:#f1f6f2;font:16px system-ui}
+.profile-editor p{margin:0;color:#bfd2c9;font-size:12px}.profile-editor .profile-remove{display:flex;align-items:center}
+.reader-profile-badge{font-size:10px;color:#a6cdbd;letter-spacing:1px}.reader-account-card{margin:16px 18px;padding:16px;border:1px solid #416359;border-radius:14px;background:linear-gradient(120deg,#244b41,#17312e)}
+.reader-account-card h3{margin:0 0 12px;font-size:18px}.reader-account-card .owner-stats{margin:0}
+.profile-summary{padding:20px 18px}.owner-account-card{margin-top:16px}
+@media(max-width:360px){.owner-menu-tools{grid-template-columns:1fr}.profile-summary{gap:12px}.profile-summary h2{font-size:18px}}

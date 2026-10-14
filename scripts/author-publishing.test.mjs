@@ -29,7 +29,7 @@ test('all Author Studio routes are ad-free, secure and noindex until reviewed',(
   assert.doesNotMatch(html,/adsbygoogle|pagead2\.googlesyndication/);
  }
  for(const name of ['author-studio','author-admin','original-novels','original-story'])
-   assert.match(read('dist/'+name+'.html'),/author-publishing\.js\?v=2/);
+   assert.match(read('dist/'+name+'.html'),/author-publishing\.js\?v=3/);
  const js=read('dist/author-publishing.js');
  assert.match(js,/onAuthStateChanged/);
  assert.match(js,/where\('ownerUid','==',state\.user\.uid\)/);

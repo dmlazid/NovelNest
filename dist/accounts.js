@@ -8,7 +8,10 @@
   const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let owner = '', user = null, sdk = null, auth = null, db = null, ready = false;
   let applying = false, running = false, busy = false, generation = 0, timer = 0, lastSync = 0;
-  let editorAccess = false;
+  let editorAccess = false, profileData = {}, profileSaving = false;
+  const FOUNDER_UID = 'vJaubaSEoDbqt9HXekVzWBM08Tj1';
+  const isFounder = () => editorAccess && user?.uid === FOUNDER_UID;
+  const profileName = () => profileData.displayName || user?.displayName || 'Reader';
   let requestedSignOut=false;
   let message = 'Connecting account service…', lastSaved = [], lastTracked = '', baseline = sync.empty();
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -167,10 +170,10 @@
         const snapshot = await transaction.get(ref);
         if (ticket !== generation || auth.currentUser?.uid !== uid) throw Error('Account changed.');
         const raw = snapshot.exists() ? snapshot.data() : null;
-        if (raw && raw.version !== 1) throw Error('Unsupported cloud data.');
-        const remote = raw ? normalize(raw) : sync.empty();
+        if (raw && raw.version !== undefined && raw.version !== 1) throw Error('Unsupported cloud data.');
+        const remote = raw?.version === 1 ? normalize(raw) : sync.empty();
         const merged = normalize(initializeSeen(sync.merge(base, sent, remote, pendingIntents(uid))));
-        if (!raw || JSON.stringify(merged) !== JSON.stringify(remote)) transaction.set(ref, { version: 1, ...merged });
+        if (!raw || JSON.stringify(merged) !== JSON.stringify(remote)) transaction.set(ref, { version: 1, ...merged, ...(raw?.profile ? {profile:raw.profile} : {}) });
         return merged;
       });
       if (ticket !== generation || auth.currentUser?.uid !== uid) return;
@@ -209,8 +212,9 @@
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.book}</svg>`;
   };
   function avatar() {
-    const photo = typeof user?.photoURL === 'string' && user.photoURL.startsWith('https://') ? user.photoURL : '';
-    const initials = (user?.displayName || user?.email || '').split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase();
+    const candidate = profileData.photoURL || user?.photoURL || '';
+    const photo = /^(https:\/\/|data:image\/(?:jpeg|png|webp);base64,)/.test(candidate) ? candidate : '';
+    const initials = (profileName() || user?.email || '').split(/\s+/).slice(0,2).map(word=>word[0]).join('').toUpperCase();
     return photo ? `<img src="${escape(photo)}" alt="" referrerpolicy="no-referrer">` : user ? `<span>${escape(initials || 'N')}</span>` : icon('user');
   }
   function statusText() {
@@ -232,7 +236,7 @@
       element.setAttribute('aria-label', title); document.body.appendChild(element);
       // Keep the site mounted when navigating from the mobile menu.
       // The former location.assign() caused a full document reload and a white flash.
-      if (id === 'navigation-drawer') {
+      if (['navigation-drawer','account-drawer','updates-dialog'].includes(id)) {
         element.addEventListener('click', event => {
           const link = event.target.closest('a[href]');
           if (!link || !element.contains(link)) return;
@@ -248,7 +252,7 @@
           event.preventDefault();
           event.stopImmediatePropagation();
           try { element.close(); } catch {}
-          element.remove();
+          // Keep the drawer mounted; reopening must not restore an old scroll offset.
           if (window.NovelNestApp?.navigate) {
             window.NovelNestApp.navigate(destination.pathname + destination.search + destination.hash);
           } else {
@@ -261,7 +265,7 @@
     return element;
   }
   function closeDrawers() { document.querySelectorAll('.site-drawer[open]').forEach(d => { try { d.close(); } catch {} }); }
-  function openDrawer(element) { closeDrawers(); element.showModal(); }
+  function openDrawer(element) { closeDrawers(); element.showModal(); element.scrollTop=0; element.querySelector('[data-close-drawer]')?.focus?.({preventScroll:true}); }
   // Native full-document navigation avoids leaving the modal above routed pages.
   function menuHref(href) {
     if (!href.startsWith('./#/')) return href;
@@ -305,7 +309,7 @@
     if(which==='owner-menu-card')return `<details class="owner-menu-dropdown owner-menu-card" data-owner-dropdown>
       <summary class="owner-menu-summary">
         <span class="owner-menu-crown" aria-hidden="true">${icon('shield')}</span>
-        <span class="owner-menu-label"><strong>Founder tools</strong><small>Verified admin · Tap to expand</small></span>
+        <span class="owner-menu-label"><strong>${isFounder()?'Owner':'Administrator'} tools</strong><small>Verified administrator</small></span>
         <span class="owner-menu-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div class="owner-menu-tools">
@@ -321,7 +325,7 @@
         <span class="owner-eyebrow">${icon('shield')} VERIFIED NOVELHAVEN ADMIN</span>
         <span class="owner-member-mark" aria-hidden="true">✦</span>
       </div>
-      <h3>Founder Command Center</h3>
+      <h3>${isFounder()?'Founder Command Center':'Administrator Dashboard'}</h3>
       <p class="owner-intro">Your private space to guide NovelHaven, review new authors, and keep your reading library safe.</p>
       <div class="owner-stats" aria-label="Your saved reading activity">
         <div><strong>${stats.saved}</strong><span>Bookmarks</span></div>
@@ -329,7 +333,7 @@
         <div><strong>${stats.currentlyReading}</strong><span>Stories opened</span></div>
       </div>
       <a class="owner-primary-link" data-close-drawer href="/author-admin.html">Admin Dashboard <span aria-hidden="true">↗</span></a>
-      <div class="owner-tools-title">FOUNDER PRIVILEGES</div>
+      <div class="owner-tools-title">${isFounder()?'FOUNDER PRIVILEGES':'ADMINISTRATOR TOOLS'}</div>
       <div class="owner-action-grid">
         <a href="/author-admin.html" data-close-drawer>${icon('shield')} <span>Moderation</span></a>
         <a href="/author-studio.html" data-close-drawer>${icon('book')} <span>My manuscripts</span></a>
@@ -350,18 +354,71 @@
       <a href="/author-guidelines.html" class="writer-help-link" data-close-drawer>How it works</a></div>
     </section>`;
   }
+  function readerCard() {
+    const stats=ownerStatistics();
+    return `<section class="reader-account-card"><h3>Your reading space</h3><div class="owner-stats"><div><strong>${stats.saved}</strong><span>Bookmarks</span></div><div><strong>${stats.finished}</strong><span>Chapters finished</span></div><div><strong>${stats.currentlyReading}</strong><span>Stories opened</span></div></div></section>`;
+  }
+  function profileEditor() {
+    if(!user)return '';
+    return `<details class="profile-editor"><summary>Edit photo &amp; username <span aria-hidden="true">⌄</span></summary><form data-profile-form>
+      <label>Username<input name="displayName" required minlength="2" maxlength="60" value="${escape(profileName())}" autocomplete="nickname"></label>
+      <label>Choose profile photo<input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+      <p>JPG, PNG or WebP, up to 5 MB. Your photo is resized for fast loading.</p>
+      <label class="profile-remove"><input type="checkbox" name="removePhoto"> Use initials instead</label>
+      <button class="button" type="submit">Save profile</button><p data-profile-message role="status"></p>
+    </form></details>`;
+  }
+  async function loadProfile(account,ticket) {
+    try {
+      const snapshot=await sdk.getDoc(sdk.doc(db,'users',account.uid));
+      if(ticket!==generation||user?.uid!==account.uid)return;
+      profileData=snapshot.data()?.profile||{};render();
+    }catch{/* Reading sync reports connection errors; keep the Google profile available. */}
+  }
+  async function resizePhoto(file) {
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)throw Error('Choose a JPG, PNG or WebP smaller than 5 MB.');
+    const bitmap=await createImageBitmap(file);
+    try {
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=192;
+      const context=canvas.getContext('2d'),side=Math.min(bitmap.width,bitmap.height);
+      context.drawImage(bitmap,(bitmap.width-side)/2,(bitmap.height-side)/2,side,side,0,0,192,192);
+      return canvas.toDataURL('image/jpeg',0.8);
+    }finally{bitmap.close();}
+  }
+  async function saveProfile(form) {
+    if(!user||profileSaving)return;
+    const account=user,ticket=generation,button=form.querySelector('[type="submit"]'),label=form.querySelector('[data-profile-message]');
+    profileSaving=true;button.disabled=true;label.textContent='Saving profile…';
+    try {
+      const fields=new FormData(form),displayName=String(fields.get('displayName')||'').trim();
+      if(displayName.length<2||displayName.length>60)throw Error('Use 2–60 characters for your username.');
+      const file=fields.get('photo');
+      const photoURL=fields.has('removePhoto')?'initials':file?.size?await resizePhoto(file):(profileData.photoURL||account.photoURL||'');
+      if(ticket!==generation||auth.currentUser?.uid!==account.uid)return;
+      const next={displayName,photoURL};
+      await sdk.setDoc(sdk.doc(db,'users',account.uid),{profile:next},{merge:true});
+      if(ticket!==generation||user?.uid!==account.uid)return;
+      profileData=next;
+      // Firebase Auth keeps the author pen-name suggestion consistent, too.
+      try {await sdk.updateProfile(account,{displayName});}catch{}
+      render();
+      const status=document.querySelector('#account-drawer [data-account-status]');
+      if(status)status.textContent='Profile saved.';
+    }catch(error){label.textContent=error?.message?.startsWith('Choose ')||error?.message?.startsWith('Use ')?error.message:'Could not save your profile. Please try again.';}
+    finally{profileSaving=false;button.disabled=false;}
+  }
   function profileContent() {
     let guest = false;
     try { const data = read(scopeKey(''), null)?.data; guest = !!data && (data.saved.length > 0 || Object.keys(data.progress).length > 0); } catch {}
-    return drawerTop('account') + `<section class="profile-summary ${editorAccess&&user?'founder-profile-summary':''}"><div class="profile-avatar">${avatar()}${editorAccess&&user?'<span class="founder-avatar-crown" aria-label="Founder">✦</span>':''}</div><div><h2>${escape(user?.displayName || (user ? 'Reader' : 'Welcome, reader'))}</h2>${editorAccess&&user?'<span class="founder-profile-badge">✦ FOUNDER · VERIFIED ADMIN</span>':''}<p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
-      adminCard('owner-account-card') + writerCard('writer-account-card') +
+    return drawerTop('account') + `<section class="profile-summary ${editorAccess&&user?'founder-profile-summary':''}"><div class="profile-avatar">${avatar()}${editorAccess&&user?'<span class="founder-avatar-crown" aria-label="Verified administrator">✦</span>':''}</div><div><h2>${escape(user ? profileName() : 'Welcome, reader')}</h2>${editorAccess&&user?'<span class="founder-profile-badge">'+(isFounder()?'✦ FOUNDER / OWNER · VERIFIED ADMIN':'VERIFIED ADMINISTRATOR')+'</span>':user?'<span class="reader-profile-badge">NOVELHAVEN READER</span>':''}<p>${escape(user?.email || 'Your next chapter is waiting.')}</p></div></section>` +
+      profileEditor() + adminCard('owner-account-card') + (!editorAccess ? readerCard() + writerCard('writer-account-card') : '') +
       (!user ? `<div class="drawer-signin"><p>Sign in to keep your library across devices.</p>${googleButton()}</div>` : '') +
       `<div class="drawer-rows">${row('./#/library','Bookmarks','Your saved novels','bookmark')}${row('./#/library?tab=history','History','Pick up where you left off','history')}
       <details class="account-settings"><summary class="drawer-row"><span class="row-icon">${icon('settings')}</span><span><strong>Settings</strong><small>Your library &amp; account</small></span><span class="row-chevron" aria-hidden="true">›</span></summary><div class="settings-content">${user ? `<button class="button" data-sync-now ${busy ? 'disabled' : ''}>Sync now</button>${guest ? '<button class="button outline" data-import-guest>Add guest reading data</button><p>Copy this device’s guest bookmarks and progress into your account.</p>' : ''}<p>Signing out returns to your guest library.</p>` : '<p>Your guest library is saved on this device. Sign in to sync across devices.</p>'}</div></details></div>
       <div class="profile-bottom"><p data-account-status role="status" aria-live="polite"></p>${user ? `<button class="signout-button" data-signout ${busy ? 'disabled' : ''}>${icon('logout')} Sign out</button>` : ''}</div>`;
   }
   function showProfile() {
-    const panel = drawer('account-drawer', 'My account'); panel.innerHTML = profileContent(); panel.dataset.profileState=(user?.uid||'guest')+':'+String(editorAccess); renderStatus(); openDrawer(panel);
+    const panel = drawer('account-drawer', 'My account'); panel.innerHTML = profileContent(); panel.dataset.profileState=(user?.uid||'guest')+':'+String(editorAccess)+':'+JSON.stringify(profileData); renderStatus(); openDrawer(panel);
   }
   function render() {
     const main = document.querySelector('#main');
@@ -373,7 +430,7 @@
       if(shouldHave&&!existing)adminSlot.innerHTML=adminCard('owner-menu-card');
       else if(!shouldHave&&existing)adminSlot.innerHTML='';
     }
-    const profile = document.querySelector('[data-profile]');
+    const profile = document.querySelector('.profile-button[data-profile]');
     if (profile) { profile.innerHTML = avatar(); profile.setAttribute('aria-label', user ? 'My account' : 'Log in or sign up'); }
     // The Library paints a fixed account-status row itself. Updating auth
     // should change ONLY its text, never append a panel or replace its HTML.
@@ -381,7 +438,7 @@
     const panel = document.querySelector('#account-drawer');
     if (panel?.open) {
       // Background bookmark sync must not remount My Account or jump its scroll.
-      const key=(user?.uid||'guest')+':'+String(editorAccess);
+      const key=(user?.uid||'guest')+':'+String(editorAccess)+':'+JSON.stringify(profileData);
       if(panel.dataset.profileState!==key){
         const settingsOpen=!!panel.querySelector('details[open]'),top=panel.scrollTop;
         panel.innerHTML=profileContent();panel.dataset.profileState=key;
@@ -476,7 +533,8 @@
       auth = sdk.getAuth(app); db = sdk.getFirestore(app);
       await sdk.setPersistence(auth, sdk.browserLocalPersistence);
       sdk.onAuthStateChanged(auth, next => {
-        generation++; user = next; ready = true; editorAccess=false;
+        generation++; user = next; ready = true; editorAccess=false; profileData={};
+        if(next?.uid)void loadProfile(next,generation);
         // An editor link appears ONLY after checking this signed-in user's
         // Firebase authorAdmins document. Firestore rules enforce permissions.
         if(next?.uid)void verifyEditor(next,generation);
@@ -557,6 +615,7 @@
     }
   });
   document.addEventListener('submit', event => {
+    if(event.target.matches('[data-profile-form]')){event.preventDefault();void saveProfile(event.target);return;}
     if (!event.target.matches('[data-menu-search]')) return;
     event.preventDefault();
     const query = new FormData(event.target).get('q').trim();
@@ -594,4 +653,5 @@
   } catch { message = 'Browser storage is unavailable. Enable site storage to use accounts.'; }
   render();
   setTimeout(start, 0);
+  if(new URLSearchParams(location.search||'').get('account')==='1')showProfile();
 })();
