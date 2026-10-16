@@ -1,0 +1,35 @@
+name: NovelHaven D1 resilience and ads.txt check
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/d1-ads-txt-check.yml'
+      - 'scripts/sync-d1-chapters.mjs'
+      - 'scripts/sync-d1-chapters.test.mjs'
+      - 'scripts/verify-live-ads-txt.mjs'
+      - 'dist/ads.txt'
+permissions:
+  contents: read
+jobs:
+  read-only-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout current NovelHaven source
+        uses: actions/checkout@v4
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate D1 resilience and crawler-check syntax
+        run: |
+          node --check scripts/sync-d1-chapters.mjs
+          node --check scripts/verify-live-ads-txt.mjs
+          node --check scripts/sync-d1-chapters.test.mjs
+      - name: Test safe D1 retry and chapter content audits (no Cloudflare writes)
+        run: node --test scripts/sync-d1-chapters.test.mjs scripts/audit-d1-content.test.mjs
+      - name: Verify public ads.txt over HTTP and HTTPS without changing AdSense
+        run: node scripts/verify-live-ads-txt.mjs
+      - name: Explain read-only verification
+        run: echo 'No database cutover, publisher ID change, or new AdSense submission was made.' >> "$GITHUB_STEP_SUMMARY"
