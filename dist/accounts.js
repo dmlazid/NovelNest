@@ -4,17 +4,33 @@
   const intentKey = (kind, uid) => 'novelnest.pending-'+kind+'.'+encodeURIComponent(uid || 'guest');
   const scopeKey = uid => 'novelnest.account-cache.' + encodeURIComponent(uid || 'guest');
   const baseKey = uid => 'novelnest.account-base.' + encodeURIComponent(uid);
+  // Keep an account-scoped recovery copy of the last confirmed profile.
+  // This prevents a temporary Firestore read failure from hiding its avatar.
+  const profileKey = uid => 'novelhaven.profile-backup.' + encodeURIComponent(uid);
   const books = window.NOVELS || [];
   const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let owner = '', user = null, sdk = null, auth = null, db = null, ready = false;
   let applying = false, running = false, busy = false, generation = 0, timer = 0, lastSync = 0;
-  let editorAccess = false, profileData = {}, profileSaving = false;
+  let editorAccess = false, profileData = {}, profileSaving = false, profileRevision = 0;
   const FOUNDER_UID = 'vJaubaSEoDbqt9HXekVzWBM08Tj1';
   const isFounder = () => editorAccess && user?.uid === FOUNDER_UID;
   const profileName = () => profileData.displayName || user?.displayName || 'Reader';
   let requestedSignOut=false;
   let message = 'Connecting account service…', lastSaved = [], lastTracked = '', baseline = sync.empty();
   const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
+  function safeProfile(value) {
+    if(!value || typeof value!=='object')return {};
+    const displayName=typeof value.displayName==='string'?value.displayName.slice(0,60):'';
+    const candidate=typeof value.photoURL==='string'?value.photoURL:'';
+    const photoURL=candidate==='initials'||/^(https:\/\/|data:image\/(?:jpeg|png|webp);base64,)/.test(candidate)?candidate:'';
+    return {displayName,photoURL};
+  }
+  const savedProfile = uid => uid ? safeProfile(read(profileKey(uid),{})) : {};
+  function rememberProfile(uid,value) {
+    if(!uid)return;
+    try { localStorage.setItem(profileKey(uid),JSON.stringify(safeProfile(value))); }
+    catch { /* Firestore remains authoritative if browser storage is disabled. */ }
+  }
   function normalize(value) {
     if (!value || typeof value !== 'object') throw Error('Invalid cloud reading data.');
     const data = backup.parse(JSON.stringify({ format: 'novelnest-backup', version: 1, data: value.data }));
@@ -173,7 +189,10 @@
         if (raw && raw.version !== undefined && raw.version !== 1) throw Error('Unsupported cloud data.');
         const remote = raw?.version === 1 ? normalize(raw) : sync.empty();
         const merged = normalize(initializeSeen(sync.merge(base, sent, remote, pendingIntents(uid))));
-        if (!raw || JSON.stringify(merged) !== JSON.stringify(remote)) transaction.set(ref, { version: 1, ...merged, ...(raw?.profile ? {profile:raw.profile} : {}) });
+        // Merge only reading fields. Replacing the entire user document can
+        // accidentally overwrite a newly uploaded photo in a concurrent tab.
+        if (!raw || JSON.stringify(merged) !== JSON.stringify(remote))
+          transaction.set(ref, {version:1,...merged},{merge:true});
         return merged;
       });
       if (ticket !== generation || auth.currentUser?.uid !== uid) return;
@@ -369,11 +388,31 @@
     </form></details>`;
   }
   async function loadProfile(account,ticket) {
+    const revision=profileRevision;
     try {
-      const snapshot=await sdk.getDoc(sdk.doc(db,'users',account.uid));
-      if(ticket!==generation||user?.uid!==account.uid)return;
-      profileData=snapshot.data()?.profile||{};render();
-    }catch{/* Reading sync reports connection errors; keep the Google profile available. */}
+      // The server, not an old offline snapshot, is the source of truth.
+      const ref=sdk.doc(db,'users',account.uid);
+      const snapshot=await (sdk.getDocFromServer||sdk.getDoc)(ref);
+      if(ticket!==generation||user?.uid!==account.uid||revision!==profileRevision)return;
+      const remote=snapshot.data()?.profile;
+      if(remote && typeof remote==='object') {
+        profileData=safeProfile(remote);
+        rememberProfile(account.uid,profileData);
+      } else {
+        // Restore a previously confirmed upload only if the server has no
+        // profile. Explicit photo removal uses 'initials' and is never undone.
+        const cached=savedProfile(account.uid);
+        if(cached.photoURL||cached.displayName) {
+          await sdk.setDoc(ref,{profile:cached},{merge:true});
+          if(ticket!==generation||user?.uid!==account.uid||revision!==profileRevision)return;
+          profileData=cached;
+        }
+      }
+      render();
+    }catch{
+      // Keep the uid-scoped last confirmed image visible while offline.
+      if(ticket===generation&&user?.uid===account.uid&&revision===profileRevision)render();
+    }
   }
   async function resizePhoto(file) {
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)throw Error('Choose a JPG, PNG or WebP smaller than 5 MB.');
@@ -388,7 +427,7 @@
   async function saveProfile(form) {
     if(!user||profileSaving)return;
     const account=user,ticket=generation,button=form.querySelector('[type="submit"]'),label=form.querySelector('[data-profile-message]');
-    profileSaving=true;button.disabled=true;label.textContent='Saving profile…';
+    profileSaving=true;profileRevision++;button.disabled=true;label.textContent='Saving profile…';
     try {
       const fields=new FormData(form),displayName=String(fields.get('displayName')||'').trim();
       if(displayName.length<2||displayName.length>60)throw Error('Use 2–60 characters for your username.');
@@ -398,7 +437,8 @@
       const next={displayName,photoURL};
       await sdk.setDoc(sdk.doc(db,'users',account.uid),{profile:next},{merge:true});
       if(ticket!==generation||user?.uid!==account.uid)return;
-      profileData=next;
+      profileData=safeProfile(next);
+      rememberProfile(account.uid,profileData);
       // Firebase Auth keeps the author pen-name suggestion consistent, too.
       try {await sdk.updateProfile(account,{displayName});}catch{}
       render();
@@ -550,7 +590,8 @@
       auth = sdk.getAuth(app); db = sdk.getFirestore(app);
       await sdk.setPersistence(auth, sdk.browserLocalPersistence);
       sdk.onAuthStateChanged(auth, next => {
-        generation++; user = next; ready = true; editorAccess=false; profileData={};
+        generation++;profileRevision++;user = next; ready = true; editorAccess=false;
+        profileData=next?.uid?savedProfile(next.uid):{};
         if(next?.uid)void loadProfile(next,generation);
         // An editor link appears ONLY after checking this signed-in user's
         // Firebase authorAdmins document. Firestore rules enforce permissions.
