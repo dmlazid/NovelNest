@@ -194,3 +194,43 @@ test('HTTP 400 invalid request preserves safe diagnostic category, never SQL pay
  });
  assert.deepEqual(classifyD1Failure(403,[{code:9109,message:'Permission denied'}]),{code:'9109',kind:'permission'});
 });
+
+test('transient invalid JSON on a read-only SELECT is retried and verified',async()=>{
+ let calls=0;
+ const fetchFn=async()=>{calls++;
+  if(calls===1)return {ok:true,status:200,json:async()=>{throw new SyntaxError('private HTML body');}};
+  return {ok:true,status:200,json:async()=>({success:true,result:[
+   {success:true,results:[{count:7}],meta:{rows_read:7,rows_written:0}}]})};
+ };
+ const client=new D1Client({token:'secret',accountId:'a'.repeat(32),fetchFn});
+ const result=await client.query('SELECT COUNT(*) AS count FROM chapters');
+ assert.equal(result.results[0].count,7);
+ assert.equal(calls,2);
+});
+
+test('malformed success response does not repeat a D1 write',async()=>{
+ let calls=0;
+ const client=new D1Client({token:'secret',accountId:'a'.repeat(32),fetchFn:async()=>{
+  calls++;
+  return {ok:true,status:200,json:async()=>{throw new SyntaxError('private SQL or chapter text');}};
+ }});
+ await assert.rejects(()=>client.query('INSERT INTO chapters VALUES (?,?)',['private','story']),e=>{
+  assert.match(e.message,/invalid JSON/);
+  assert.doesNotMatch(e.message,/private|chapter text|INSERT/i);
+  return true;
+ });
+ assert.equal(calls,1,'D1 writes must never be retried when the result is unknown');
+});
+
+test('network failures and server 5xx do not replay writes',async()=>{
+ for(const mode of ['network','server']){
+  let calls=0;
+  const client=new D1Client({token:'secret',accountId:'a'.repeat(32),fetchFn:async()=>{
+   calls++;
+   if(mode==='network')throw new Error('private response');
+   return {ok:false,status:503,json:async()=>({})};
+  }});
+  await assert.rejects(()=>client.query('UPDATE chapters SET title=?',['private']));
+  assert.equal(calls,1,'Ambiguous '+mode+' outcome must not replay write');
+ }
+});
