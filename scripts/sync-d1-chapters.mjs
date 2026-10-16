@@ -130,12 +130,18 @@ export class D1Client {
           signal: AbortSignal.timeout(30_000),
         });
       } catch {
-        if (attempt < 2) { await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue; }
-        throw new Error('Cloudflare API could not be reached; import paused');
+        // Network failure may occur after a write reached D1: don't repeat it.
+        if (canRetryMalformed && attempt < 2) {
+          await new Promise(r => setTimeout(r, 1200 * (attempt + 1))); continue;
+        }
+        throw new Error('Cloudflare API could not be reached; request safely paused');
       }
       if (response.status === 429 || response.status >= 500) {
-        if (attempt < 2) { await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); continue; }
-        throw new Error('Cloudflare API rate limit or server error; import paused');
+        // A 429 is rejected before execution; a 5xx from a write is ambiguous.
+        if ((response.status === 429 || canRetryMalformed) && attempt < 2) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); continue;
+        }
+        throw new Error('Cloudflare API rate limit or server error; request safely paused');
       }
       if (!response.ok) {
         // Cloudflare can report D1 Free-plan quota exhaustion as HTTP 400.
