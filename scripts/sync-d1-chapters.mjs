@@ -116,7 +116,7 @@ export class D1Client {
     // when a successful write might have returned a damaged response.
     const canRetryMalformed = method === 'GET' ||
       (endpoint === '/query' && method === 'POST' &&
-       typeof body?.sql === 'string' && /^\\s*SELECT\\b/i.test(body.sql));
+       typeof body?.sql === 'string' && /^\s*SELECT\b/i.test(body.sql));
     for (let attempt = 0; attempt < 3; attempt++) {
       let response;
       try {
