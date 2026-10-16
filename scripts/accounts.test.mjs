@@ -29,8 +29,13 @@ function harness({ storage = new Map(), uid = null, adminUids = [], cloud = new 
     onAuthStateChanged(_auth,fn){callback=fn;fn(auth.currentUser);},
     doc(_db,collection,id){assert(['users','authorAdmins'].includes(collection));return collection==='users'?id:'admin:'+id;},
     async getDoc(ref){if(!ref.startsWith('admin:'))return {exists:()=>cloud.has(ref),data:()=>cloud.get(ref)};const okay=ref.startsWith('admin:')&&adminUids.includes(ref.slice(6));return {exists:()=>okay,data:()=>okay?{role:'editor'}:null};},
+    async setDoc(id,value,{merge}={}) {
+      cloud.set(id,merge?{...(cloud.get(id)||{}),...copy(value)}:copy(value));
+    },
+    updateProfile:async (account,data)=>Object.assign(account,data),
     async runTransaction(_db,fn){transactions++;if(failure)throw Object.assign(Error('failure'),{code:failure});if(gate)await gate;
-      return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),set:(id,value)=>cloud.set(id,copy(value))});},
+      return fn({get:async id=>({exists:()=>cloud.has(id),data:()=>copy(cloud.get(id))}),
+        set:(id,value,opts)=>cloud.set(id,opts?.merge?{...(cloud.get(id)||{}),...copy(value)}:copy(value))});},
     signOut:async()=>{auth.currentUser=null;callback(null);},GoogleAuthProvider:class{setCustomParameters(){}},signInWithPopup:async()=>{}
   };
   const context = vm.createContext({window,document,localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},sessionStorage:{getItem(){},setItem(){},removeItem(){}},location:{hash:'#/library',reload(){reloads++;}},navigator:{onLine:true},setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),
@@ -378,4 +383,46 @@ test('editor membership does not automatically grant the Founder label',async()=
  const h=harness({uid:'another-editor',adminUids:['another-editor']});await h.start();
  await h.click('[data-profile]');const html=h.nodes.get('#account-drawer').innerHTML;
  assert.match(html,/VERIFIED ADMINISTRATOR/);assert.doesNotMatch(html,/FOUNDER PRIVILEGES|Founder Command Center|FOUNDER \/ OWNER/);
+});
+
+test('profile photo from Firestore survives a refresh and account reading synchronization',async()=>{
+ const storage=new Map();save(storage,fixture());
+ storage.set('novelnest.account-owner','"alice"');
+ const pic='data:image/jpeg;base64,ZmFrZS1waG90by1wYXlsb2Fk';
+ const profile={displayName:'NovelHaven Reader',photoURL:pic};
+ const cloud=new Map([['alice',{version:1,...fixture(),profile}]]);
+ const first=harness({storage,uid:'alice',cloud});await first.start();
+ await first.click('[data-profile]');
+ assert(first.nodes.get('#account-drawer').innerHTML.includes('data:image/jpeg;base64'));
+ await first.window.NovelNestAccounts.synchronize(true);
+ assert.deepEqual(cloud.get('alice').profile,profile);
+ const reopened=harness({storage,uid:'alice',cloud});await reopened.start();
+ await reopened.click('[data-profile]');
+ assert(reopened.nodes.get('#account-drawer').innerHTML.includes(pic));
+ assert.deepEqual(JSON.parse(storage.get('novelhaven.profile-backup.alice')),profile);
+});
+
+test('account-specific photo remains visible on offline profile refresh, never leaks to another user',async()=>{
+ const storage=new Map();save(storage,fixture());
+ storage.set('novelnest.account-owner','"alice"');
+ const photo='data:image/jpeg;base64,ZmFrZS1waG90by1jYWNoZQ==';
+ storage.set('novelhaven.profile-backup.alice',JSON.stringify({displayName:'Alice',photoURL:photo}));
+ const alice=harness({storage,uid:'alice',error:'unavailable'});await alice.start();
+ await alice.click('[data-profile]');
+ assert(alice.nodes.get('#account-drawer').innerHTML.includes(photo));
+ // Another login must not render Alice's private local photo.
+ const bob=harness({storage,uid:'bob'});await bob.start();
+ await bob.click('[data-profile]');
+ assert(!bob.nodes.get('#account-drawer').innerHTML.includes(photo));
+});
+
+test('an explicit remove-photo tombstone wins over a cached old picture',async()=>{
+ const storage=new Map();save(storage,fixture());
+ storage.set('novelnest.account-owner','"alice"');
+ storage.set('novelhaven.profile-backup.alice',JSON.stringify({displayName:'Alice',photoURL:'data:image/jpeg;base64,ZmFrZQ=='}));
+ const cloud=new Map([['alice',{version:1,...fixture(),profile:{displayName:'Alice',photoURL:'initials'}}]]);
+ const h=harness({storage,uid:'alice',cloud});await h.start();await h.click('[data-profile]');
+ const html=h.nodes.get('#account-drawer').innerHTML;
+ assert(!html.includes('data:image/jpeg;base64'));
+ assert.equal(JSON.parse(storage.get('novelhaven.profile-backup.alice')).photoURL,'initials');
 });
