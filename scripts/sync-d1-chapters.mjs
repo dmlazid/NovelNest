@@ -111,6 +111,12 @@ export class D1Client {
   }
 
   async request(endpoint = '', method = 'GET', body) {
+    // A 200 HTML/empty reply may be an intermittent Cloudflare edge response.
+    // Retry malformed responses ONLY for safe reads; never replay INSERT/UPDATE
+    // when a successful write might have returned a damaged response.
+    const canRetryMalformed = method === 'GET' ||
+      (endpoint === '/query' && method === 'POST' &&
+       typeof body?.sql === 'string' && /^\\s*SELECT\\b/i.test(body.sql));
     for (let attempt = 0; attempt < 3; attempt++) {
       let response;
       try {
@@ -142,7 +148,13 @@ export class D1Client {
       }
       let data;
       try { data = await response.json(); }
-      catch { throw new Error('Cloudflare API returned invalid JSON'); }
+      catch {
+        if (canRetryMalformed && attempt < 2) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        throw new Error('Cloudflare API returned invalid JSON; request safely paused');
+      }
       if (data.success !== true || (Array.isArray(data.errors) && data.errors.length)) {
         throw new Error('Cloudflare D1 rejected the request; import paused');
       }
