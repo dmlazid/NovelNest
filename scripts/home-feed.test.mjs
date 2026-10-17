@@ -35,7 +35,7 @@ test('unavailable newly released chapter never points to a nonexistent local cha
   const view=harness([source('waiting',{sourceReleaseNumber:10,sourceReleaseTitle:'Chapter 10: New'}),source('ready')]);
   const waiting=view('homeReleaseRow(novels[0])');
   assert.match(waiting,/href="\/novel\/waiting\/"/);
-  assert.match(waiting,/Available through Chapter 2/);
+  assert.match(waiting,/Available through Chapter 3/);
   const ready=view('homeReleaseRow(novels[1])');
   assert.match(ready,/href="\/novel\/ready\/chapter-3\/"/);
   assert.match(ready,/>4 mins ago<\/time>/);
@@ -89,7 +89,7 @@ test('source-reported chapters within five days appear even before tracking base
   const markup=view('homeReleaseRow(novels[1])');
   assert.match(markup,/Chapter 5: Real source update/);
   assert.match(markup,/>4 days ago<\/span>/);
-  assert.match(markup,/Available through Chapter 2/);
+  assert.match(markup,/Available through Chapter 3/);
 });
 test('source-reported hourly activity sorts ahead of older source updates',()=>{
   const one=source('detected',{sourceReleaseAt:'2026-10-10T09:00:00Z'});
