@@ -1,5 +1,6 @@
 name: Publish verified NovelHaven compatible Pages
 # Chapter availability is validated independently of source-release announcements.
+# Deploy validated three-novel chapter catch-up without changing advertising.
 on:
   push:
     branches: [main]
