@@ -175,7 +175,7 @@ function homeReleaseRow(n){
       <strong>${esc(n.title)}</strong>
       <span class="home-release-details">
         <small class="home-release-genres">${esc(n.tags.slice(0,2).join(', ')||n.genre)}</small>
-        <span class="home-release-chapter">${esc(newest)}${available?'':' · Syncing chapter to NovelHaven'}</span>
+        <span class="home-release-chapter">${esc(newest)}${available?'':' · Available through Chapter '+availableCount(n)}</span>
         ${when}
       </span>
     </span>
