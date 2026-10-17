@@ -89,7 +89,7 @@ test('source-reported chapters within five days appear even before tracking base
   const markup=view('homeReleaseRow(novels[1])');
   assert.match(markup,/Chapter 5: Real source update/);
   assert.match(markup,/>4 days ago<\/span>/);
-  assert.match(markup,/Syncing chapter to NovelHaven/);
+  assert.match(markup,/Available through Chapter 2/);
 });
 test('source-reported hourly activity sorts ahead of older source updates',()=>{
   const one=source('detected',{sourceReleaseAt:'2026-10-10T09:00:00Z'});
