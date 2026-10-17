@@ -1,4 +1,5 @@
 name: Publish verified NovelHaven compatible Pages
+# Chapter availability is validated independently of source-release announcements.
 on:
   push:
     branches: [main]
