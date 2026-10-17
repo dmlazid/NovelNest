@@ -1,0 +1,59 @@
+name: Audit all novel chapter availability
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/audit-all-novel-chapters.yml']
+  schedule:
+    - cron: '23 */6 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Audit all registered catalogs, chapter assets, source tips and links
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root='dist',index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+          const files=fs.readdirSync(root).filter(f=>/^licensed-.*\.js$/.test(f)&&index.includes(f));
+          const issues=[],warnings=[],rows=[];
+          for(const file of files){
+            const js=fs.readFileSync(path.join(root,file),'utf8');
+            const match=js.match(/const novel = (\{.*\});\s*const index/s);
+            if(!match){issues.push(file+': cannot parse catalog');continue}
+            let n;try{n=JSON.parse(match[1])}catch(e){issues.push(file+': invalid JSON');continue}
+            const chapters=n.chapters||[],numbers=chapters.map(c=>Number(c.number));
+            const available=chapters.filter(c=>!c.removedDuplicate).length;
+            if(numbers.some((v,i)=>!Number.isInteger(v)||v!==i+1))issues.push(n.id+': chapter numbering not consecutive');
+            const source=Math.max(Number(n.sourceActivityChapter)||0,Number(n.sourceReleaseNumber)||0,Number(n.sourceObservedChapter)||0);
+            if(source>chapters.length)warnings.push(n.id+': source '+source+' / locally indexed '+chapters.length+' (gap '+(source-chapters.length)+')');
+            if(n.lazyChunks?.prefix){
+              const prefix=n.lazyChunks.prefix;
+              const capacity=Number(n.lazyChunks.capacity)||100;
+              for(let i=0;i<chapters.length;i+=capacity){
+                const suffix=String(Math.floor(i/capacity)+1).padStart(2,'0');
+                const asset=path.join(root,prefix+suffix+'.js');
+                if(!fs.existsSync(asset)){issues.push(n.id+': missing '+asset);continue}
+                const body=fs.readFileSync(asset,'utf8');
+                for(let j=i;j<Math.min(i+capacity,chapters.length);j++){
+                  const number=chapters[j].number;
+                  if(!body.includes('"number":'+number))issues.push(n.id+': chapter '+number+' absent from '+asset);
+                }
+              }
+            }
+            rows.push({id:n.id,chapters:chapters.length,available,source,gap:Math.max(0,source-chapters.length)});
+          }
+          rows.sort((a,b)=>b.gap-a.gap);
+          const summary=['# NovelHaven chapter audit','Catalogs checked: '+rows.length,'Critical errors: '+issues.length,'Source/import gaps: '+warnings.length,'','## Largest source/import gaps',...rows.filter(r=>r.gap).slice(0,100).map(r=>'- '+r.id+': source '+r.source+', indexed '+r.chapters+', gap '+r.gap),'','## Critical errors',...issues.map(v=>'- '+v)];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,summary.join('\n')+'\n');
+          console.log(summary.join('\n'));
+          if(issues.length)process.exitCode=1;
+          JS
