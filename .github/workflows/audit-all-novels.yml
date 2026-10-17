@@ -1,0 +1,48 @@
+name: Audit all NovelHaven novels
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 1 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-all-novels.yml'
+      - 'scripts/audit-all-novels.mjs'
+      - 'scripts/audit-all-novels-live.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: novelhaven-complete-catalog-audit
+  cancel-in-progress: true
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout current published catalog
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare source observations with every catalog chapter count
+        run: node scripts/audit-all-novels.mjs
+      - name: Validate every local chapter body, number, title, chunk and cover
+        run: node scripts/check.mjs
+      - name: Verify published novel details and final chapter routes
+        run: node scripts/audit-all-novels-live.mjs
+      - name: Attach complete novel-by-novel report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: novelhaven-all-novels-chapter-audit
+          path: |
+            all-novels-chapter-audit.json
+            all-novels-chapter-audit.md
+            all-novels-live-audit.json
+          if-no-files-found: warn
+      - name: Safety summary
+        if: always()
+        run: |
+          echo 'Read-only: no novels, chapters, bookmarks, Firebase settings or AdSense configuration were changed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Source comparisons use the most recently recorded source observations and may not represent the exact live source tip.' >> "$GITHUB_STEP_SUMMARY"
