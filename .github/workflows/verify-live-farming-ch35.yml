@@ -1,0 +1,40 @@
+name: Verify live Farming chapter 35
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - 'Publish verified NovelHaven compatible Pages'
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify chapter files and reader routes on actual website
+        run: |
+          node --input-type=module <<'JS'
+          const origin='https://novelhaven.top';
+          const stamp=Date.now();
+          async function read(path){
+            const response=await fetch(origin+path+(path.includes('?')?'&':'?')+'v='+stamp,{
+              signal:AbortSignal.timeout(20000),
+              headers:{'Cache-Control':'no-cache','Accept':'*/*'}});
+            if(!response.ok)throw new Error(path+' returned HTTP '+response.status);
+            return response.text();
+          }
+          const metadata=await read('/licensed-akk-farming-immortality.js');
+          const chunk=await read('/data/akk-farming-immortality-chapters-01.js');
+          if(!metadata.includes('"number":34')||!metadata.includes('"number":35'))
+            throw new Error('Public novel metadata has not updated to Chapter 35');
+          for(const number of [34,35]){
+            const tail=chunk.split('"number":'+number)[1];
+            if(!tail||!tail.includes('"paragraphs":[')||tail.startsWith(',"paragraphs":["Loading chapter…"]'))
+              throw new Error('Live chapter '+number+' text asset missing or placeholder');
+            const reader=await read('/novel/farming-cultivating-immortality/chapter-'+number+'/');
+            if(reader.length<500)throw new Error('Reader route Chapter '+number+' is empty');
+          }
+          console.log('LIVE VERIFIED: Farming? No, She Is Cultivating Immortality Chapters 34 and 35 have metadata, real text assets, and reachable reader routes.');
+          JS
