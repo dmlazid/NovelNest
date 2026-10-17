@@ -23,8 +23,11 @@ async function check(n){
   if(!detail.toLowerCase().includes('<html'))throw Error('Novel detail was not HTML');
   if(!n.catalogScript)throw Error('No registered catalog file');
   const js=await get(n.catalogScript);
-  if(!js.includes('"id":"'+n.id+'"')||
-     !js.includes('"number":'+n.catalogChapters))throw Error('Live catalog metadata is out of date');
+  const idMatches=js.includes('"id":"'+n.id+'"')||
+    js.includes("const id = '"+n.id+"'")||
+    js.includes('const id = "'+n.id+'"');
+  if(!idMatches||!js.includes('"number":'+n.catalogChapters))
+    throw Error('Live catalog metadata is out of date');
   if(!n.lastChunk)throw Error('No chapter data asset');
   const chunk=await get(n.lastChunk);
   if(!chunk.includes('"number":'+n.lastReadable)||
