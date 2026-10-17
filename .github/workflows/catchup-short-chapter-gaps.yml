@@ -1,0 +1,79 @@
+name: Catch up short novel chapter gaps
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/catchup-short-chapter-gaps.yml'
+permissions:
+  contents: write
+concurrency:
+  group: novelhaven-short-source-chapter-gap-import
+  cancel-in-progress: false
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FWN_BATCH_SIZE: '10'
+      FWN_REQUEST_DELAY: '0.8'
+    steps:
+      - name: Check out latest approved chapters
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install source parser dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 Pillow
+      - name: Import only the three small, verified source gaps
+        run: |
+          set -euo pipefail
+          python scripts/import_freewebnovel_batch.py chaotic-sword-god
+          python scripts/import_freewebnovel_batch.py madams-identities
+          python scripts/import_freewebnovel_batch.py dimensional-keeper-all-my-skills-are-at-level-100
+      - name: Validate every novel and existing reader data
+        run: |
+          node scripts/check.mjs
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          required={
+            'chaotic-sword-god':4033,
+            'madams-identities':3980,
+            'dimensional-keeper-all-my-skills-are-at-level-100':2064
+          }
+          for key,needed in required.items():
+              path=Path('dist/licensed-fwn-'+key+'.js')
+              data=json.loads(path.read_text().split('const novel = ',1)[1].split(';\n  const index',1)[0])
+              count=len(data['chapters'])
+              if count<needed: raise SystemExit(key+' still at '+str(count)+'; no incomplete batch published')
+              print(key,'validated through chapter',count)
+          PY
+      - name: Commit validated chapters only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- dist/index.html \
+            dist/licensed-fwn-chaotic-sword-god.js \
+            dist/licensed-fwn-madams-identities.js \
+            dist/licensed-fwn-dimensional-keeper-all-my-skills-are-at-level-100.js \
+            dist/data/fwn-chaotic-sword-god-chapters-*.js \
+            dist/data/fwn-madams-identities-chapters-*.js \
+            dist/data/fwn-dimensional-keeper-all-my-skills-are-at-level-100-chapters-*.js
+          if git diff --cached --quiet; then
+            echo "Already current; no changes necessary." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "Catch up 3 verified FreeWebNovel chapter tips"
+          git fetch origin main
+          if ! git rebase origin/main; then
+            git rebase --abort || true
+            echo "::error::Concurrent publication conflict. No changes forced to production."
+            exit 1
+          fi
+          git push origin HEAD:main
+          echo "Three novels' verified source gaps caught up; normal production deployment will follow." >> "$GITHUB_STEP_SUMMARY"
