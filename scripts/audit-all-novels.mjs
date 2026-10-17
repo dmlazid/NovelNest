@@ -13,9 +13,11 @@ const scriptsById=new Map();
 for(const file of scriptPaths){
  if(!fs.existsSync(path.join(root,file)))throw Error('Catalog file absent: '+file);
  const code=read(file);
+ const before=new Set(scope.window.NOVELS.map(n=>n.id));
  vm.runInContext(code,scope,{filename:file,timeout:3000});
- const id=code.match(/"id":"([^"]+)"/)?.[1];
- if(id)scriptsById.set(id,file);
+ // Some older licensed catalogs declare const id='...' rather than JSON "id".
+ // Detect the actual published novel instead of assuming a metadata encoding.
+ for(const n of scope.window.NOVELS)if(!before.has(n.id))scriptsById.set(n.id,file);
 }
 const catalog=scope.window.NOVELS;
 if(!Array.isArray(catalog)||catalog.length<1)throw Error('Cannot inspect the active novel catalog');
