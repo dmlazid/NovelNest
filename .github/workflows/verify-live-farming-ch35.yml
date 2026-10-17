@@ -1,6 +1,9 @@
 name: Verify live Farming chapter 35
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-live-farming-ch35.yml']
   workflow_run:
     workflows:
       - 'Publish verified NovelHaven compatible Pages'
