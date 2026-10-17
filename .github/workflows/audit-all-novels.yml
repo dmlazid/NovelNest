@@ -1,4 +1,5 @@
 name: Audit all NovelHaven novels
+# Recheck production after short chapter-gap repairs.
 on:
   workflow_dispatch:
   schedule:
