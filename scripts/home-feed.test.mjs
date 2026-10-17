@@ -35,7 +35,7 @@ test('unavailable newly released chapter never points to a nonexistent local cha
   const view=harness([source('waiting',{sourceReleaseNumber:10,sourceReleaseTitle:'Chapter 10: New'}),source('ready')]);
   const waiting=view('homeReleaseRow(novels[0])');
   assert.match(waiting,/href="\/novel\/waiting\/"/);
-  assert.match(waiting,/Syncing chapter to NovelHaven/);
+  assert.match(waiting,/Available through Chapter 2/);
   const ready=view('homeReleaseRow(novels[1])');
   assert.match(ready,/href="\/novel\/ready\/chapter-3\/"/);
   assert.match(ready,/>4 mins ago<\/time>/);
