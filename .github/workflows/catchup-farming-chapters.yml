@@ -1,0 +1,83 @@
+name: Catch up Farming novel chapters
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/catchup-farming-chapters.yml'
+permissions:
+  contents: write
+concurrency:
+  group: novelhaven-farming-priority
+  cancel-in-progress: false
+jobs:
+  catch-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out latest reader and importer
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install importer dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 Pillow
+      - name: Fetch and validate next chapters without inventing content
+        env:
+          AKKNOVEL_BATCH_SIZE: '100'
+          AKKNOVEL_REBUILD: '0'
+          AKKNOVEL_REQUEST_DELAY: '0.8'
+        run: |
+          set -euo pipefail
+          python scripts/import_akknovel.py farming-immortality
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('dist/licensed-akk-farming-immortality.js')
+          t=p.read_text()
+          obj=json.loads(t.split('const novel = ',1)[1].split(';\n  const index',1)[0])
+          chapters=obj['chapters']
+          numbers=[x['number'] for x in chapters]
+          if numbers != list(range(1,len(numbers)+1)):
+              raise SystemExit('Nonconsecutive chapter index; abort publication.')
+          if len(numbers)<35:
+              raise SystemExit('Source did not provide Chapters 34–35 yet; publication halted without fake chapters.')
+          files=sorted(Path('dist/data').glob('akk-farming-immortality-chapters-*.js'))
+          if not files:
+              raise SystemExit('Missing hydrated chapter asset.')
+          for number in (34,35):
+              if not any(('"number":'+str(number)) in file.read_text() for file in files):
+                  raise SystemExit(f'Missing complete chapter {number} from source.')
+          print('Verified: Farming chapters 34 and 35 are indexed and stored in the real lazy-chapter files.')
+          PY
+          node scripts/check.mjs
+      - name: Commit only validated novel files and deploy through existing pipeline
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- dist/licensed-akk-farming-immortality.js dist/data/akk-farming-immortality-chapters-*.js dist/index.html
+          if git diff --cached --quiet; then
+            echo 'Chapters are already up to date.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "Catch up Farming novel with verified source chapters 34–35"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              echo "::error::Concurrent edit conflicts with importer; no unsafe overwrite performed."
+              exit 1
+            fi
+            if git push origin HEAD:main; then
+              echo 'Imported chapters 34–35 and pushed validated catalog. Normal production deployment follows.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::Could not push chapter update safely."
+          exit 1
